@@ -15,7 +15,7 @@ d KW: electoral survey research
 d
 d Requires: Stata version 9.0 and the vallist and estout packages (q.v.)
 d
-d Distribution-Date: 20150914
+d Distribution-Date: 20160210
 d
 d Author: Lorenzo De Sio, European University Institute
 d Support: email lorenzo.desio@@eui.eu
@@ -28,9 +28,12 @@ f gendist.ado
 f gendist.sthlp
 f gendummies.ado
 f gendummies.sthlp
-f genstacks.ado
-f genstacks.sthlp
 f genyhats.ado
 f genyhats.sthlp
 f iimpute.ado
 f iimpute.sthlp
+f genstacks.ado
+f genstacks.sthlp
+f genmeans.ado
+f genplace.ado
+
