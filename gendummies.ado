@@ -10,9 +10,8 @@ program define gendummies
 	local varname = "`varlist'"
 
 	confirm numeric variable `varname'
-	quietly levelsof `varname'
-	local values = r(levels)
-	
+	quietly levelsof `varname', local(values)
+		
 	local thePrefix = "`varname'"
 	if ("`prefix'"!="") {
 		local thePrefix = "`prefix'"

@@ -3,6 +3,7 @@ program define createImputedCopy
 	version 9.0
 	syntax varname, type(string) imputeprefix(name)
 	
+	capture drop `imputeprefix'`varlist'
 	quietly clonevar `imputeprefix'`varlist' = `varlist' 
 	local varlab : variable label `varlist'
 	local newlab = "* MEAN-PLUGGED (`type') * " + "`varlab'"
@@ -126,6 +127,7 @@ program define gendist
 	// create empty variables regardless of context
 	if ("`missing'"!="") {
 		foreach var of varlist `varlist' {
+			capture drop `fullDistancePref'`var'
 			capture quietly gen `fullDistancePref'`var' = .
 			local newlab = "Euclidean distance between `respondent' and `imputePref'`var'"
 			label variable `fullDistancePref'`var' "`newlab'"
@@ -133,6 +135,7 @@ program define gendist
 	} 
 	else {
 		foreach var of varlist `varlist' {
+			capture drop `fullDistancePref'`var'
 			capture quietly gen `fullDistancePref'`var' = .
 			local newlab = "Euclidean distance between `respondent' and `var'"
 			label variable `fullDistancePref'`var' "`newlab'"

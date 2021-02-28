@@ -26,16 +26,23 @@ program define genstacks
 				local varexists = 0
 				if (`varexists'!=`previousvarsize') local diffsize = 1
 				
+				//display "`stub'*"
+				
+				
+				
 				foreach var of varlist `stub'* {
 					
 					// if what comes after the stub is not numeric, skip
 					// this is useful if different batteries share part of the stub (e.g. rsym and rsymp)
 					local strindex = substr("`var'",strlen("`stub'")+1,.)
 					//display "`strindex'"
+					
 					if (real("`strindex'")==.) continue
 					
 					local varexists = `varexists' + 1
 				}
+				
+				
 				if (`varexists'==0) {
 					// unreachable anyway: it stops earlier with an error 
 					display "No variables starting with {bf:`stub'}"
@@ -61,14 +68,20 @@ program define genstacks
 		
 		
 		
-		local itemlist = ""
+		//local itemlist = ""
+				
 		foreach var of varlist `firststub'* {
 			local strindex = substr("`var'",strlen("`firststub'")+1,.)
 			if (real("`strindex'")==.) continue
-			local itemlist = "`itemlist'`strindex',"
+			
+			//local itemlist = "`itemlist'`strindex',"
+			local itemlist `itemlist' `strindex'
+			
 		}
 		// remove extra comma
-		local itemlist = substr("`itemlist'",1,strlen("`itemlist'")-1)
+		//local itemlist = substr("`itemlist'",1,strlen("`itemlist'")-1)
+		
+		display "***`itemlist'***"
 		
 		local error = 0
 		
@@ -79,7 +92,14 @@ program define genstacks
 				
 				if (real("`strindex'")==.) continue
 				
-				if (inlist(real("`strindex'"),`itemlist')==0) {
+				local thisindex = real("`strindex'")
+				local thislist `thisindex'
+				
+				local isinlist : list thislist in itemlist
+				
+				display "--(`isinlist')--`thislist' > `itemlist'"
+				//if (inlist(real("`strindex'"),`itemlist')==0) {
+				if (`isinlist'==0) {
 					display "ERROR: battery {bf:`stub'} includes item with code {bf:`strindex'}, which is not present in master battery {bf:`firststub'}.{break}"
 					local error = 1
 				}
@@ -99,11 +119,13 @@ program define genstacks
 	display "{text}{pstd}"
 	
 	
+	capture drop _respid
 	egen _respid=fill(1/2)
 	local stkvars = "_respid"
 	
 	if ("`contextvars'" == "") {
 		//display "not set"
+		capture drop _ctx_temp
 		gen _ctx_temp = 1
 		local ctxvar = "_ctx_temp"
 		//local stkvars = "_ctx_temp `stackvars'"
@@ -125,18 +147,23 @@ program define genstacks
 	quietly levelsof `ctxvar', local(contexts)
 	
 	// stacked variable "party" can be different from stacked variable "stack", if parties are not always used consecutively!!!
+	capture drop genstacks_stack
+	capture drop genstacks_item
+	
 	quietly generate genstacks_stack = .
 	quietly generate genstacks_item = .
 	
 	// create stacked variables
 	foreach stub of local namelist {
 		display "Creating empty stacked variable {result:`stub'}..." _continue
+		capture drop `stub'
 		quietly gen `stub' = .
 		display "done.{break}"
 	}	
 	
 	display ""
 	
+	capture drop genstacks_totstacks
 	generate genstacks_totstacks = .
 	
 	// now the beef.
@@ -298,6 +325,7 @@ program define genstacks
 		display "to variables "
 		foreach var of local fe {
 			display "`var'..."
+			capture drop `fpref'`var'
 			bysort _respid: egen `fpref'`var' = mean(`var')
 			replace `var' = `var' - `fpref'`var'
 		}
@@ -317,18 +345,25 @@ program define genstacks
 		capture drop _ctx_temp
 	//}
 	
+	// NOTE: this drops existing variables if the user specifies them as names of variables to create,
+	// and does so without requiring a "replace" option (this might be contra Stata practices)
+	
 	if ("`stackid'"!="") {
+		capture drop `stackid'
 		rename genstacks_stack `stackid'
 	}
 	
 	if ("`itemname'"!="") {
+		capture drop `itemname'
 		rename genstacks_item `itemname'
 	} 
 
 	if ("`totstackname'"!="") {
+		capture drop `totstackname'
 		rename genstacks_totstacks `totstackname'
 	}
 	else {
+		capture drop genstacks_nstacks
 		rename genstacks_totstacks genstacks_nstacks
 	}
 

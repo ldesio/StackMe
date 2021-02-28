@@ -157,6 +157,7 @@ program define iimpute_body
 			local missingCounts = ""
 			// count missing cases for each PTV
 			foreach thisptv in `usedPTVs' {
+				
 				local column = `column' + 1
 				quietly count if missing(`thisptv') & `missingcountname'==`numMissing' & `contextvar'==`context'
 				quietly return list
@@ -184,7 +185,10 @@ program define iimpute_body
 				local thisPTV = subinstr("`numMissingPTV'", "`thisMissingCountTMP'_","",.)
 				//local thisPTV = word("`missingInfo'",2)
 				
-				if `thisMissingCount' > 0 {
+				//display " (`thisPTV') "
+				
+				
+				if (`thisMissingCount' > 0) & (strpos("`numMissingPTV'","_")>0) {
 					if (`showDiag'==1) {
 						display "{break}`thisPTV' (missing in `thisMissingCount' obs)... " _continue
 					}

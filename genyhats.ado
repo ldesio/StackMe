@@ -3,6 +3,10 @@ program npredcent, byable(recall, noheader)    /* Program to predict and center 
 	version 9.0
 	syntax varlist [if] , REPlace(name) [contextvars(string)] [center(string)] [logit] [stackname(name)] [effects(string)] [NOStacks] [STAckid(varname)]
 	
+	// version 11?
+	// syntax varlist(fv) [if] , REPlace(name) [contextvars(string)] [center(string)] [logit] [stackname(name)] [effects(string)] [NOStacks] [STAckid(varname)]
+		
+
 	//display in smcl
 	//display as text
 	//display " " _byn1() "-" _byn2()
@@ -35,9 +39,10 @@ program npredcent, byable(recall, noheader)    /* Program to predict and center 
 		quietly levelsof genstacks_item if `touse' 
 		quietly capture vallist genstacks_item if genstacks_item == `r(levels)'
 		local partyname = ""
-		//local partyname = strtoname("`r(list)'",1)
-		//display "here"
-	
+		
+		// did it break anything?
+		//local partyname = substr(strtoname("`r(list)'",1),1,10)
+		
 	}
 	else {
 		if ("`nostacks'" != "") {
@@ -47,12 +52,14 @@ program npredcent, byable(recall, noheader)    /* Program to predict and center 
 			if ("`stackid'"!="") {
 				quietly levelsof `stackid' if `touse' 
 				local partyname = ""
-				//local partyname = strtoname("Stack `r(levels)'",1)
+				// did it break anything?
+				local partyname = strtoname("Stack `r(levels)'",1)
 			}
 			else {
 				quietly levelsof genstacks_stack if `touse' 
 				local partyname = ""
-				//local partyname = strtoname("Stack `r(levels)'",1)
+				// did it break anything?
+				local partyname = strtoname("Stack `r(levels)'",1)
 			}
 		}
 	}
@@ -60,7 +67,8 @@ program npredcent, byable(recall, noheader)    /* Program to predict and center 
 	display "there"
 	
 	
-	if ("`groupnum'"!="") {
+	if (_by()==1) {
+	// if ("`groupnum'"!="") {
 		local groupnum = _byindex()
 		local partyname = "_`groupnum'_`partyname'"
 	}
@@ -276,8 +284,11 @@ program define genyhats, sortpreserve
 		else {
 			//display "Unpiped syntax detected."
 			gettoken string anything : anything
-			local yhat = "`yyprefix'`string'"
-			local indepvars `string'
+			
+			local stringname=strtoname("`string'")
+			local yhat = "`yyprefix'`stringname'"
+			
+			local indepvars = "`string'"		
 		}
 		
 		display "{pstd}{text}"
@@ -343,7 +354,7 @@ program define genyhats, sortpreserve
 					if ("`efmt'"!="") {
 						local cellfmt = "`efmt'"
 					}
-					esttab `usefile', cells("`cellfmt'") pr2(%8.3f) mtitles replace compress wide onecell plain
+					esttab `usefile', cells("`cellfmt'") pr2(%8.3f) mtitles replace compress wide onecell plain label
 				}
 				else {
 					local cellfmt = "z(fmt(3) star)"
@@ -351,10 +362,10 @@ program define genyhats, sortpreserve
 						local cellfmt = "`efmt'"
 					}
 					if ("`efmt'"=="beta") {
-						esttab `usefile', beta(%8.3f) not constant star ar2(%8.3f) mtitles replace compress wide onecell plain
+						esttab `usefile', beta(%8.3f) not constant star ar2(%8.3f) mtitles replace compress wide onecell plain label
 					}
 					else {
-						esttab `usefile', cells("`cellfmt'") ar2(%8.3f) constant mtitles replace compress wide onecell plain
+						esttab `usefile', cells("`cellfmt'") ar2(%8.3f) constant mtitles replace compress wide onecell plain label
 					}
 				}
 				//esttab , se ar2 b(3) wide nostar label mtitles replace compress plain
