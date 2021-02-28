@@ -24,7 +24,7 @@ program define genstacks
 			local previousvarsize = 0
 			foreach stub of local namelist {
 				local varexists = 0
-				if (`varexists'!=`previousvarsize') local diffsize = 1
+
 				
 				//display "`stub'*"
 				
@@ -51,6 +51,12 @@ program define genstacks
 				else {
 					display "Battery {bf:`stub'} contains `varexists' variables{break}"
 				}
+				
+				
+				// LDS Jan 2020: moved here (standard practice: it previously was at the beginning the loop, where it did not make sens), and added nonzero check. Now it works.
+				if (`previousvarsize'!=0 & `varexists'!=`previousvarsize') local diffsize = 1		
+				
+				
 				local previousvarsize = `varexists'
 			}
 			display ""
@@ -302,11 +308,20 @@ program define genstacks
 	// optionally dropping original vars
 	if ("`replace'"=="replace") {
 		display "{text}{pstd}"
+		
+		// LDS Jan 2020: now splitted into three separate loops, to prevent that bulk battery drop actually drops new generic variables
+		
+		// preserve new, stacked vars (they have plain stub names)
 		foreach stub of local namelist {
-			// preserve new, stacked vars (they have plain stub names)
 			quietly rename `stub' tmp`stub'
+		}
+		foreach stub of local namelist {
 			display "As requested, dropping {result:`stub'*}.{break}"
-			drop `stub'*	
+			
+			// LDS Jan 2020: this can fail if two batteries share part of the stub (e.g. PSYM and PSYML): so "capture" was added
+			capture drop `stub'*	
+		}
+		foreach stub of local namelist {
 			quietly rename tmp`stub' `stub' 
 		}
 	}
