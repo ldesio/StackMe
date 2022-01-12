@@ -1,18 +1,20 @@
 {smcl}
-{cmd:help ptvtools}
+{cmd:help stackme}
 {hline}
 
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
-{p2col :ptvtools {hline 2}}Various tools for PTV analysis{p_end}
+{p2col :stackme {hline 2}}Various tools for stacked data analysis{p_end}
 {p2colreset}{...}
 
 {title:Introduction}
 
 {pstd}
-The {cmd:ptvtools} package is a small collection of tools for the analysis of PTVs.
-In electoral survey research, this acronym refers to Propensities To Vote, batteries
+The {cmd:stackme} package is a small collection of tools for the analysis of stacked data.
+This type of analysis is also strongly related to the notion of PTVs (hence the original
+PTVTools package, the developed into StackMe).
+In electoral survey research, the PTV acronym refers to Propensities To Vote, batteries
 of items concerning the self-reported probability that the respondent will {it:ever} 
 vote for a specific party, and intended as indicators of what Downs (1957) referred
 to as "electoral utilities" (see van der Eijk and Franklin, Choosing Europe, 
