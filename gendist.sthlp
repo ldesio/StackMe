@@ -48,7 +48,8 @@ after the generation of distances.
 contain the placement of different objects on the spatial scale and the variable specified in {bf:respondent} 
 contains the self-placement of the respondent on the same spatial scale. Distances between the respondent 
 and each spatial item in the battery are placed in corresponding members of a new battery of items. Only 
-one battery of items can be processed on a single invocation of {cmd:gendist}.
+one battery of items can be processed on a single invocation of {cmd:gendist} unless that command is issued
+after stacking, in which case several lists can be specified.
 
 {pstd}
 The items in the new battery are given names derived from appending the names in {it:varlist} to the
