@@ -184,6 +184,11 @@ program define gendist
 				if ("`round'"=="round") local theMean = round(`theMean')
 				
 				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==. & `ctxvar'==`context'
+				
+				// now this also replaces with the mean, even for cases
+				// where party was placed the same as the respondent
+				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==`respondent' & `ctxvar'==`context'
+				
 				capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent') if `ctxvar'==`context'
 				
 				display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
