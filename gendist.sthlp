@@ -129,7 +129,9 @@ calculated on the whole sample.{break}
 calculated only among those respondents that placed themselves on the same position as the object.{break}
   If {bf:diff} is specified, missing values are replaced with the mean placement of the object,
 calculated only among those respondents who placed themselves on a different position than the object  
-(see discussion under 'Description' above regarding choice between these options).{break}
+(see discussion under 'Description' above regarding choice between these options).
+NOTE: this replacement is also applied to respondents that placed the party on the very same position of 
+their self-placement.{break}
   When missing values are plugged, a set of p_{it:varlist} variables is generated, and the original
 variables are left unchanged (the p_ prefix can be altered by use of the option {bf:pprefix}).{break}
 NOTE: More sophisticated imputation facilites are offered by {bf:{help iimpute:iimpute}}.
