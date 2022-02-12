@@ -41,7 +41,7 @@ genstacks_totstacks){p_end}
 
 {pstd}Sets of variables (aka batteries), each set identified by one of the stubs specified in 
 {it:namelist}, will be reshaped into what Stata calls a 'long' format (see {help reshape:reshape}). 
-Suffixes identifying the individual variables in each set are retained as item identifiers 
+Stub suffixes identifying the individual variables in each set are retained as item identifiers 
 in the reshaped data. By default, suffixes must be identical for each set of variables - typically 
 these are numbers running from 1 to the number of variables in the set. This requirement can be 
 relaxed by specifying the {cmd:nockeck} option, in which case variables omitted from a battery will 
@@ -50,8 +50,8 @@ must, however, contain all variable suffixes included in any subsequent battery 
 including variables with all missing data codes - and each suffix employed in subsequent batteries 
 must match one of the suffixes for variables in the first battery. {break}
 
-{pstd}All other variables (those not identified by stubs in {it:namelist}) are copied onto all stacks 
-(it is advisable to drop unwanted variables before stacking as the dataset expands K-fold 
+{pstd}All other variables (those not identified by stubs in {it:namelist}) are duplicated across all 
+stacks (it is advisable to drop unwanted variables before stacking as the dataset expands K-fold 
 where K is the number of variables in each set). If the {cmd:contextvars} option is specified, 
 the procedure is applied separately to each electoral context identified by {cmd:contextvars}. 
 Typically these will be different countries, or different countries within different years.{break}
@@ -69,7 +69,7 @@ dependent variables by means of the numeric suffix appended to the stubname for 
 thus essential that these numeric suffixes relate to the same objects for each battery. By default 
 {cmd:genstacks} also requires all batteries to contain the same number of items. However it cannot  
 check that the numeric suffixes are correct. It is important to be aware that, in datasets 
-derived from election studies, it is quite common for some questions (eg about party locations on certain 
+derived from election studies, it is quite common for some questions (eg about party positions on certain 
 issues) to be asked only for a subset of the objects being investigated (eg parties). Moreover, those 
 objects and questions relating to those objects may not always be listed in the same order. So counting 
 on the relative position of each item to retain the same meanings across batteries may lead to grievous 
