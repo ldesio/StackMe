@@ -83,7 +83,8 @@ values being plugged with a mean that combined the values of what were (before s
 variables.
 
 {pstd}
-SPECIAL NOTE ON MULTIPLE BATTERIES. Gendist is only aware of the battery it is currently processing. Thus 
+SPECIAL NOTE ON MULTIPLE BATTERIES. Even when {cmd:gendist} is invoked to process multiple batteries after 
+stacking, it is only aware of one battery at a time: the battery it is currently processing. Thus 
 it cannot diagnose an error if that battery is of a different length than other batteries of items 
 pertaining to the objects (eg political parties) being asked about. Yet stacked datasets (the type of 
 datasets for which distances are wanted) absolutely require all batteries pertaining to the objects being 
