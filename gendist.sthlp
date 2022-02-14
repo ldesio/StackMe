@@ -67,9 +67,11 @@ specified in option {bf:missing}.
 Conventionally in published work the plugged value has been based on all placements. However, it might be 
 thought that respondents having the same position would be more knowledgeable about the object concerned. 
 Alternatively it might be thought that respondents having the same position might include individuals who  
-were simply assuming that 'their' party had the same position as they did. Each of the {bf:missing} 
-options is defensible theoretically so the user should think carefully about which to employ. The default 
-is not to plug the missing data, so that distances are generated only for valid cases.
+were simply assuming that 'their' party had the same position as they did. But then it becomes logical to
+also treat as missing data the nonmissing party placements of respondents who place the party where they
+place themselves. That is what this option achieves, plugging more cases than the other options. Each of 
+the {bf:missing} options is defensible theoretically so the user should think carefully about which to 
+employ. The default is not to plug the missing data, so that distances are generated only for valid cases.
 
 {pstd}
 The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
