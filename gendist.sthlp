@@ -119,8 +119,8 @@ of items.
 (e.g. country and year). By default all cases are assumed to belong to the same context.
 
 {phang}
-{opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to Stata's 
-{bf:{help reshape:reshape long}'s it:j} index) for which distances will be separately generated in the absence 
+{opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to the Stata 
+{bf:{help reshape:reshape long}}'s {it:j} index) for which distances will be separately generated in the absence 
 of the {cmd:nostack} option. The default is to use the "genstacks_stack" variable if the {cmd:gendist} command 
 is issued after stacking.
 
