@@ -44,13 +44,13 @@ after the generation of distances.
 {title:Description}
 
 {pstd}
-{cmd:gendist} generates Euclidean distances for a battery of spatial items (after stacking it can process 
-multiple batteries, as explained below) where variables in {bf:{it:varlist}}
-contain the placement of different objects on the spatial scale and the variable specified in {bf:respondent} 
-contains the self-placement of the respondent on the same spatial scale. Distances between the respondent 
-and each spatial item in the battery are placed in corresponding members of a new battery of items. Only 
-one battery of items can be processed on a single invocation of {cmd:gendist} unless that command is issued
-after stacking, in which case several batteries can be specified using the stubnames created when stacking.
+{cmd:gendist} generates Euclidean distances between positions (e.g. left-right positions) given in variables 
+that are members of battery(s) of spatial items (named in {it:varlist}) and the variable (named in 
+{bf:respondent} that contains the self-placement of the respondent on the same spatial scale. Distances 
+between the respondent and each spatial item in a battery are assigned to corresponding members of a new 
+battery of items. Only one battery of items can be processed on a single invocation of {cmd:gendist} unless 
+that command is issued after stacking, in which case several batteries can be specified using the stubnames 
+created when stacking.
 
 {pstd}
 The items in the new battery are given names derived from appending the names in {it:varlist} to the
@@ -58,24 +58,23 @@ prefix established in option {bf:dprefix} (default {it:d_}).
 
 {pstd}
 If optioned by {bf:missing}, {cmd:gendist} also generates a new battery of items with the prefix established 
-in option {bf:pprefix} (default {it:p_}) which is identical to the original battery but with missing values 
-plugged by mean values. These plugging values can be mean placements (e.g. of political parties on the left-
-right scale) made by {it:all} respondents, mean placements made by respondents who place themselves at the {it:same} 
-position as the object being placed, or mean placements made by respondents who place themselves at a 
-{it:different} position, depending on what is specified in option {bf:missing}. If the plugging values were 
+in option {bf:pprefix} (default {it:p_}) which is largely identical to the original battery but with missing 
+values plugged by mean values. These plugging values can be mean placements (e.g. of political parties on the 
+left-right scale) made by {it:all} respondents, mean placements made by respondents who place themselves at 
+the {it:same} position as the object being placed, or mean placements made by respondents who place themselves 
+at a {it:different} position, depending on what is specified in option {bf:missing}. If the plugging values were 
 derived from respondents placing themselves differently then {it:same} respondents are considered to be missing 
-and their placements are replaced by the plugging value (see discussion below and under {bf:Options} for more 
-details).
+and their placements are replaced by the plugging value (see discussions below and details under {bf:Options}).
 
 {pstd}
 Conventionally in published work the plugged value has been based on all placements. However, it might be 
 thought that respondents having the same position would be more knowledgeable about the object concerned. 
 Alternatively it might be thought that respondents having the same position might include individuals who  
-were simply assuming that 'their' party had the same position as they did. But this implies that placements
-the non-missing of such parties also also be treated as missing. That is what this option achieves, plugging 
+simply assumed that 'their' party had the same position as they did. But this implies that non-missing 
+placements of such parties also should be treated as missing. That is what this option achieves, plugging 
 more cases than the other options. Each of the {bf:missing} options is defensible theoretically so the user 
 should think carefully about which to employ. The default is not to plug the missing data, so that distances 
-are generated only responses that were initially non-missing.
+are generated only for responses that were initially non-missing.
 
 {pstd}
 The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
@@ -92,13 +91,13 @@ variables.
 SPECIAL NOTE ON MULTIPLE BATTERIES. Even when {cmd:gendist} is invoked to process multiple batteries after 
 stacking, it is only aware of one battery at a time: the battery it is currently processing. Thus 
 it cannot diagnose an error if that battery is of a different length than other batteries of items 
-pertaining to the objects (eg political parties) being asked about. Yet stacked datasets (the type of 
+pertaining to the objects (e.g. political parties) being asked about. Yet stacked datasets (the type of 
 datasets for which distances are wanted) absolutely require all batteries pertaining to the objects being 
 stacked to contain the same number of items and have these items in the same sequential order 
 ({cmd:gendist} can only produce stacks in the correct order, padded as needed with stacks that contain 
 only missing values, if the numeric suffixes to all batteries of items are correct). In datasets 
-derived from election studies is is quite common for some questions (eg. about party locations on certain 
-issues) to be asked only for a subset of the objects being investigated (eg. parties). Moreover, questions 
+derived from election studies is is quite common for some questions (e.g. about party locations on certain 
+issues) to be asked only for a subset of the objects being investigated (e.g. parties). Moreover, questions 
 relating to those objects may not always list them in the same order. If the user employs 
 {cmd:tab1} or {cmd:gendummies} to generate a battery of dummy variables corresponding to questions that 
 did not list all parties or listed them in a different order then not only may the number of items in 
@@ -116,13 +115,14 @@ multiple batteries in the help text for {bf:{help genstacks:genstacks}}.
 of items.
 
 {phang}
-{opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts
-(by default all cases are assumed to belong to the same context).
+{opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts 
+(e.g. country and year). By default all cases are assumed to belong to the same context.
 
 {phang}
-{opth stackid(varname)} if specified, a variable identifying different "stacks", for which distances will be 
-separately generated in the absence of the {cmd:nostack} option. The default is to use the "genstacks_stack" 
-variable if the {cmd:gendist} command is issued after stacking.
+{opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to Stata's 
+{bf:{help reshape:reshape long}}'s it:j} index) for which distances will be separately generated in the absence 
+of the {cmd:nostack} option. The default is to use the "genstacks_stack" variable if the {cmd:gendist} command 
+is issued after stacking.
 
 {phang}
 {opt nostack} if present, overrides the default behavior of treating each stack as a separate context (has 
@@ -132,20 +132,19 @@ no effect if data are not stacked).
 {opth missing(mean|same|diff)} if present, determines treatment of missing values for object placement variables
 (by default they remain missing).{break}
   If {bf:mean} is specified, missing values are replaced with the overall mean placement of that object,
-calculated on the whole sample.{break}
-  If {bf:same} is specified, missing values are replaced with the mean placement of the object,
-calculated only among those respondents that placed themselves on the same position as the object.{break}
+calculated across the whole sample.{break}
+  If {bf:same} is specified, missing values are replaced with the mean placement of the object, calculated
+only among those respondents who placed themselves at the same position as they placed the object.{break}
   If {bf:diff} is specified, missing values are replaced with the mean placement of the object,
-calculated only among those respondents who placed themselves on a different position than the object  
-(see discussion under 'Description' above regarding choice between these options).
-NOTE: this replacement is also applied to respondents that placed the party on the very same position of 
-their self-placement.{break}
+calculated only among those respondents who placed themselves on a different position as they placed the 
+object. This replacement is also applied to placements that were the same as respondents' self-placement on 
+the object. (See discussion under 'Description' above regarding choice between these options).{break}
   When missing values are plugged, a set of p_{it:varlist} variables is generated, and the original
 variables are left unchanged (the p_ prefix can be altered by use of the option {bf:pprefix}).{break}
 NOTE: More sophisticated imputation facilites are offered by {bf:{help iimpute:iimpute}}.
 
 {phang}
-{opt round} if present, causes rounding of all plugged values to the closest integer.
+{opt round} if present, causes rounding of all plugged values to the closest integer. 
 
 {phang}
 {opth dprefix(name)} if present, provides a prefix for generated distance variables (default is "d_").
@@ -155,7 +154,7 @@ NOTE: More sophisticated imputation facilites are offered by {bf:{help iimpute:i
 
 {phang}
 {opth mprefix(name)} if present, provides a prefix for generated variables indicating for each case whether, 
-before mean-plugging of an item in the battery, either the item placement or the respondent placement was 
+before mean-plugging an item in the battery, either the object placement or the respondent placement was 
 missing for that case (default is "m_").
 
 {phang}
@@ -166,7 +165,7 @@ missing items (default is "_gendist_mc"){p_end}
 {opth mpluggedcountname(name)} if specified, name of a generated variable reporting number of
 missing items after mean-plugging, which could still be non-zero (even after all missing values 
 on item positions have been plugged) if the respondent's own self-placement is missing (default is 
-"_gendist_mpc"){p_end}
+"_gendist_mpc").
 
 {phang}
 {opt replace} if specified, drops all party position and mean-plugged 
@@ -203,5 +202,5 @@ mean-plugging.{p_end}
 
 {phang}
 NOTE that a subsequent invocation of {cmd:gendist} will replace {it:_gendist_mc} and {it:_gendist_mpc} with 
-new counts of missing values for that invocation of {cmd:gendist}. So the user should save these 
-values after issuing the previous command, if the values will be of later interest.
+new counts of missing values for that invocation of {cmd:gendist}. So, if the values will be of later 
+interest, the user should save these values after issuing the previous command.
