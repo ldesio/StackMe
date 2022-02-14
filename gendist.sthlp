@@ -23,7 +23,7 @@ in the space (e.g. the issue space) in which items (e.g. the political parties) 
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
-separately generated if {cmd:gendist} is issued after stacking.{p_end}
+separately generated if {cmd:gendist} is invoked after stacking.{p_end}
 {synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context.{p_end}
 {synopt :{opt mis:sing(mean|same|diff)}}plugs missing values on object placements{p_end}
 {synopt :{opt rou:nd}}rounds plugged values to the nearest integer{p_end}
@@ -59,23 +59,23 @@ prefix established in option {bf:dprefix} (default {it:d_}).
 {pstd}
 If optioned by {bf:missing}, {cmd:gendist} also generates a new battery of items with the prefix established 
 in option {bf:pprefix} (default {it:p_}) which is identical to the original battery but with missing values 
-plugged by mean values. These mean values can be mean placements (e.g. of political parties on the left-right 
-scale) by all respondents, mean placements by respondents who themselves have the same position as the 
-placement, or mean placements by respondents themselves having a different position, depending on what is 
-specified in option {bf:missing}. If the plugging values were derived only from respondents placing 
-themselves at a different position than their placement of a party then placements of respondents who placed 
-themselves at the same position as they placed the party are considered to be missing and their placements 
-replaced by the plugging value (see discussion below and under {bf:Options} for more details).
+plugged by mean values. These plugging values can be mean placements (e.g. of political parties on the left-
+right scale) made by {it:all} respondents, mean placements made by respondents who place themselves at the {it:same} 
+position as the object being placed, or mean placements made by respondents who place themselves at a 
+{it:different} position, depending on what is specified in option {bf:missing}. If the plugging values were 
+derived from respondents placing themselves differently then {it:same} respondents are considered to be missing 
+and their placements are replaced by the plugging value (see discussion below and under {bf:Options} for more 
+details).
 
 {pstd}
 Conventionally in published work the plugged value has been based on all placements. However, it might be 
 thought that respondents having the same position would be more knowledgeable about the object concerned. 
 Alternatively it might be thought that respondents having the same position might include individuals who  
-were simply assuming that 'their' party had the same position as they did. But then it becomes logical to
-also treat as missing data the nonmissing party placements of respondents who place the party where they
-place themselves. That is what this option achieves, plugging more cases than the other options. Each of 
-the {bf:missing} options is defensible theoretically so the user should think carefully about which to 
-employ. The default is not to plug the missing data, so that distances are generated only for valid cases.
+were simply assuming that 'their' party had the same position as they did. But this implies that placements
+the non-missing of such parties also also be treated as missing. That is what this option achieves, plugging 
+more cases than the other options. Each of the {bf:missing} options is defensible theoretically so the user 
+should think carefully about which to employ. The default is not to plug the missing data, so that distances 
+are generated only responses that were initially non-missing.
 
 {pstd}
 The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
@@ -94,20 +94,20 @@ stacking, it is only aware of one battery at a time: the battery it is currently
 it cannot diagnose an error if that battery is of a different length than other batteries of items 
 pertaining to the objects (eg political parties) being asked about. Yet stacked datasets (the type of 
 datasets for which distances are wanted) absolutely require all batteries pertaining to the objects being 
-stacked to contain the same number of items and have these items in the correct sequential order 
-({cmd:gendist} will produce stacks in the correct order, padded as needed with stacks that contain only 
-missing values, if the numeric suffixes to all batteries of items are correct). In datasets 
-derived from election studies is is quite common for some questions (eg about party locations on certain 
-issues) to be asked only for a subset of the objects being investigated (eg parties). Moreover, questions 
+stacked to contain the same number of items and have these items in the same sequential order 
+({cmd:gendist} can only produce stacks in the correct order, padded as needed with stacks that contain 
+only missing values, if the numeric suffixes to all batteries of items are correct). In datasets 
+derived from election studies is is quite common for some questions (eg. about party locations on certain 
+issues) to be asked only for a subset of the objects being investigated (eg. parties). Moreover, questions 
 relating to those objects may not always list them in the same order. If the user employs 
 {cmd:tab1} or {cmd:gendummies} to generate a battery of dummy variables corresponding to questions that 
 did not list all parties or listed them in a different order then not only may the number of items in 
 the resulting battery be different from those in another battery but also the numeric suffixes generated 
-by {cmd:tab1} or {cmd:gendummies} may refer to different objects in the case of items from the different 
-batteries. One part of this problem is alleviated by the use of {bf:{help gendummies:gendummies}} which 
-generates dummy variable suffixes from the values actually found in the data, rather then numbering these 
-sequentially as does {cmd:tab1}. But those values do need to be correct, which only the user can check. 
-See also the special note on multiple batteries in the help text for {bf:{help genstacks:genstacks}}.
+by {cmd:tab1} or {cmd:gendummies} may refer to different objects. One part of this problem is 
+alleviated by the use of {bf:{help gendummies:gendummies}} which generates dummy variable suffixes from 
+the values actually found in the data, rather then numbering these sequentially as does {cmd:tab1}. 
+But those values do need to be correct, which only the user can check. See also the special note on 
+multiple batteries in the help text for {bf:{help genstacks:genstacks}}.
 
 {title:Options}
 
