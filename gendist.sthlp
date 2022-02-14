@@ -120,7 +120,7 @@ of items.
 
 {phang}
 {opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to Stata's 
-{bf:{help reshape:reshape long}}'s it:j} index) for which distances will be separately generated in the absence 
+{bf:{help reshape:reshape long}'s it:j} index) for which distances will be separately generated in the absence 
 of the {cmd:nostack} option. The default is to use the "genstacks_stack" variable if the {cmd:gendist} command 
 is issued after stacking.
 
@@ -136,7 +136,7 @@ calculated across the whole sample.{break}
   If {bf:same} is specified, missing values are replaced with the mean placement of the object, calculated
 only among those respondents who placed themselves at the same position as they placed the object.{break}
   If {bf:diff} is specified, missing values are replaced with the mean placement of the object,
-calculated only among those respondents who placed themselves on a different position as they placed the 
+calculated only among those respondents who placed themselves on a different position than they placed the 
 object. This replacement is also applied to placements that were the same as respondents' self-placement on 
 the object. (See discussion under 'Description' above regarding choice between these options).{break}
   When missing values are plugged, a set of p_{it:varlist} variables is generated, and the original
