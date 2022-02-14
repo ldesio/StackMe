@@ -203,4 +203,4 @@ mean-plugging.{p_end}
 {phang}
 NOTE that a subsequent invocation of {cmd:gendist} will replace {it:_gendist_mc} and {it:_gendist_mpc} with 
 new counts of missing values for that invocation of {cmd:gendist}. So, if the values will be of later 
-interest, the user should save these values after issuing the previous command.
+interest, the user should save those values after issuing the previous command.
