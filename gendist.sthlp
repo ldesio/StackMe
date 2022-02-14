@@ -44,7 +44,8 @@ after the generation of distances.
 {title:Description}
 
 {pstd}
-{cmd:gendist} generates Euclidean distances for a battery of spatial items, where variables in {bf:{it:varlist}}
+{cmd:gendist} generates Euclidean distances for a battery of spatial items (after stacking it can process 
+multiple batteries, as explained below) where variables in {bf:{it:varlist}}
 contain the placement of different objects on the spatial scale and the variable specified in {bf:respondent} 
 contains the self-placement of the respondent on the same spatial scale. Distances between the respondent 
 and each spatial item in the battery are placed in corresponding members of a new battery of items. Only 
@@ -61,7 +62,10 @@ in option {bf:pprefix} (default {it:p_}) which is identical to the original batt
 plugged by mean values. These mean values can be mean placements (e.g. of political parties on the left-right 
 scale) by all respondents, mean placements by respondents who themselves have the same position as the 
 placement, or mean placements by respondents themselves having a different position, depending on what is 
-specified in option {bf:missing}. 
+specified in option {bf:missing}. If the plugging values were derived only from respondents placing 
+themselves at a different position than their placement of a party then placements of respondents who placed 
+themselves at the same position as they placed the party are considered to be missing and their placements 
+replaced by the plugging value (see discussion below and under {bf:Options} for more details).
 
 {pstd}
 Conventionally in published work the plugged value has been based on all placements. However, it might be 
