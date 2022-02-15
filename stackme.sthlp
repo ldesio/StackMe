@@ -4,9 +4,9 @@
 
 {title:Title}
 
-{p2colset 5 20 22 2}{...}
-{p2col :stackme {hline 2}}Tools for creating, manipulationg and pre-processing stacked data-
-sets for hierarchical (multi-level) analysis{p_end}
+{p2colset 5 20 20 2}{...}
+{p2col :stackme {hline 2}}Tools for creating, manipulationg and pre-processing stacked 
+data-sets for hierarchical (multi-level) analysis{p_end}
 {p2colreset}{...}
 
 {title:Introduction}
@@ -27,18 +27,22 @@ van der Eijk and Franklin, Elections and Voters, Palgrave Macmillan 2009).{p_end
 Such analyses makes some specific demands both on the data and on the methods of analysis.{break}
 
 {pstd}
-Firstly, data {it:stacking} is usually involved, implying that - in Stata terminology - data
-are better analyzed when in {it:long} rather than in {it:wide} form (see {help reshape:reshape}).
-However, the tools facilitate reshaping of a dataset with multiple contexts, (eg. countries)
+Firstly, data {it:stacking} is usually involved, implying that - in Stata terminology - analysis 
+may call for data in {it:long} rather than in {it:wide} format (see {help reshape:reshape}).
+However, these tools facilitate reshaping of a dataset with multiple contexts, (eg. countries)
 each with possibly different numbers of items (eg. parties) in the battery(ies) to be stacked 
-(meaning that some items will have missing data for all cases in the context). After 
+(meaning that some items will have missing data for all cases in some contexts, a structure 
+that would be hard to accommodate without elaborating Stata's native commands). After 
 stacking (reshaping), each respondent is represented by multiple rows in the data matrix, one 
 for each of the items that, before stacking, was not entirely missing.{break}
 
 {pstd}
-Secondly, the dependent variable is usually not the propensity to vote for a particular party, 
-but for a {it:generic} party (yielding comparability across contexts if these involve different 
-party systems, as is common). This also affects {it:independent} variables, which have to be specially
+Secondly, the dependent variable is usually generalized to accommodate multiple contexts. Thus in
+electoral studies conducted in one country a researcher might study the sources of votes for a 
+particular political party; but with multiple countries having different party systems that question 
+would become what is it that leads to votes for a {it:generic} party – {it:any} party – yielding 
+comparability across contexts if these involve different party systems, as is common). This also 
+affects {it:independent} variables, which have to be specially
 treated - reformulated it terms of distances (proximities) or in terms of some other type of affinity, 
 for instance so-called {it:y-hats} - before they can be used in a stacked analysis. In this, ptv 
 analysis resembles analysis of discrete choice models for which it serves as a substitute, 
@@ -62,15 +66,15 @@ linking indepvars to ptvs{p_end}
 {p2col :{bf:{help gendummies:gendummies}}}generation of a set of dummy variables, with specific 
 options{p_end}
 {p2col :{bf:{help genmeans:genmeans}}}generation of mean values of variables across contexts (similar 
-to Stata's {cmd:egen} command with the {it:by} option, but permitting means to be weighted{p_end}
+to Stata's {cmd:egen} command with the {it:by} option, but permitting weighted means to be calculated{p_end}
 {p2col :{bf:{help genplace:genplace}}}generation of (optionally weighted) placements of (e.g.) political 
-parties according to the (likely diverse) placements made by individual respondents{p_end} with option 
-to weight those placements by respondent or other weights{break}
+parties according to the (likely diverse) placements made by individual respondents, with option 
+to weight those placements by respondent or other weights{p_end}{break}
 
 {pstd}
 These tools largely duplicate existing commands in Stata but operate on data with multiple contexts 
 (eg. countries) each of which requires separate treatment. Moreover, all of the commands in 
-{cmd:ptvtools} have additional features not readily duplicated with existing Stata commands even 
+{cmd:stackme} have additional features not readily duplicated with existing Stata commands even 
 for data that relate to a single context. If the {cmd:contextvars} option is not specified, each of 
 those individual tools treats the data as belonging to a single context.
 
@@ -90,10 +94,10 @@ start with the underscore character. These are  genstacks_stack, genstacks_item 
 
 {pstd}
 The {cmd:genstacks} command always operates on an unstacked dataset, reshaping it into a stacked format. 
-Other commands may operate either before or after stacking. No means is provided for unstacking a 
+Other commands may operate either before or after stacking. No means are provided for unstacking a 
 previously stacked dataset (a crude way to do this would be to drop all stacks beyond the first).{break}
 
-{pstd}The commands, {cmd:gendist}, {cmd:iimpute} and {cmd:genyhats} by default assume the data are stacked 
+{pstd}The commands {cmd:gendist}, {cmd:iimpute} and {cmd:genyhats} by default assume the data are stacked 
 and treat each stack as a separate context to be taken into account along with any higher-level contexts. 
 These commands can, however, be used on unstacked data or they can be forced to ignore the stacked structure 
 of the data by specifying the {cmd:nostack} option. This option has no effect on {cmd:gendummies} or on 
@@ -114,15 +118,15 @@ imputation of other members of the same battery;
 {cmd:iimpute}'s {it:addvars} option to help {cmd:iimpute} missing data on other variables;
 
 {pmore}(3) if {cmd:genyhats} or {cmd:gendist} are used before stacking, they will have to be used once 
-for each of the individual variables that will, after stacking, become a single (generic) depvar; 
+for each of the individual variables that will, after stacking, become a single (generic) variable; 
 
 {pmore}(4) if {cmd:gendist} is employed after stacking, the items to which distances are computed 
 have themselves to have been reshaped into long format by stacking them; and finally
 
 {pmore}
-(5) after stacking and the generation of y-hat affinity variables, the number of indeps required for 
+(5) after stacking and the generation of y-hat affinity variables, the number of variables required for 
 a final (set of) {cmd:MI} command(s) will generally be greatly reduced, reducing the time needed for 
-multiple imputation in what are generally very large datasets (see SPECIAL NOTE ON MULTIOLE VERSUS 
+multiple imputation for what are generally very large datasets (see SPECIAL NOTE ON MULTIOLE VERSUS 
 SINGLE IMPUTATION in {bf:{help{iimpute:iimpute}}}.
 
 {pstd}
