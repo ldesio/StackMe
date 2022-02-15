@@ -18,18 +18,17 @@
 {synoptset 22 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth con:textvars(varlist)}}the variables identifying different electoral contexts 
-(leave unspecified for conventional datasets with only one context){p_end}
+{synopt :{opth con:textvars(varlist)}}the variables identifying different higher-level 
+contexts (leave unspecified for conventional datasets with only one level/context){p_end}
 {synopt :{opt rep:lace}}drops original variable sets after reshaping them{p_end}
 {synopt :{opth sta:ckid(name)}}provides a variable name for the generated variable 
 identifying each specific stack in the reshaped dataset (default is genstacks_stack){p_end}
 {synopt :{opt noc:heck}}relaxes the requirement that all batteries to be reshaped contain 
-the same number of items. 
-identifying each specific stack in the reshaped dataset (default is genstacks_stack){p_end}
+the same number of items 
 {synopt :{opth ite:mname(name)}}provides a variable name for the generated variable 
 identifying the original item number before reshaping (default is genstacks_item){p_end}
 {synopt :{opth tot:stackname(name)}}provides a variable name for the generated variable 
-containing the total number of stacks found for each context(default is 
+containing the total number of stacks found for each context (default is 
 genstacks_totstacks){p_end}
 
 {synoptline}
@@ -37,51 +36,54 @@ genstacks_totstacks){p_end}
 {title:Description}
 
 {pstd}
-{cmd:genstacks} reshapes the current dataset to a stacked format for PTV analysis.{break}
+{cmd:genstacks} reshapes the current dataset to a stacked format for hierarchical analysis.{break}
 
 {pstd}Sets of variables (aka batteries), each set identified by one of the stubs specified in 
-{it:namelist}, will be reshaped into what Stata calls a 'long' format (see {help reshape:reshape}). 
-Stub suffixes identifying the individual variables in each set are retained as item identifiers 
-in the reshaped data. By default, suffixes must be identical for each set of variables - typically 
-these are numbers running from 1 to the number of variables in the set. This requirement can be 
-relaxed by specifying the {cmd:nockeck} option, in which case variables omitted from a battery will 
-be stacked as though a variable had been supplied whose values were all missing. The first battery 
-must, however, contain all variable suffixes included in any subsequent battery - if necessary by 
-including variables with all missing data codes - and each suffix employed in subsequent batteries 
-must match one of the suffixes for variables in the first battery. {break}
+{it:namelist}, will be reshaped into what Stata calls a 'long' format (see {help reshape:reshape long}). 
+Numeric suffixes for each stub identify the individual variables in each set and are retained as item 
+identifiers in the reshaped data. If the suffixes are alphabetic the variables must be renamed with 
+numeric suffixes before invoking {cmd:genstacks}. By default, suffixes must be identical for each set of 
+variables - typically these are numbers running from 1 to the number of variables in the set. This 
+requirement can be relaxed by specifying the {cmd:nockeck} option, in which case variables omitted from a 
+battery will be stacked as though a variable had been supplied whose values were all missing. The 
+first battery must, however, contain all variable suffixes included in any subsequent battery - if 
+necessary by including variables with all missing data codes - and each suffix employed in 
+subsequent batteries must match one of the suffixes for variables in the first battery. {break}
 
 {pstd}All other variables (those not identified by stubs in {it:namelist}) are duplicated across all 
-stacks (it is advisable to drop unwanted variables before stacking as the dataset expands K-fold 
-where K is the number of variables in each set). If the {cmd:contextvars} option is specified, 
-the procedure is applied separately to each electoral context identified by {cmd:contextvars}. 
-Typically these will be different countries, or different countries within different years.{break}
+stacks (it is advisable to drop unwanted variables before stacking as the dataset expands J-fold 
+where J is the number of variables in each set). If the {cmd:contextvars} option is specified, 
+the procedure is applied separately to each context identified by {cmd:contextvars}. Typically these 
+will identify different countries, or different years within different countries, or some such 
+higher level identifiers.{break}
 
 {pstd}{cmd:genstacks} constitutes something of a watershed within the {cmd:ptvtools} package, 
 since it reshapes the data from having a single stack per case to having multiple stacks 
-per case. No provision is made for unstacking a dataset once it has been stacked, but other 
-ptvtools commands can be used with either stacked or unstacked data.{break}
+per case. No provision is made for unstacking a dataset once it has been stacked (a crude way to do 
+this would be to drop all stacks other than the first), but other ptvtools commands can be used 
+with either stacked or unstacked data.{break}
 
 {pstd}See {help ptvtools:ptvtools} for a description of the workflow inherent in these commands.
 
 {pstd}
 SPECIAL NOTE ON MULTIPLE BATTERIES. {cmd:genstacks} identifies the items in a battery with corresponding 
-dependent variables by means of the numeric suffix appended to the stubname for each battery. It is 
-thus essential that these numeric suffixes relate to the same objects for each battery. By default 
-{cmd:genstacks} also requires all batteries to contain the same number of items. However it cannot  
-check that the numeric suffixes are correct. It is important to be aware that, in datasets 
-derived from election studies, it is quite common for some questions (eg about party positions on certain 
-issues) to be asked only for a subset of the objects being investigated (eg parties). Moreover, those 
-objects and questions relating to those objects may not always be listed in the same order. So counting 
-on the relative position of each item to retain the same meanings across batteries may lead to grievous 
-errors. Moreover, if the user employs {cmd:tab1} or {cmd:gendummies} to generate a battery of dummy 
-variables corresponding to questions that 
-did not list all parties or listed them in a different order then not only may the number of items in 
-the resulting battery be different from those in another battery but also the numeric suffixes generated 
-by {cmd:tab1} or {cmd:gendummies} may refer to different objects in the case of items from the different 
-batteries. Part of this problem is alleviated by the use of {bf:{help gendummies:gendummies}} which 
-generates dummy variable suffixes from the values actually found in the data, rather then numbering these 
-sequentially as does {cmd:tab1}. But those values do need to be correct, which only the user can check. 
-See also the special note on multiple batteries in the help text for {bf:{help gendist:gendist}}.
+variables by means of the numeric suffix appended to the stubname for each battery in each context. It 
+is thus essential that these numeric suffixes relate to the same objects for each battery and context. 
+By default {cmd:genstacks} also requires all batteries to contain the same number of items. However it 
+cannot check that the numeric suffixes are correct. It is important to be aware that, in some datasets 
+(e.g. those derived from election studies) it is quite common for some questions (eg about party positions 
+on certain issues) to be asked only for a subset of the objects being investigated (eg parties). Moreover, 
+those objects and questions relating to those objects may not always be listed in the same order. So 
+counting on the relative position of each item to retain the same meanings across batteries and contexts 
+may lead to grievous errors. Moreover, if the user employs {cmd:tab1} or {cmd:gendummies} to generate a 
+battery of dummy variables corresponding to questions that did not list all parties or listed them in a 
+different order, then not only may the number of items in the resulting battery or context be different 
+from those in another battery or context but also the numeric suffixes generated by {cmd:tab1} or {cmd:gendummies} 
+may refer to different objects in the case of items from the different batteries or contexts. Part of 
+this problem is alleviated by the use of {bf:{help gendummies:gendummies}}, which generates dummy variable 
+suffixes from the values actually found in the data, rather then numbering these sequentially as does 
+{cmd:tab1}. But those values do need to be correct, which only the user can check. See also the special 
+note on multiple batteries in the help text for {bf:{help gendist:gendist}}.
 
 
 {title:Options}
@@ -96,9 +98,11 @@ cases fall within a single context.
 in {it:namelist} will be dropped.
 
 {phang}
-{opt stackid(name)} if specified, provides a variable name for the generated variable 
+{opt stackid(name)} if specified, provides a variable name for the generated variable – the {it:j} 
+variable in Stata's {help{reshape:reshape long}} command – 
 identifying each specific stack (default is genstacks_stack which is the default variable 
-name expected by {cmd:genyhats}, {cmd:iimpute} or {cmd:gendist} if invoked after stacking.{p_end}
+name expected by {cmd:genyhats}, {cmd:iimpute}, {cmd:gendist}, {cmd:genmeans} or {cmd:genplace} if 
+invoked after stacking.{p_end}
 
 {phang}
 {opt nocheck} if specified, relaxes the requirement that batteries of items to be reshaped all 
@@ -116,7 +120,7 @@ to preserve the connection with the unstacked data.{p_end}
 {phang}
 {opt totstackname(name)} if specified, a variable name for the generated variable 
 containing the total number of stacks in each context (default is genstacks_totstacks). 
-Evidently this cannot be more than the number of ptv variables in {it:namelist} but may
+Evidently this cannot be more than the number of stubnames in {it:namelist} but may
 be less for specific contexts - for example if the contexts are countries that have 
 different party systems.{p_end}
 
@@ -125,19 +129,17 @@ different party systems.{p_end}
 
 {pstd}
 The following command stacks a dataset where observations are nested in contexts defined 
-by {it:cid}; variable sets {it:i_ptv*} and {it:i_lrd*} will be stacked into new variables 
-{it:i_ptv} and {it:i_lrd}, with the original variables dropped. All other variables 
-in the dataset are duplicated across the k records for each case created by reshaping 
-the k variables in each set.{p_end}{break}
+by {it:cid}; variable batteries {it:ptv*} and {it:lrd*} will be stacked into new variables 
+{it:ptv} and {it:lrd}, with the original variables dropped. All other variables 
+in the dataset are duplicated across the J records for each case created by reshaping 
+the J variables in each set.{p_end}{break}
 {phang2}
-{cmd:. genstacks i_ptv i_lrp, contextvars(cid) replace}{p_end}
+{cmd:. genstacks ptv lrp, contextvars(cid) replace}{p_end}
 
 {pstd}
-NOTE that {it:i_ptv} and {it:i_lrp} in the above command are stubnames, not variable lists. 
-The use of {it:i_ptv*} or {it:i_lrd1-i_lrd10} in this command would cause an error. The 
-{it:i_} prefix used in these stubnames suggests the likelihood that this command follows 
-the use if {bf:{help iimpute:iimpute}} to impute missing data for the variables indicated 
-by each stubname. These stubs become the names of the reshaped variables.{p_end}
+NOTE that {it:ptv} and {it:lrp} in the above command are stubnames, not variable lists. 
+The use of {it:ptv*} or {it:lrd1-lrd10} in this command would cause an error. What are 
+stubnames before stacking become the names of the reshaped variables after stacking.{p_end}
 
 
 {title:Generated variables}
@@ -149,8 +151,8 @@ by each stubname. These stubs become the names of the reshaped variables.{p_end}
 {synopt:name [name]...} the variables named by the stubs specified in {it:namelist} 
 (originals left unchanged unless {cmd:replace} is optioned).{p_end}
 {synopt:genstacks_stack} (or other name defined in option {it:stackname}) 
-a variable identifying the k different rows (stacks) generated by reshaping 
-the k different items in each set named in {it:namelist} (ID numbers are consecutive).{p_end}
+a variable identifying the j different rows (stacks) generated by reshaping 
+the j different items in each set named in {it:namelist} (ID numbers are consecutive).{p_end}
 {synopt:genstacks_item} (or other name defined in option {it:stackname}) 
 a variable identifying the k different items before stacking 
 (need not be consecutive but must be the same for each set of items).{p_end}
