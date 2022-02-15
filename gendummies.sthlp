@@ -33,8 +33,9 @@ has a missing value.
 {pstd}
 SPECIAL NOTE ON MULTIPLE BATTERIES: {cmd:gendummies} uses the codes found in the data as suffixes for the generated 
 variables, thus permitting users to ensure consistent codes across disparate batteries of responses (e.g. behaviours, 
-attitudes, etc.) relating to the same items (e.g. political parties). This is in contrast to  {cmd:tab1}, which uses
-sequential suffixes starting at the number 1 for the generated variables, no matter how those variables were coded.
+attitudes, etc.) relating to the same items (e.g. political parties). This is in contrast to Stata's {cmd:tab1}, 
+which uses sequential suffixes starting at the number 1 for the generated variables, no matter how those variables 
+were coded.
 
 {title:Options}
 
