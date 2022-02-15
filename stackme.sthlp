@@ -125,17 +125,17 @@ have themselves to have been reshaped into long format by stacking them; and fin
 
 {pmore}
 (5) after stacking and the generation of y-hat affinity variables, the number of variables required for 
-a final (set of) {cmd:MI} command(s) will generally be greatly reduced, reducing the time needed for 
-multiple imputation for what are generally very large datasets (see SPECIAL NOTE ON MULTIOLE VERSUS 
+a final (set of) {cmd:mi} command(s) will generally be greatly reduced, reducing the time needed for 
+multiple imputation for what are generally very large datasets (see SPECIAL NOTE ON MULTIPLE VERSUS 
 SINGLE IMPUTATION in {bf:{help{iimpute:iimpute}}}.
 
 {pstd}
-Consequently, a typical workflow would involve {cmd:iimpute} (or Stata's {cmd:MI}) to fill out a battery 
+Consequently, a typical workflow would involve {cmd:iimpute} (or Stata's {cmd:mi}) to fill out a battery 
 of PTVs by imputing any missing data, followed by {cmd:genstacks} to stack the data. This would often be 
 followed by {cmd:genyhats}, used to transform indeps (those that will not be transformed into distance 
 measures) into y-hat affinity measures linking these indeps to the stacked depvar. The {cmd:gendist} 
 command would then be used to plug missing values on item location variables and generate distances to 
-be used in a final {cmd:MI} command that would eliminate remaining missing data.{break} 
+be used in a final {cmd:mi} command that would eliminate remaining missing data.{break} 
 
 {pstd}
 Considerable flexibility is available, however, to transform a dataset in any sequence thought 
