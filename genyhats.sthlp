@@ -5,7 +5,7 @@
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
-{p2col :genyhats {hline 2}}Generates {it:y_hat} affinity measures for PTV analysis{p_end}
+{p2col :genyhats {hline 2}}Generates {it:y_hat} affinity measures for generic hierarchical models{p_end}
 {p2colreset}{...}
 
 
@@ -61,7 +61,7 @@ be established by the {cmd:yprefix()} option.{break}
 The two syntaxes may be combined in that any appearance of || causes the previous variables to 
 be treated as a variable list of which the first (unless it was followed by ":") will provide the 
 suffix for the new variable name, being prefixed by "y_" or such other prefix as may be established 
-by the {cmd:yprefix()} option.
+by the {cmd:yprefix()} option. NOTE: the syntax using ":" is described under option {it:yprefix} below.
 
 {pstd}
 The {cmd:genyhats} command estimates the effect of each (set of) indep(s) on the depvar, separately for 
