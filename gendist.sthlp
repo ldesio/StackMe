@@ -187,15 +187,18 @@ by simple mean-plugging, and then rounded to the nearest integer.{p_end}{break}
 {synoptset 16 tabbed}{...}
 {synopt:p_{it:var1} p_{it:var2} ... (or other prefix set by option {bf:pprefix})} a set of mean-plugged 
 placement variables with names p_var1, p_var2, etc., where the names var1, var2, etc. match the original 
-variable names. Those variables are left unchanged.{p_end}
+variable names for items in the battery (if stacked, the battery stubname). Those original variables are 
+left unchanged. The p_ variables hold the plugging values (the same value for all cases) created 
+according to option {bf:missing}, except those where the self-placement of the respondent is missing.{p_end}
 {synopt:m_{it:var1} m_{it:var2} ... (or other prefix set by option {bf:mprefix})} a set of variables with    
-names m_var1, m_var2, etc., where the names var1, var2, etc. match the original variable names of the 
-battery of items. These variables indicate the original missingness of var1, var2, etc., or of the 
-corresponding placement of the respondent on the scale concerned.{p_end}
+names m_var1, m_var2, etc., where the names var1, var2, etc. match the original variable names for items 
+in the battery (if stacked, the battery stubname). These variables indicate the original missingness (=1 
+if missing, =0 otherwise) of the variable or stub name, or of the corresponding self-placement of the 
+the respondent on the scale concerned.{p_end}
 {synopt:d_{it:var1} d_{it:var2 ...} (or other prefix set by option {bf:dprefix})} a set of distances 
 from the respondent to each (mean-plugged if optioned) placement variable. These distance variables are 
-named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names. Those 
-variables are left unchanged.{p_end}
+named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names for items 
+in the battery (if stacked, the battery stubname). Those original variables are left unchanged.{p_end}
 {synopt:_gendist_mc} a variable showing the original count of missing items for each case.{p_end}
 {synopt:_gendist_mpc} a variable showing the count of remaining missing items for each case after 
 mean-plugging.{p_end}
