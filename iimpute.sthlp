@@ -23,7 +23,7 @@
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opt sta:ckid(varname)}}a variable identifying different "stacks", for which values will be 
 separately imputed if {cmd:iimpute} is issued after stacking.{p_end}
-{synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context).{p_end}
+{synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context.{p_end}
 {synopt :{opt min:ofrange(#)}}minimum value of the item range (used for recoding imputed values){p_end}
 {synopt :{opt max:ofrange(#)}}maximum value of the item range (used for recoding imputed values){p_end}
 {synopt :{opt ipr:efix(name)}}prefix for generated imputed variables (default is "i_"){p_end}
@@ -111,6 +111,16 @@ estimates that are then combined manually. NOTE that, if Stata's {cmd:seed} comm
 the separate datasets will still be different from each other (a different dataset would be 
 created on each occasion because by default Stata employs a different random seed each time it inflates 
 the variance of imputed values), but these differences will not be replicable.
+
+{pstd}SPECIAL NOTE ON MULTIPLE VERSUS SINGLE IMPUTATION: Stata's {cmd:impute} by its nature performs only 
+single imputation and {cmd:iimpute} thus does the same. But {cmd:iimpute} has features that Stata's 
+multiple imputation suite ({cmd:mi}) does not have – features that are especially useful when dealing with 
+batteries of similar items that are likely to be strongly interrelated. As already explained, cmd{StackMe} 
+can be run multiple times to produce a multiply-imputed dataset for input to Stata's {cmd:mi} suite of 
+commands, and this may be desirable once experimentation with singly-imputed datasets has led the user to 
+fasten on a final model. Inflation of imputed values by {cmd:iimpute} should generally lead to findings 
+from singly-imputed data that match the findings from multiply-imputed data in datasets as large as those 
+generally used in electoral research.{break}
 
 {title:Options}
 
