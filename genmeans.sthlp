@@ -75,7 +75,8 @@ Incompatible with option {bf:nostack} if optioned after stacking.
 {phang2}{cmd:. genmeans educ income, context(cid year)}{p_end}
 
 {pstd}generate weighted locations of governing parties where weights are derived from votes received (essentially 
-a measure of where governments are located in left-right terms).{p_end}{break}
+a measure of where governments are located in left-right terms). NOTE that the cweight would first have to be 
+set to 0 for stacks belonging to non-governing parties.{p_end}{break}
 
 {phang2}{cmd:. genmeans plr, prefix(gov_) context(cid year)} cweight(votepct){p_end}
 
