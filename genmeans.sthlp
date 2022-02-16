@@ -19,11 +19,14 @@ separately for each defined context{p_end}
 {synoptset 20 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth pre:fix(name)}} prefix for names of generated mean variables (default is "m_" prefix){p_end}
-{synopt :{opt con:textvars}} if specified, names the variables that define each context for which a separate 
-(set of) means is to be derived{p_end}
-{synopt :{opt wei:ght(varname)}} if specified, name of variable determining weight of each respondent{p_end}
-{synopt :{opt cwe:ight(varname)}} if specified, name of variable determining the weight for each stack (constant 
+{synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which means will be 
+separately generated if {cmd:genmeans} is invoked after stacking.{p_end}
+{synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context.{p_end}
+{synopt :{opt con:textvars}}if specified, names the variables that define each context for which a separate 
+(set of) means is to be generated{p_end}
+{synopt :{opth pre:fix(name)}}prefix for names of generated variables (default is "m_" prefix){p_end}
+{synopt :{opt wei:ght(varname)}}if specified, name of variable determining weight of each respondent{p_end}
+{synopt :{opt cwe:ight(varname)}}if specified, name of variable determining the weight for each stack (constant 
 across respondents){p_end}
 
 {synoptline}
@@ -32,27 +35,38 @@ across respondents){p_end}
 
 {pstd}
 {cmd:genmeans} generates a (set of) newvar(s) from a (set of) existing continuous variables, each holding the 
-mean value of (each) variable across all cases in each defined context. Importantly, these means can be 
+mean value of (each) {it:varlist} variable across all cases in each defined context. Importantly, these means can be 
 weighted by the same weights as used for respondents or by weights specific to stacks and contexts (see 
 under {bf:Options} and {bf:Examples}.
 
 {title:Options}
 
 {phang}
-{opt pre:fix({it:name})} if provided, prefix for the generated mean variables (default is to use the prefix "m_") 
-followed by the name(s) of the variable(s) for which means are being venerated.
+{opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to the Stata 
+{bf:{help reshape:reshape long}}'s {it:j} index) for which distances will be separately generated in the absence 
+of the {cmd:nostack} option. The default is to use the "genstacks_stack" variable if the {cmd:genmeans} command 
+is issued after stacking.
+
+{phang}
+{opt nostack} if present, overrides the default behavior of treating each stack as a separate context (has 
+no effect if data are not stacked). This option is not compatible with option {it:cweight}.
 
 {phang}
 {opt con:textvars({it:varlist})} if specified, defines the contexts for each of which mean values will be generated 
 (same value for all cases in each context).
 
 {phang}
+{opt pre:fix({it:name})} if provided, prefix for the generated mean variables (default is to use the prefix "m_") 
+followed by the name(s) of the variable(s) for which means are being generated.
+
+{phang}
 {opt wei:ght({it:varname})} if specified, specifies the variable used to weight the means being generated, 
-treating weights as varying across respondents (the usual weighting process in Stata).
+treating weights as varying across respondents (the same weighting process used for statistical analyses in Stata).
 
 {phang}
 {opt cwe:ight({it:varname})} if specified, specifies the variable used to weight the means being generated, 
-treating weights as constant for each stack by context (the same weight for each respondent in each context).
+treating weights as constant for each stack by context (the same weight for each respondent in each context). 
+Incompatible with option {bf:nostack} if optioned after stacking.
 
 {title:Examples:}
 
@@ -73,4 +87,4 @@ a measure of where governments are located in left-right terms).{p_end}{break}
 {synoptset 16 tabbed}{...}
 {synopt:m_{it:var1} m_{it:var2} ... (or other prefix set by option {bf:prefix})} a set of context-specific  
 means held in variables named p_var1, p_var2, etc., where the names var1, var2, etc. match the original variable 
-names. Those variables are left unchanged.{p_end}
+names in {it:varlist}. Those variables are left unchanged.{p_end}
