@@ -80,7 +80,8 @@ responses where party placements were made by individual respondents and held in
 
 {pstd}The following command generates placements on a left-right dimension after stacking, where party 
 placements are based on votes cast for the party concerned and held in variables that are constant across 
-respondents
+respondents. If a particular set of stacks (e.g. those for government parties) are to be placed then the weight 
+variable would need to be set 0 for stacks not included in the set.
 
 {phang2}{cmd:. genplace plr, context(cid year) cweight(votepct){p_end}
 
