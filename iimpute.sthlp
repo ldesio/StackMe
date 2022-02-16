@@ -113,9 +113,9 @@ created on each occasion because by default Stata employs a different random see
 the variance of imputed values), but these differences will not be replicable.
 
 {pstd}SPECIAL NOTE ON MULTIPLE VERSUS SINGLE IMPUTATION: Stata's {cmd:impute} by its nature performs only 
-single imputation and {cmd:iimpute} thus does the same. But {cmd:iimpute} has features that Stata's 
+one imputation at a time and {cmd:iimpute} thus does the same. But {cmd:iimpute} has features that Stata's 
 multiple imputation suite ({cmd:mi}) does not have – features that are especially useful when dealing with 
-batteries of similar items that are likely to be strongly interrelated. As already explained, cmd{StackMe} 
+batteries of similar items that are likely to be strongly interrelated. As already explained, {bf:cmd{iimpute}} 
 can be run multiple times to produce a multiply-imputed dataset for input to Stata's {cmd:mi} suite of 
 commands, and this may be desirable once experimentation with singly-imputed datasets has led the user to 
 fasten on a final model. Inflation of imputed values by {cmd:iimpute} should generally lead to findings 
@@ -222,3 +222,9 @@ NOTE that a subsequent invocation of {cmd:iimpute} will replace {it:_iimpute_mc}
 counts of missing values for that invocation of {cmd:iimpute}. So the user should save these values after 
 issuing the previous command, if they will be of later interest.
 
+
+NOTE: I have resisted including text that would point out the logical and mechanical problems involved in stacking 
+a multiply-imputed dataset. Hopefully anyone contemplating such a process would bear in mind my suggestion that 
+multiple imputation of large collections of survey data is likely redundant since multiply-imputed data gives 
+very much the same results as variance-inflated singly-imputed data when the N is large. I would like to think 
+of a more transparent way of saying these things.
