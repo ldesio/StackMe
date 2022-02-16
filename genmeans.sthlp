@@ -90,10 +90,6 @@ set to 0 for stacks belonging to non-governing parties.{p_end}{break}
 means held in variables named p_var1, p_var2, etc., where the names var1, var2, etc. match the original variable 
 names in {it:varlist}. Those variables are left unchanged. Used on unstacked data.{p_end}{break}
 
-{phang2}{cmd:. genmeans plr1-plr9, context(cid year)} weight(wt){p_end}
-
-{pstd}generate weighted locations of governing parties where weights are derived from votes received (essentially 
-a measure of where governments are located in left-right terms). Used on stacked data.{p_end}{break}
-
-{phang2}{cmd:. genmeans plr, prefix(gov_) context(cid year)} cweight(votepct){p_end}
-
+{synopt:m_{it:vara} [m_{it:varb} ... (or other prefix set by option {bf:prefix})} a (set of different) 
+variable(s) holding the mean for each stack in each context for the variables variable in {it:varlist}. Used 
+on stacked data.{p_end}
