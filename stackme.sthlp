@@ -31,20 +31,22 @@ Firstly, data {it:stacking} is usually involved, implying that - in Stata termin
 may call for data in {it:long} rather than in {it:wide} format (see {help reshape:reshape}).
 However, these tools facilitate reshaping of a dataset with multiple contexts, (eg. countries)
 each with possibly different numbers of items (eg. parties) in the battery(ies) to be stacked 
-(meaning that some items will have missing data for all cases in some contexts, a structure 
-that would be hard to accommodate without elaborating Stata's native commands). After 
+(meaning that some items will have missing data for all cases in certain contexts, a structure 
+that would be hard to accommodate without elaborating Stata's native commands. After 
 stacking (reshaping), each respondent is represented by multiple rows in the data matrix, one 
-for each of the items that, before stacking, was not entirely missing.{break}
+for each of the items that, before stacking, was not entirely missing. NOTE: A fair number of 
+rows are generally entirely missing – rows that, after a Stata {bf{cmd:reshape}}, would consiste 
+entirely of missing data. StackMe avoids using up memory and filespace with such empty rows.{break}
 
 {pstd}
 Secondly, the dependent variable is usually generalized to accommodate multiple contexts. Thus in
 electoral studies conducted in one country a researcher might study the sources of votes for a 
 particular political party; but with multiple countries having different party systems that question 
 would become what is it that leads to votes for a {it:generic} party – {it:any} party – yielding 
-comparability across contexts if these involve different party systems, as is common). This also 
-affects {it:independent} variables, which have to be specially
-treated - reformulated it terms of distances (proximities) or in terms of some other type of affinity, 
-for instance so-called {it:y-hats} - before they can be used in a stacked analysis. In this, ptv 
+comparability across contexts if these involve different party systems, as is common. This also 
+affects {it:independent} variables, which have to be specially treated: reformulated it terms of 
+distances (proximities) or in terms of some other type of affinity, 
+such as so-called {it:y-hats}, before they can be used in a stacked analysis. In this, ptv 
 analysis resembles analysis of discrete choice models for which it serves as a substitute, 
 dealing with directly-measured preferences (utilities) rather than deriving these from the analysis 
 of choices made.
@@ -61,15 +63,15 @@ items, after optionally plugging missing data on the spatial items{p_end}
 {p2col :{bf:{help iimpute:iimpute}}}(Context-wise) incremental simple or multiple imputation of a 
 set of variables{p_end}
 {p2col :{bf:{help genstacks:genstacks}}}(Context-wise) reshaping of a dataset for PTV analysis{p_end}
-{p2col :{bf:{help genyhats:genyhats}}}(Context-wise) generation of {it:y-hat} affinity measures 
+{p2col :{bf:{help genyhats:genyhats}}}(Context-wise) generating {it:y-hat} affinity measures 
 linking indepvars to ptvs{p_end}
-{p2col :{bf:{help gendummies:gendummies}}}generation of a set of dummy variables, with specific 
+{p2col :{bf:{help gendummies:gendummies}}}generatiing set of dummy variables, with specific 
 options{p_end}
-{p2col :{bf:{help genmeans:genmeans}}}generation of mean values of variables across contexts (similar 
-to Stata's {cmd:egen} command with the {it:by} option, but permitting weighted means to be calculated{p_end}
+{p2col :{bf:{help genmeans:genmeans}}}generationg mean of variables within contexts (similar 
+to Stata's {cmd:egen} command with the {bf:by} option, but permitting calculation of weighted means){p_end}
 {p2col :{bf:{help genplace:genplace}}}generation of (optionally weighted) placements of (e.g.) political 
 parties according to the (likely diverse) placements made by individual respondents, with option 
-to weight those placements by respondent or other weights{p_end}{break}
+to weight those placements by respondent or by substantively meaningful weights{p_end}
 
 {pstd}
 These tools largely duplicate existing commands in Stata but operate on data with multiple contexts 
@@ -94,7 +96,7 @@ start with the underscore character. These are  genstacks_stack, genstacks_item 
 
 {pstd}
 The {cmd:genstacks} command always operates on an unstacked dataset, reshaping it into a stacked format. 
-Other commands may operate either before or after stacking. No means are provided for unstacking a 
+Other commands may operate either before or after stacking. No way is provided to unstack a 
 previously stacked dataset (a crude way to do this would be to drop all stacks beyond the first).{break}
 
 {pstd}The commands {cmd:gendist}, {cmd:iimpute} and {cmd:genyhats} by default assume the data are stacked 
@@ -105,8 +107,8 @@ a command that is being used on unstacked data (since unstacked data have only o
 stacked data the {cmd:nostack} option has the effect of making the command ignore the separate contexts 
 represented by each stack. This might be considered desirable if prior analysis has established that 
 there is no stack-specific heterogeneity relevant to the estimation model for which these operations 
-are being conducted, or in order to impute a variable that is completely missing in one stack (for example 
-a particular choice option that was not asked).{break} 
+are being conducted, or in order to impute a variable that is completely missing in one or more 
+stacks (for example particular choice options that were not asked).{break} 
 
 {pstd}For logical reasons some restrictions apply to the order in which commands can be issued. 
 In particular:{p_end} 
@@ -118,24 +120,25 @@ imputation of other members of the same battery;
 {cmd:iimpute}'s {it:addvars} option to help {cmd:iimpute} missing data on other variables;
 
 {pmore}(3) if {cmd:genyhats} or {cmd:gendist} are used before stacking, they will have to be used once 
-for each of the individual variables that will, after stacking, become a single (generic) variable; 
+for each of the individual variables that will, after stacking, become a single (generic) variable (a 
+workaround syntax has been created for genyhats that may be generalized in later releases); 
 
 {pmore}(4) if {cmd:gendist} is employed after stacking, the items to which distances are computed 
-have themselves to have been reshaped into long format by stacking them; and finally
+have themselves to first have been reshaped into long format by stacking them; and finally
 
 {pmore}
 (5) after stacking and the generation of y-hat affinity variables, the number of variables required for 
-a final (set of) {cmd:mi} command(s) will generally be greatly reduced, reducing the time needed for 
-multiple imputation for what are generally very large datasets (see SPECIAL NOTE ON MULTIPLE VERSUS 
-SINGLE IMPUTATION in {bf:{help{iimpute:iimpute}}}.
+a final (set of) {cmd:mi} command(s) will generally be greatly reduced, cutting the time needed for 
+multiple imputation in what are generally very large datasets (see SPECIAL NOTE ON MULTIPLE VERSUS 
+SINGLE IMPUTATION in {bf:{help {iimpute:iimpute}}}.
 
 {pstd}
-Consequently, a typical workflow would involve {cmd:iimpute} (or Stata's {cmd:mi}) to fill out a battery 
-of PTVs by imputing any missing data, followed by {cmd:genstacks} to stack the data. This would often be 
+Consequently, a typical workflow would involve using {cmd:iimpute} to fill out a battery 
+of PTVs by imputing any missing items, followed by {cmd:genstacks} to stack the data. This would often be 
 followed by {cmd:genyhats}, used to transform indeps (those that will not be transformed into distance 
 measures) into y-hat affinity measures linking these indeps to the stacked depvar. The {cmd:gendist} 
 command would then be used to plug missing values on item location variables and generate distances to 
-be used in a final {cmd:mi} command that would eliminate remaining missing data.{break} 
+be used in a final {help mi:mi} command that would eliminate remaining missing data.{break} 
 
 {pstd}
 Considerable flexibility is available, however, to transform a dataset in any sequence thought 
@@ -161,3 +164,8 @@ includes previous code and other contributions by Elias Dinas
 If you use {bf:ptvtools} in published work, please use the following citation:{break}
 De Sio, L. and Franklin, M. (2011), PTVTOOLS: A Stata package for PTV analysis (version 0.9), 
 Statistical Software Components, Boston College Department of Economics.
+
+
+NOTE: I think it would be desirable to optionally permit users to employ the elaborated variable 
+list syntax designed for genyhats also in gendist, genmeans and genplace. I presume you could 
+just port the necessary code from genyhats to the other commands.
