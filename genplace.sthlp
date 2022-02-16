@@ -34,7 +34,7 @@ separately generated{p_end}
 {pstd}
 {cmd:genplace} generates overall placements of items (e.g. political parties) separately for each 
 context (if specified) by averaging the separate placements made by individual survey respondents, 
-experts, or other sources in or pertaining to each context. Generated means can be weighted as in 
+experts, or other sources in (or pertaining to) each context. Generated means can be weighted as in 
 statistical analysis or by substantively defined weights, constant across respondents, specific to 
 each item within context.
 
