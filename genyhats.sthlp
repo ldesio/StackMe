@@ -36,7 +36,7 @@ is to use a prefix of "y_"){p_end}
 {synopt :{opt adj:ust(mean | constant | no )}}adjust the y_hat by subtracting the mean (default) or subtracting the constant term. Alternatively, make no adjustment.{p_end}
 {synopt :{opt rep:lace}}drop all {it:indepvars} after the generation of y-hats{p_end}
 {synopt :{opt eff:ects(window | rtf | csv | html)}}display a summary table of stack-specific effects from the regression used to generate a y-hat{p_end}
-{synopt :{opt efm:t}}change the coefficients reported by the effects() option{p_end}
+{synopt :{opt efm:t}}change the display format of coefficients reported by the effects() option{p_end}
 {synopt :{opt output}}(not recommended) directly flush the results of each stack-specific regression into the standard output.{p_end}
 {synoptline}
 
@@ -120,7 +120,7 @@ variable if the {cmd:genyhats} command is issued after stacking.{p_end}
 {opt yprefix} if specified, provides a prefix for y-hat affinities generated for each variable in 
 a variable list (the default is "y_"). NOTE that the prefix, whether default or provided, can be 
 overridden by explicitly specifying the y-hat variable name before a colon introducing the 
-variable(s) to be used in estimating this y-hat.{p_end}
+variable(s) to be used in estimating this y-hat (see the {bf:syntax} diagram above).{p_end}
 
 {phang}
 {opt logit} if specified, invokes a logit model instead of linear regression (the default).{p_end}
@@ -158,13 +158,13 @@ are directly flushed into the standard output.{p_end}
 
 {pstd}The following command generates two y-hat variables for {it:ptv} (the default dependent 
 variable), based on working conditions and issues, with observations clustered by {it:t102}; 
-and drops the original independent variables. In this example {cmd:stackid} is set to the 
-variable {it:stack}, implying that the name "stack" was specified in the {cmd:stackid()} option 
+and drops the original independent variables. In this example {cmd:stackid} is set to the variable 
+named {it:stack}, implying that the name "stack" was specified in the {cmd:stackid()} option 
 of a previous {cmd:genstacks} command, or that the data were reshaped in some other fashion (eg
 using stata's {bf:{help reshape:reshape}} command with "stack" specified for the {cmd:j()} option. 
 
 {phang2}
-{cmd:. genyhats ywork: work_* || yissues: q56-q67, context(t102) stackid(stack) replace}{p_end}
+{cmd:. genyhats ywork: work_* || yissues: q56-q67, context(t102) stackid(stack) replace}{p_end}{breaak}
 
 {pstd}The following command generates four y-hat variables for {it:chosen} (a binary dependent 
 variable), one each for {it:age, income, union} and {it:educ}, with observations clustered by 
@@ -176,7 +176,7 @@ variable is not defined, either {cmd:genstacks} is operating on unstacked data o
 whose stacks are identified by the default "genstacks_stack" variable created by {cmd:genstacks}.
 
 {phang2}
-{cmd:. genyhats age income union educ, depvar(chosen) contextvars(t102) yprefix(yl_) logit}{p_end}
+{cmd:. genyhats age income union educ, depvar(chosen) contextvars(t102) yprefix(yl_) logit}{p_end}{break}
 
 {title:Generated variables}
 
