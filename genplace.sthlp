@@ -25,6 +25,7 @@ separately generated{p_end}
 {synopt :{opt pre:fix(name)}}prefix for names of generated variables (default is "p_"){p_end}
 {synopt :{opt wei:ght(varname)}}unit (often respondent) weight (precludes {bf:cweight}){p_end}
 {synopt :{opt cwe:ight(varname)}}stack weight, constant across units (precludes {bf:weight}){p_end}
+{synopt :{opt nor:eport}suppress report of variables created per context{p_end}
 
 
 {synoptline}
@@ -74,6 +75,9 @@ applied when averaging the placements made by indiviual respondents.
 item/stack according to the placements provided by experts or other sources in (or pertaining to) 
 each context. The name of this variable will be used as a prefix for generated variables if the 
 {bf:prefix} option is not specified.{p_end}
+
+{phang}
+{opth nor:eport} suppress diagnostic report of variables created per context.{p_end}
 
 
 {title:Examples:}
