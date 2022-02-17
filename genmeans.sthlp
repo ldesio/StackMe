@@ -24,6 +24,8 @@ generated if {cmd:genmeans} is invoked after stacking{p_end}
 {synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context{p_end}
 {synopt :{opth pre:fix(name)}}prefix for names of generated variables (default is "m_"){p_end}
 {synopt :{opt wei:ght(varname)}}unit (often respondent) weight{p_end}
+{synopt :{opt cwe:ight(varname)}}item/stack weight{p_end}
+{synopt :{opt nor:eport(varname)}}suppress reporting of variables created per context{p_end}
 
 
 {synoptline}
@@ -72,6 +74,9 @@ be applied when mean values are calculated across units/respondents.
 {opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be 
 applied at the battery/stack level when mean values are calculated across items/stacks. Incompatible 
 with option {bf:nostack} if optioned after stacking.{p_end}
+
+{phang}
+{opt nor:eport} suppress dianostic output regarding variables created for each context.{p_end}
 
 
 {title:Examples:}
