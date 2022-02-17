@@ -55,7 +55,8 @@ value for all units/respondents in each context). By default all units are assum
 the same context.
 
 {phang}
-{opth prefix(name)} if present, prefix for generated placement variables (default is "p_").
+{opth prefix(name)} if present, prefix for generated placement variables (default is name of 
+cweight variable, if specified, or "p_" otherwise).
 
 {phang}
 {opth stackid(varname)} if present, a variable identifying each different "stack" (equivalent to 
@@ -71,7 +72,8 @@ applied when averaging the placements made by indiviual respondents.
 {phang}
 {opth cweight(varname)} if present, a weight (constant across units/respondents) used to place each 
 item/stack according to the placements provided by experts or other sources in (or pertaining to) 
-each context.{p_end}
+each context. The name of this variable will be used as a prefix for generated variables if the 
+{bf:prefix} option is not specified.{p_end}
 
 
 {title:Examples:}
