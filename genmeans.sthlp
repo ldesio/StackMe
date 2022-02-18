@@ -12,7 +12,7 @@
 {title:Syntax}
 
 {p 6 16 2}
-{opt genmeans} {varlist} {[aweight=varname]} {[if]}
+{opt genmeans} {varlist} [{help aweight:{it:aweight}}={it:varname}] [{help if:{it:if}}]
    [{cmd:,} {it:options}]
 
 {synoptset 22 tabbed}{...}
@@ -23,9 +23,8 @@
 generated if {cmd:genmeans} is invoked after stacking{p_end}
 {synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context{p_end}
 {synopt :{opth pre:fix(name)}}prefix for names of generated variables (default is "m_"){p_end}
-{synopt :{opt wei:ght(varname)}}unit (often respondent) weight{p_end}
-{synopt :{opt cwe:ight(varname)}}item/stack weight{p_end}
-{synopt :{opt nor:eport(varname)}}suppress reporting of variables created per context{p_end}
+{synopt :{opth cwe:ight(varname)}}item/stack weight{p_end}
+{synopt :{opt nor:eport}}suppress reporting of variables created per context{p_end}
 
 
 {synoptline}
@@ -67,13 +66,10 @@ context (has no effect if data are not stacked). This option is not compatible w
 {it:cweight} because those are weights that apply to each stack.
 
 {phang}
-{opt wei:ght(varname)} if present, provides the same weight as used in analysis commands to 
-be applied when mean values are calculated across units/respondents.
-
-{phang}
-{opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be 
-applied at the battery/stack level when mean values are calculated across items/stacks. Requires 
-stacjed data. Incompatible with option {bf:nostack}.{p_end}
+{opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be applied 
+at the battery/stack level. It supplements conventional weights, which can still be specified 
+as usual, earlier in the command line. The {bf:cmean} option requires stacked data and is 
+incompatible with option {bf:nostack}.{p_end}
 
 {phang}
 {opt nor:eport} suppress dianostic output regarding variables created for each context.{p_end}
