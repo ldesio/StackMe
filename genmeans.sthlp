@@ -12,7 +12,7 @@
 {title:Syntax}
 
 {p 6 16 2}
-{opt genmeans} {varlist} 
+{opt genmeans} {varlist} {[aweight=varname]} {[if]}
    [{cmd:,} {it:options}]
 
 {synoptset 22 tabbed}{...}
