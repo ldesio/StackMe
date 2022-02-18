@@ -72,8 +72,8 @@ be applied when mean values are calculated across units/respondents.
 
 {phang}
 {opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be 
-applied at the battery/stack level when mean values are calculated across items/stacks. Incompatible 
-with option {bf:nostack} if optioned after stacking.{p_end}
+applied at the battery/stack level when mean values are calculated across items/stacks. Requires 
+stacjed data. Incompatible with option {bf:nostack}.{p_end}
 
 {phang}
 {opt nor:eport} suppress dianostic output regarding variables created for each context.{p_end}
