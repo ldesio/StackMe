@@ -69,7 +69,8 @@ context (has no effect if data are not stacked). This option is not compatible w
 {opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be applied 
 at the battery/stack level. It supplements conventional weights, which can still be specified 
 as usual, earlier in the command line. The {bf:cmean} option requires stacked data and is 
-incompatible with option {bf:nostack}.{p_end}
+incompatible with option {bf:nostack}. This option makes {cmd:genmeans} function in the same  
+way as {cmd:genplace} (q.v.).{p_end}
 
 {phang}
 {opt nor:eport} suppress dianostic output regarding variables created for each context.{p_end}
