@@ -33,28 +33,18 @@ generated{p_end}
 {title:Description}
 
 {pstd}
-The {cmd:genplace} command can be issued only after stacking. It places each item/stack according 
-to unit-level (previously stacked) placements, evauations or scores. Command {cmd:genplace} generates 
-an overall (mean) placement of a battery of items (e.g. political parties separately for each context 
-(if specified) by averaging the separate placements of each battery item into (perhaps weighted) 
-means of the placements originally produced by individual survey respondents, experts, or other 
-external sources pertaining to each context. Generated means can be weighted in standard  
-Stata fashion and/or by substantively defined weights, constant across respondents, specific to 
-each item within stack. NOTE (1): If placements derive from experts, manifestos, or some other 
-external document, they will be constant across units/respondents but {cmd:genplace} takes those 
-placement scores from the data, the same score for each unit/respondent within each battery/stack 
-and context. NOTE (2): If placements derive from the units/respondents (potentially different for 
+The {cmd:genplace} command can be issued only after stacking. It places each battery named by the 
+stubname in {it:varlist} (which became a variable when it was stacked (see{help genstacks:genstacks}) 
+according to unit-level (previously stacked) placements, evauations or scores. Command {cmd:genplace} 
+generates an overall (mean) placement of batter(ies) of items (e.g. political parties) separately for 
+each context (if specified) by averaging the separate placements of each battery item into a (perhaps 
+weighted) mean of those placements, intended to characterize the battery as such. 
+   NOTE (1): If placements derive from experts, manifestos, or some other external document, they 
+will be constant across units/respondents but {cmd:genplace} takes those placement scores from the 
+data, the same score for each unit/respondent within each battery/stack and context. 
+   NOTE (2): If placements derive from the units/respondents (potentially different for 
 each unit) then {cmd:genplace} first computes (perhaps weighted) mean placements across units/
-respondents before using those to derive the weighted battery placement.
-
-{pstd}
-Resulting (perhaps weighted) 
-mean placement of the battery will be constant across the battery's items/stacks as well as 
-across the units/respondents in each stack within contexts. If placements are to be based on 
-unit/respondent evaluations specific to each unstacked unit, those placements need to have been 
-averaged (perhaps using command {cmd:genmeans} before the data were stacked. Users with large 
-datasets should consider use of {help frame:frame} linkages to reduce computational, memory and 
-filespace demands.
+respondents before, in a second stage, using those to derive the weighted battery placement.
 
 {pstd}
 SPECIAL NOTE COMPARING {help genplace:genplace} WITH {help genmeans:genmeans}: The data processing 
@@ -85,12 +75,13 @@ the same context.
 the {it:j} index in Stata's {bf:{help reshape:reshape long}} command) for which placements will be 
 separately generated. The default is to use the "genplace_stack" variable if the {cmd:gendist} 
 command is issued after stacking. NOTE: there is no {cmd:nostack} option because placements apply 
-to units that define each stack if the data are stacked.
+to batteries that define each stack.
 
 {phang}
 {opth uprefix(name)} if present, prefix for the {it:varlist} names of generated placement variables 
 (constant across units within contexts, if any): the (perhaps weighted) means of diverse unit-level 
-placements (defaults to "m_").
+placements produced in the first stage of a two-stage {cmd:gendist} (see NOTE 2 above). (Default is 
+"m_").
 
 {phang}
 {opth cprefix(name)} if present, prefix for the name of the generated generic battery placement 
@@ -101,9 +92,9 @@ if specified, or "p_" otherwise.
 {phang}
 {opth cweight(varname)} if present, a weight (constant across units/respondents) used to place each 
 item/stack according to the placements provided by experts or other sources in (or pertaining to) 
-each context. The name of this variable will be used as a prefix for generated variables if the 
-{bf:cprefix} option is not specified (the uprefix will be used if the battery is being placed 
-according to unit/respondent placements).
+each context. The name of this variable will be used as a prefix for a generated battery placement 
+variable if the {bf:cprefix} option is not specified. If neither the {bf:cweight} nor {bf:cprefix}  
+options were specified then a "p_" prefix will be used.
 
 {phang}
 {opth nor:eport} suppress diagnostic report of variables created per context.{p_end}
@@ -111,34 +102,31 @@ according to unit/respondent placements).
 
 {title:Examples:}
 
-{pstd}The following command, issued before stacking, generates p_-prefixed placements on a left-
-right dimension, based on weighted party placements made by individual respondents and held in 
-variables lrp1-lrp10.{p_end}
+{pstd}The following command generates a battery of "m_" prefixed wt-weighted means from 
+respondent-rated party positions and, based on those, a single "gov_" prefixed measure of  
+government location. Before stacking the original party placements would have been held in 
+a battery of variables such as lrp1-lrp10.{p_end}
 
-{phang2}{cmd:. genplace lrp1-lrp10, context(cid year) weight(wt)}{p_end}
+{phang2}{cmd:. genplace plr [aw=wt] if govmembr==1, context(cid year) cprefix(gov_}{p_end}{break}
 
-{pstd}The following command, issued after stacking generates a measure of government location on 
-a left-right dimension where party placements are based on votes cast for the party concerned and 
-held in variables that are constant across respondents. NOTE: the weight would first need to be 
-set to 0 for parties/stacks belonging to non-governing parties, otherwise the placement would be 
-for the entire legislature.
+{pstd}The following command generates a "gov_" prefixed measure of government locations based on 
+expert-rated party placements (constant across respondents).{p-end}
 
-{phang2}{cmd:. genplace plr, prefix(gov_) context(cid year) cweight(votepct)}{p_end}{break}
+{phang2}{cmd:. genplace xlr, context(cid year) cprefix(gov_) cweight(votepct)}{p_end}{break}
+
 
 {title:Generated variables}
 
 {pstd}
-{cmd:genplace} saves the following variables or set of variables:
+{cmd:genplace} saves the following variables or sets of variables:
 
 {synoptset 16 tabbed}{...}
-{synopt:m_{it:var1 [it:var2] ...} (or other prefix set by option {bf:uprefix})} as the stubnames  
-of the batter(ies) of variable(s) named in {it:varlist). 
+{synopt:m_{it:var [it:var] ...} (or other prefix set by option {bf:uprefix})}: (perhaps 
+weighted) means of variables generated for each variable in {it:varlist) as first stage (see NOTE 
+2 above) item placements needed for (second stage) placement of of the batteries containing those 
+item placements. Such "m_" prefixed variables are only generated if no {it:cweight} option was 
+specified.
 
-{synopt:p_{it:var} (or the option cweight prefix or other prefix set by option {bf:cprefix})} as 
-the overall generic name(s) of batter(ies) placed by (set of different) 
-variable(s) placing each stack in terms of the concept(s) named by each variable in {it:varlist}. 
-Generated for stacked data.{p_end}{break}
-
-
-NOTE: I am not sure whether I am accurately describing the procedure actually coded for naming the 
-cprefix if not user-supplied. Either the dofile code or this help file may need adjustment accordingly.
+{synopt:p_{it:var} (or the option cweight prefix or other prefix set by option {bf:cprefix})}: 
+(perhaps weighted) means of battery items used to place (each) battery in terms of the concept 
+that underlies it, as measured by its member items.{p_end}
