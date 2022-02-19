@@ -98,7 +98,7 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 		quietly levelsof `ctxvar', local(contexts)
 
 		
-		foreach context in `contexts' {	
+		foreach context in `contexts' {				// TRY statsby mean=r(mean), by(`ctxvar'): summarize... [to replace summarize...]
 			
 			if "`cweight'" != ""  {				// Item weighting happens in two stages:
 
@@ -109,8 +109,8 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 
 				quietly gen `temp' = r(mean)		// (2) Average those placements within contexts
 
-				if "`cweight'" == "" quietly summarize `temp' if `ctxvar'==`context' & `ifexp', meanonly
-				else qui summarize `temp' [aweight=`cweight'] if `ctxvar'==`context' & `ifexp', meanonly
+				if "`cweight'" == "" quietly summarize `temp' if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
+				else qui summarize `temp' [aweight=`cweight'] if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
 
 				local rmean = r(mean)			// cweights can be combined with respondent weights
 
@@ -121,12 +121,12 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 			else  {	
 
 				if "`weight'" != ""	 {		// Respondent weighting
-					quietly summarize `var' [aw=`weight'] if `ctxvar'==`context' & `ifexp', meanonly
+					quietly summarize `var' [aw=`weight'] if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
 					local rmean = r(mean) 		// Respondent weighting only happens if no cweight
 				}
 
 				else  {					// Unweighted
-					quietly summarize `var' if `ctxvar'==`context' & `ifexp', meanonly
+					quietly summarize `var' if `ctxvar'==`context' & `ifexp', meanonly 		 // OR maybe statsby...
 					local rmean = r(mean) 					
 				}
 				
@@ -134,7 +134,7 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 			if `rmean'!=.  qui replace `destvar' = `rmean' if `ctxvar'==`context' & `ifexp'
 			if trunc(`context'/5)*5 ==`context'  display "." _continue
 		}
-		
+															// WOULD read collected stats here
 	} // next var	
 
 	drop _ctx_temp
