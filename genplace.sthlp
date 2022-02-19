@@ -35,17 +35,38 @@ separately generated{p_end}
 {pstd}
 {cmd:genplace} generates overall placements of items (e.g. political parties) separately for each 
 context (if specified) by averaging the separate placements made by individual survey respondents, 
-experts, or other sources in (or pertaining to) each context. Generated means can be weighted as in 
-statistical analysis or by substantively defined weights, constant across respondents, specific to 
-each item within context.
+experts, or other sources pertaining to each context. Generated means can be weighted as in 
+statistical analysis and/or by substantively defined weights, constant across respondents, specific  
+to each item within context. NOTE (1): If placements have been made by experts, manifestos, or some 
+other external source, they will be constant across units/respondents but {cmd:genplace} assumes 
+that those placement scores are present in the data, the same score for each unit/respondent within
+each (stack and) context. NOTE (2): Placements of external scores, already constant across units/
+respondents, is a one-step process. Placements of unit-specific (perhaps respondent-judged) scores 
+call for a two-step process in which the first step establishes the (perhaps weighted) mean 
+placement across respondents and the second step proceeds as for externally-derived placements.
 
 {pstd}
 The {cmd:genplace} command can be issued before or after stacking. If issued before stacking the 
-variable list will name variables that, after stacking, will provide the values of a single 
-variable (see {bf:{help genstacks:genstacks}}). If issued after stacking it places each stack 
-according to unit-level (now stacked) evauations or scores, separately within each higher-level 
-context. In either case the resulting mean will be constant across units/respondents within items/
-stacks and within contexts.
+variable list will identify a battery of items each of which will be averaged into a (perhaps 
+weighted) mean that is constant across the units/individuals at the lowest level of a multi-level 
+data hierarchy, becoming synonimous with the external placements mentioned in the two NOTEs above. 
+If issued after stacking it places each item/stack according to unit-level (previously stacked) 
+evauations or scores. In either case the resulting (perhaps weighted) mean placement will be 
+constant across units/respondents within items/stacks and within contexts.
+
+{pstd}
+SPECIAL NOTE COMPARING {help genplace:genplace} WITH {help genmeans:genmeans}: The data processing 
+performed by {cmd:genplace} is computationally identical to that performed by {cmd:genmeans} but 
+conceptually very different. The command {cmd:genmeans} generates means for numeric variables of any 
+type and is limited to that one function. The command {cmd:genplace} generates placements for 
+variables that are conceptually connected by being members of a battery of items, exactly as does 
+{cmd:genmeans) but then proceeds to a second stage in which those means (or some other placement 
+battery defined by option {bf:cweight} is used to average the item placements into a weighted mean 
+placement relating to the battery as a whole (for example a legislature placed in left-right terms 
+according to the individual placements of parties that are members of that parliament). Use of the
+standard {bf:if} component of the {cmd:genplace} command line can limit the generic placement to 
+certain parties (perhaps government parties, thus producing a left-right government location).
+{break}
 
 {title:Options}
 
@@ -56,10 +77,6 @@ value for all units/respondents in each context). By default all units are assum
 the same context.
 
 {phang}
-{opth prefix(name)} if present, prefix for generated placement variables (default is name of 
-cweight variable, if specified, or "p_" otherwise).
-
-{phang}
 {opth stackid(varname)} if present, a variable identifying each different "stack" (equivalent to 
 the {it:j} index in Stata's {bf:{help reshape:reshape long}} command) for which placements will be 
 separately generated. The default is to use the "genplace_stack" variable if the {cmd:gendist} 
@@ -67,14 +84,15 @@ command is issued after stacking. NOTE: there is no {cmd:nostack} option because
 to units that define each stack if the data are stacked.
 
 {phang}
-{opth weight(varname)} if present, provides the same weight as used in analysis commands to be 
-applied when averaging the placements made by indiviual respondents.
+{opth prefix(name)} if present, prefix for generated placement variables which defaults to "m_" for 
+means generated before stacking. After stacking the default prefix is the name of the cweight variable, 
+if specified, or "p_" otherwise.
 
 {phang}
 {opth cweight(varname)} if present, a weight (constant across units/respondents) used to place each 
 item/stack according to the placements provided by experts or other sources in (or pertaining to) 
 each context. The name of this variable will be used as a prefix for generated variables if the 
-{bf:prefix} option is not specified.{p_end}
+{bf:prefix} option is not specified. Use of a {bf:cweight] requires stacked data.{p_end}
 
 {phang}
 {opth nor:eport} suppress diagnostic report of variables created per context.{p_end}
