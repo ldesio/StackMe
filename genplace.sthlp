@@ -4,8 +4,8 @@
 
 {title:Title}
 
-{p2colset 5 17 22 2}{...}
-{p2col :genplace {hline 2}}Generates a battery placement by averaging constituent item-level 
+{p2colset 7 19 22 0}{...}
+{p2col :genplace {hline 2}} Generates a battery placement by averaging constituent item-level 
 placements{p_end}
 {p2colreset}{...}
 
@@ -19,12 +19,12 @@ placements{p_end}
 {synoptset 22 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opt con:textvars(varlist)}}variables defining each context (e.g. country-year){p_end}
+{synopt :{opt con:textvars(varlist)}}variables defining each context (e.g. country and year){p_end}
 {synopt :{opt sta:ckid(varname)}}identifies different "stacks" (often battery items) across which 
 mean placement(s) will be generated{p_end}
 {synopt :{opt mpre:fix(name)}}prefix for names of any generated unit-level variables (default "m_"){p_end}
 {synopt :{opt cwe:ight(varname)}}name of stack weight variable, constant across units{p_end}
-{synopt :{opt cpr:efix(name)}}prefix for name of generated stack-level variable{p_end}
+{synopt :{opt cpr:efix(name)}}prefix for name of generated stack-level variable (default "p_"){p_end}
 {synopt :{opt nor:eport}}suppress report of variables being generated{p_end}
 
 {synoptline}
@@ -65,24 +65,24 @@ to average the item placements into a (weighted) mean placement regarding the ba
 example a legislature placed in left-right terms according to the individual placements of parties 
 that are members of that legislature). Use of the standard {help if:if} component of the {cmd:genplace} 
 command line can focus the generic placement on certain members of the battery (perhaps government 
-parties, thus producing a left-right government location).{break}
+parties, thus producing a left-right government placement).{break}
 
 {pstd}
 SPECIAL NOTE ON WEIGHTING. The {help genplace:genplace} command places higher level objects in terms 
 of the scale positions of lower level objects. Thus a political party might be placed in left-right 
-terms by averaging the left-right placements it receives from respondents. When characterizing a higher-
-level object in terms of lower-level scores, those scores may need to be weighted. For example, survey 
-respondents may need to be weighted according to their probabilities of being sampled when using 
-their judgements regarding the positions of political parties. But if those parties in turn are 
-averaged across a legislature so as to place that legislature in the same left-right terms, there is 
-the opportunity to use quite different weights: perhaps votes received rather than respondents 
-providing judgements. And if the party placements did not derive from respondents but from some 
-external source (experts or manifestos or elites, perhaps) then respondent weights will be irrelevant. 
-For example, if survey responses are used to place a government in left-right terms then the 
-appropriate weight might be the proportion of ministries received by each party comprising that 
-government. This is why {cmd:genplace} uses two different weight variables: one named in the command 
-line's [{help weight:weight}] component for weighting lowest level units and the other named in 
-{cmd:genplace}'s {bf:cweight} option for weighting stack-level items.
+terms by averaging the left-right placements it receives from respondents. When characterizing a 
+higher-level object in terms of lower-level scores, those scores may need to be weighted. For example, 
+survey respondents may need to be weighted according to their probabilities of being sampled. But if 
+those parties in turn are averaged across a legislature so as to place that legislature in the 
+same left-right terms, there is the opportunity to use quite different weights: perhaps 
+votes received rather than respondents providing judgements. And if the party placements 
+did not derive from respondents but from some external source (experts or manifestos or 
+elites, perhaps) then respondent weights will be irrelevant. Thus, if survey responses are 
+used to place a government in left-right terms then the appropriate weight might be the 
+proportion of ministries received by each party comprising that government. This is why 
+{cmd:genplace} uses two different weight variables: one named in the command line's [{help 
+weight:weight}] component for weighting lowest level units and the other named in {cmd:genplace}'s 
+{bf:cweight} option for weighting stack-level items.
 
 
 {title:Options}
