@@ -5,12 +5,12 @@ program define genplace
 
 version 9.0
 	
-syntax varlist(min=1) [if] [weight], [PREfix(name)] [STAckid(varname)] [NOStacks] [CONtextvars(varlist)] [CWEight(varname)] [NOReport]
+syntax varlist(min=1) [if] [weight], [PREfix(name)] [STAckid(varname)] [NOStacks] [CONtextvars(varlist)] [CWEight(varname)] [NOReport] [BY(varlist)]
 
-local varlist "plr"
-local cweight "votepct"
-local stackid "stack"
-local contextvars "cid seq"
+	if "`by'" != ""  {
+		display as error("genplace does not accept option by(varlist); use contextvars(varlist)")
+		exit
+	}
 
 	if "`if'" != ""  local ifexp = "`if'"					// Call the expression what it is
 	else local ifexp = "1"							// Make it true if empty
