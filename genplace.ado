@@ -15,7 +15,7 @@ local contextvars "cid seq"
 	if "`if'" != ""  local ifexp = "`if'"					// Call the expression what it is
 	else local ifexp = "1"							// Make it true if empty
 /*	
-	tokenize "`if'"								// Code to use if `if' starts with the word "if"
+	tokenize "`if'"								// Code to use if `if' starts with the word "if" commented out
 	macro shift
 	local ifexp "`*'"							// Expression following `if', if any
 */
@@ -78,17 +78,22 @@ local contextvars "cid seq"
 				quietly summarize `temp' [aweight=`cweight'] if `ctxvar'==`context' & `ifexp', meanonly
 				local rmean = r(mean)
 			}
-			else  {									// Respondent weighting
+			else  {							// Respondent weighting
+			
 				quietly summarize `var' [aweight=`weight'] if `ctxvar'==`context' & `ifexp', meanonly
 				local rmean = r(mean) 
 			}
 			qui replace `destvar' = `rmean' if `ctxvar'==`context' & `ifexp'
-			display "`destvar' " _continue
+			
+			display "`destvar' " _continue				// Terminate line of progress dots
 			drop `temp'
 	
-		}
+		} // next var
+		
 		display _newline
-	}		
+		
+	} // next context
+	
 	drop _ctx_temp
 	
 end
