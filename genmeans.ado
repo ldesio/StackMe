@@ -1,13 +1,12 @@
 
 capture program drop genmeans
 
-program define genmeans
+program define genmeans							// Virtually same code as genplace (differences /* HERE */ )
 
-version 9.1 
+version 9.0
 
 syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varlist)] [STAckid(varname)] [NOStacks]
-									// If/ puts expression into `if' instead of `ixp'
-
+									// 'If/' puts expression into `if' instead of `ixp'
 
 	local stkid = "`stackid'"					// Establish whether the data are stacked
 	if ("`stackid'"=="")  {
@@ -21,7 +20,7 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 		tokenize `weight', parse("=")
 		if "`1'" != ""   {
 			if "`1'" != "aweight"  {
-				display as error "genmeans only allows a-weights"
+				display as error "genmeans only allows a-weights" 
 				exit
 			}
 		}
@@ -38,8 +37,8 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 	local ifexp "`*'"						// Expression following `if', if any
 */
 
-	if "`cweight'" != "" & "`stkid'" == ""  {
-		display as error "Cannot have cweight with unstacked data"
+	if "`cweight'" != "" /*& "`stkid'" == "" */ {
+		display as error "cweight not allowed with genmeans (only with genplace)" /*cweight needs stacked data*/
 		exit
 	}
 
@@ -78,65 +77,63 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 
 	local ctxvar = "_ctx_temp"
 
-									// MAYBE we should refer to placements only in genplace?
+									// We now refer to placements only in genplace
 	if "`stkid'" != ""  display _newline "Generating placements of objects identified by `stkid',"
 	else display _newline "Generating means of variables in varlist,"
 	display "separately within contexts defined by `contextvars.'"
 	if `ifexp' != 1  display "Selecting on `ifexp'"
-*	if "`weight'" != "" & "`cweight'" != ""  display "Ignoring cweight (incompatible with weight)"
 	if "`weight'" != "" display "Weighting respondents on `weight'"
 	if "`cweight'" != "" display "Weighting items/stacks on `cweight'"
 		
 
-	foreach var of varlist `varlist' {
+	foreach var of varlist `varlist' {	
 
 		local destvar = "`pfix'`var'"
 		capture drop `destvar'
 		qui gen `destvar' = .
 		display _newline "Newvar `destvar'  " _continue
-*		display "{text}{pstd}Context {result:`context'}: Generating: " _continue // Keep this syntax
 		quietly levelsof `ctxvar', local(contexts)
 
 		
-		foreach context in `contexts' {				// TRY statsby mean=r(mean), by(`ctxvar'): summarize... [to replace summarize...]
+		foreach context in `contexts' {				// TRY statsby mean=r(mean), by(`ctxvar'): summarize...
 			
-			if "`cweight'" != ""  {				// Item weighting happens in two stages:
-
+			if "`cweight'" != ""  {				// (Always "" for genmeans) Item weighting happens in 2 steps:
+									//			    (BUt ONLY for genplace)
 				tempvar temp				// (1) get means across respondents (can be weighted)
 
-				if "`weight'" == "" quietly summarize `var' if `ctxvar'==`context', meanonly
-				else quietly summarize `var' [aw=weight] if `ctxvar'==`context', meanonly
+				if "`weight'" == "" quietly summarize `var' if `ctxvar'==`context' & `ifexp', meanonly
+				else quietly summarize `var' [aw=weight] if `ctxvar'==`context' & `ifexp', meanonly
 
 				quietly gen `temp' = r(mean)		// (2) Average those placements within contexts
 
-				if "`cweight'" == "" quietly summarize `temp' if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
-				else qui summarize `temp' [aweight=`cweight'] if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
+				if "`cweight'" == "" quietly summarize `temp' if `ctxvar'==`context' & `ifexp', meanonly
+				else qui summarize `temp' [aweight=`cweight'] if `ctxvar'==`context' & `ifexp', meanonly
 
 				local rmean = r(mean)			// cweights can be combined with respondent weights
 
 				drop `temp'				// NOTE: Mean resp positns are equivlane to expert-
 									//       rated positns, constant across respondents
 			}						//       (and often coded as such in, eg, CSES data)
-
+									//	 NOT RELEVANT for genmeans, for which cweight==""
 			else  {	
 
 				if "`weight'" != ""	 {		// Respondent weighting
-					quietly summarize `var' [aw=`weight'] if `ctxvar'==`context' & `ifexp', meanonly // OR maybe statsby...
-					local rmean = r(mean) 		// Respondent weighting only happens if no cweight
+					quietly summarize `var' [aw=`weight'] if `ctxvar'==`context' & `ifexp', meanonly
+					local rmean = r(mean) 
 				}
 
 				else  {					// Unweighted
-					quietly summarize `var' if `ctxvar'==`context' & `ifexp', meanonly 		 // OR maybe statsby...
+					quietly summarize `var' if `ctxvar'==`context' & `ifexp', meanonly
 					local rmean = r(mean) 					
 				}
 				
 			}
 			if `rmean'!=.  qui replace `destvar' = `rmean' if `ctxvar'==`context' & `ifexp'
+			
 			if trunc(`context'/5)*5 ==`context'  display "." _continue
 		}
-															// WOULD read collected stats here
+		
 	} // next var	
-
 	drop _ctx_temp
 	display " "
 	
