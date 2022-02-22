@@ -15,7 +15,7 @@ program define gendummies
 		quietly levelsof `varname', local(values)
 		
 		local thePrefix = "`varname'"				// Here `prefix' is a stubname
-		if ("`prefix'"!="")  {
+		if ("`prefix'"!="" & `nvars'==1)  {			// Alternative stubname not allowed if more than 1 var in varlist
 			local thePrefix = "`prefix'"
 		}
 
