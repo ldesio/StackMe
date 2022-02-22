@@ -131,7 +131,7 @@ syntax varlist(min=1) [aw pw iw fw] [if/], [CWEight(varname)] [CONtextvars(varli
 			if `rmean'!=.  qui replace `destvar' = `rmean' if `ctxvar'==`context' & `ifexp'
 			
 			if trunc(`context'/5)*5 ==`context'  display "." _continue
-		}
+		} // next context
 		
 	} // next var	
 	drop _ctx_temp
