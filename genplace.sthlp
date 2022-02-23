@@ -124,15 +124,14 @@ if specified, or to "p_" otherwise.
 
 {title:Examples:}
 
-{pstd}The following command generates a battery of "m_" prefixed wt-weighted means from 
-respondent-rated party positions and, based on those, a single "gov_" prefixed measure of  
-government location. Before stacking the original party placements would have been held in 
-a battery of variables such as lrp1-lrp10.{p_end}
+{pstd}The following command, issued after stacking, generates a battery of "m_" prefixed 
+wt-weighted means (constant across respondents) from respondent-rated party positions and, 
+based on those, a single "gov_" prefixed measure of government location.{p_end}
 
 {phang2}{cmd:. genplace plr [aw=wt] if govmembr==1, context(cid year) cprefix(gov_){p_end}{break}
 
-{pstd}The following command generates a "gov_" prefixed measure of government locations based on 
-expert-rated party placements (constant across respondents).{p-end}
+{pstd}The following command, also issued after stacking, generates a "gov_" prefixed measure of 
+government locations based on expert-rated party placements (constant across respondents).{p-end}
 
 {phang2}{cmd:. genplace xlr, context(cid year) cprefix(gov_) cweight(votepct)}{p_end}{break}
 
