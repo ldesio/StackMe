@@ -23,7 +23,6 @@
 generated if {cmd:genmeans} is invoked after stacking{p_end}
 {synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context{p_end}
 {synopt :{opth pre:fix(name)}}prefix for names of generated variables (default is "m_"){p_end}
-{synopt :{opth cwe:ight(varname)}}item/stack weight{p_end}
 {synopt :{opt nor:eport}}suppress reporting of variables created per context{p_end}
 
 
@@ -36,12 +35,10 @@ generated if {cmd:genmeans} is invoked after stacking{p_end}
 context (if specified). These means can be weighted as though deriving from statistical analyses.
 
 {pstd}
-The {cmd:genmeans} command can be issued before or after stacking. If issued before stacking the 
-variable list will name members of an item battery that, after stacking, will provide the values 
-of a single variable (see {bf:{help genstacks:genstacks}}). If issued after stacking it 
-determines the mean across units (often respondents) for each item/stack separately within each 
-higher-level context. In either case the resulting mean will be constant across units/respondents 
-within items/stacks and within contexts.
+The {cmd:genmeans} command can be issued before or after stacking. Means will be generated for 
+any variables, whether or not included in a battery of items, separately for each stack (if 
+issued after stacking) and separately for each context (if optioned by {bf:contextvars}). 
+Resulting mean will be constant across units/respondents (within items/stacks) and within contexts.
 
 {title:Options}
 
@@ -66,13 +63,6 @@ context (has no effect if data are not stacked). This option is not compatible w
 {it:cweight} because those are weights that apply to each stack.
 
 {phang}
-{opt cwe:ight(varname)} if present, provides a weight (constant across respondents) to be applied 
-at the battery/stack level. It supplements conventional weights, which can still be specified 
-as usual, earlier in the command line. The {bf:cmean} option requires stacked data and is 
-incompatible with option {bf:nostack}. This option makes {cmd:genmeans} function in the same  
-way as {cmd:genplace} (q.v.).{p_end}
-
-{phang}
 {opt nor:eport} suppress dianostic output regarding variables created for each context.{p_end}
 
 
@@ -81,34 +71,27 @@ way as {cmd:genplace} (q.v.).{p_end}
 {pstd}The following command, issued before stacking, generates means named "m_educ" and "m_income" 
 for the different contexts found in the data.{p_end}
 
-{phang2}{cmd:. genmeans educ income, context(cid year) weight(wt)}{p_end}{break}
+{phang2}{cmd:. genmeans educ income plr1-plr9, context(cid year) weight(wt)}{p_end}{break}
 
-{pstd}The following command, issued after stacking, generates weighted mean locations of governing 
-parties where weights are derived from votes received (essentially a measure of where governments 
-are located in left-right terms). NOTE that the cweight would first have to be set to 0 for parties/
-stacks belonging to non-governing parties, otherwise the measure would relate to the whole 
-legislature rather than to the government.{p_end}
 
-{phang2}{cmd:. genmeans plr, prefix(gov_) context(cid year) cweight(votepct)}{p_end}{break}
+{pstd}The following command, issued after stacking, generates weighted mean locations of parties 
+in each government and mean closeness to parties in each government, weighted by weighted N of 
+respondents reporting each score.{p_end}
+
+{phang2}{cmd:. genmeans cls plr [aw=wt] if govpty==1, prefix(gov_) context(cid year){p_end}{break}
+
 
 {title:Generated variables}
 
-
 {pstd}
-{cmd:genmeans} saves the following variables or set of variables:
+{cmd:genmeans} saves the following variables or set(s) of variables:
 
 {synoptset 13 tabbed}{...}
 {synopt:m_{it:var1} m_{it:var2} ... (or other prefix set by option {bf:prefix})} a set of context-
-specific means held in variables named p_var1, p_var2, etc., where the names var1, var2, etc. 
+specific means held in variables named m_var1, m_var2, etc., where the names var1, var2, etc. 
 match the original variable names in {it:varlist}. Those variables are left unchanged. Generated  
 for unstacked data.{p_end}
 
 {synopt:m_{it:vara} [m_{it:varb} ... (or other prefix set by option {bf:prefix})} a (set of 
 (different) variable(s) holding the mean for each stack in each context for the variable(s) in 
 {it:varlist}. Generated for stacked data.{p_end}{break}
-
-
-NOTE: We should consider using the same syntax for weighting as used in statistical analyses; also 
-subsetting by permitting an "if" suffix to the genmeans command (would avoid the need for clumsy 
-messing with cweights – see NOTE to 2nd example above). cweights would still be treated  
-as options.
