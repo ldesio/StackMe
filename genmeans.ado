@@ -8,7 +8,7 @@ version 9.0
 syntax varlist(min=1) [if] [weight], [PREfix(name)] [STAckid(varname)] [NOStacks] [CONtextvars(varlist)] [CWEight(varname)] [NOReport] [BY(varlist)]
 
 	if "`by'" != ""  {
-		display as error("genmeans does not accept option by(varlist); use contextvars(varlist)")
+		display as error("genmeans does not accept option 'by(varlist)'; use 'contextvars(varlist)'")
 		exit
 	}
 
@@ -64,7 +64,7 @@ syntax varlist(min=1) [if] [weight], [PREfix(name)] [STAckid(varname)] [NOStacks
 	foreach context in `contexts' {	
 			
 		display "{text}{pstd}Context {result:`context'}: Generating: " _continue
-*set trace on
+
 		foreach var of varlist `varlist' {
 
 			local destvar = "`pfix'`var'"
