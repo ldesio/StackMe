@@ -75,7 +75,7 @@ The {cmd:StackMe} package includes the following commands:
 {p2colset 5 17 19 2}{...}
 {p2col :{bf:{help iimpute:iimpute}}}(Context-wise) incremental simple or multiple imputation of 
 missing data within a battery of variables, taking advantage of within-battery interrelationships 
-(additional functions have been taken over by Stata's {help mi:{bf:mi}} command){p_end}
+(additional functionality has been taken over by Stata's {help mi:{bf:mi}} command){p_end}
 {p2col :{bf:{help genstacks:genstacks}}}(Context-wise) reshaping of a dataset for response-level 
 analysis{p_end}
 {p2col :{bf:{help gendist:gendist}}}(Context-wise) generation of distances between a 
@@ -91,12 +91,12 @@ permitting calculation of weighted means){p_end}
 {p2col :{bf:{help genplace:genplace}}}generation of spatial placements at the battery level 
 (e.g. legislature or government level if the battery items relate to political parties). Placements 
 can optionally be weighted by the (weighted) number of respondents and/or by substantively 
-meaningful weights (e.g. proportions of seats or ministries controlled by parties that are members 
+meaningful weights (e.g. proportions of seats or of ministries controlled by parties that are members 
 of a government).{p_end}
 
 {pstd}
 These tools largely duplicate existing commands in Stata but operate on data with multiple contexts 
-(eg. countries or country-years) each of which requires separate handling. Moreover, all of the 
+(eg. countries or country-years), each of which to be pre-processed separately. Moreover, all of the 
 commands in {cmd:stackme} have additional features not readily duplicated with existing Stata commands 
 even for data that relate to a single context. If the {cmd:contextvars} option is not specified, each of 
 those individual commands treats the data as belonging to a single context.
@@ -123,14 +123,14 @@ is provided for unstacking a previously stacked dataset (a crude way to do this 
 stacks beyond the first).{break}
 
 {pstd}The commands {cmd:gendist} and {cmd:genyhats} by default assume the data are 
-stacked and treat each stack as a separate context to be taken into account along with any 
+stacked and treat each stack as a separate context, to be taken into account along with any 
 higher-level contexts. These commands can, however, be used on unstacked data or they can be directed to 
 ignore the stacked structure of the data by specifying the {cmd:nostack} option. This option has no effect 
 on {cmd:gendummies} or {cmd:genmeans} or on any StackMe command that is being used on unstacked data 
 (since unstacked data have only one stack per case). With stacked data, ignoring the separate contexts 
-represented by each stack might be considered desirable if prior analysis has established that there 
-is no stack-specific heterogeneity relevant to the estimation model for which these transformations are 
-being performed. Alternatively, the user might employ this option so as to impute a variable that is 
+represented by each stack might make sebse if exploratory analysis had established that there 
+is no stack-specific heterogeneity relevant to the estimation model for which the data were being  
+pre-processed. Alternatively, the user might employ this option so as to impute a variable that is 
 completely missing in one or more stacks (e.g. particular choices not asked regarding non-governing 
 parties).{break} 
 
@@ -143,29 +143,23 @@ used to impute missing data for other members of the same battery;
 {pmore}(2) {cmd:gendist} can be useful in plugging missing data for items that can then be named in 
 {cmd:iimpute}'s {bf:addvars} option to help in the imputation of missing data for other variables;
 
-{pmore}(3) if {cmd:genyhats} or {cmd:gendist} commands are issued before stacking, they will have to be 
-used once for each of the individual variables that will, after stacking, become a single (generic) 
-variable (a workaround syntax has been created for genyhats that permits multiple batteries to be named 
-on the same command line, and this syntax may be generalized in later releases to be used with other 
-commands as well; but the {cmd:genyhats} command takes considerably longer to execute if issued before 
-stacking; 
-
-{pmore}(4) if {cmd:gendist} is employed after stacking, the items to which distances are computed 
+{pmore}(3) if {cmd:gendist} is employed after stacking, the items to which distances are computed 
 have themselves to first have been reshaped into long format by stacking them; and finally
 
 {pmore}
-(5) after stacking and the generation of y-hat affinity variables, the number of variables required for 
+(4) after stacking and the generation of y-hat affinity variables, the number of variables required for 
 a final (set of) {help mi:{bf:mi}} command(s) will generally be greatly reduced, cutting the time needed 
 to perform multiple imputations for what are generally very large datasets (see SPECIAL NOTE ON MULTIPLE 
 VERSUS SINGLE IMPUTATION in {bf:{help {iimpute:iimpute}}}.
 
 {pstd}
 Consequently, a typical workflow would involve using {cmd:iimpute} to fill out any batteries of 
-conceptually-linked items by imputing any that might be missing, followed by {cmd:genstacks} to stack 
-the data. This would often be followed by {cmd:genyhats}, used to transform indeps (those that will 
-not be transformed into distance measures) into y-hat affinities for the stacked depvar. The {cmd:gendist} 
-command would then be used to plug missing values on item location variables and generate distances to 
-be used in a final (set of) {help mi:{bf:mi}} command(s) that would eliminate remaining missing data.{break} 
+conceptually-linked items by plugging their missing values, followed by {cmd:genstacks} to stack 
+the data. Often this would be followed by {cmd:gendist}, used to plug missing values on item 
+location variables before generating distance measures. Then{cmd:genyhats} might be used to transform 
+indeps (those not already made tractable by being transformed into distance measures) into y-hat 
+affinities with the stacked depvar. The results might then be used in a final (set of) {help mi:{bf:mi}} 
+command(s) that would cull remaining missing data.{break} 
 
 {pstd}
 Considerable flexibility is available, however, to transform a dataset in any sequence thought 
@@ -174,16 +168,18 @@ before or after stacking ({cmd:genstacks} only before and {cmd:genplace} only af
 Moreover, the researcher can use the {cmd:nostack} option to force the production of distances, y-hats 
 and missing data imputations that "average out" contextual differences by regarding all 
 stacks (and perhaps also certain higher-level contexts) as a single context. This 
-might be thought desirable after having established that there were no significant 
+might make sense after preliminary analyses had established that there were no significant 
 differences between these contexts in terms of the behavior of variables to be included 
 in an estimation model. For example, country-year contexts are often collapsed into year 
 contexts for (cross-section) time-series analyses and this happens automatically if the country 
-id variable is omitted from the {bf:contextvars} option).
+id variable is omitted from a {bf:contextvars} option that contains a sequence variable).
 
+
+{title:Variable naming conventions and variable lists}, 
 
 {pstd}
-A NOTE ON VARIABLE NAMING CONVENTIONS AND VARIABLE LISTS: StackMe command lines expect variable batteries
-to be named in two different ways depending on whether the command is issued before or after stacking. 
+StackMe command lines expect variable batteriesto be named in two different 
+ways depending on whether the command is issued before or after stacking. 
 Before stacking, variables from batteries of questions, one battery question for each battery item (for 
 instance regarding different political parties), are expected to all have the same stub-name, with 
 numeric suffixes that run from 1 to the number of items in the battery. Users with variable batteries 
@@ -192,21 +188,22 @@ before using StackMe commands. After stacking, those different variables become 
 by the stubname used before the data were reshaped. So what was a variable list (of battery items) before 
 stacking becomes a single battery variable after stacking. Note that the {cmd:genstacks} command, which 
 transforms variables from pre-stacked to post-stacked format, uses post-stacking conventions for variable 
-names (implied pre-stacking names are derived internally). At a third stage resulting batteries may be 
-characterized by the (weighted) mean values of their members, becoming battery placement variables with 
-new names each of which reflects the entity being placed (in electoral studies, perhaps a parliament or 
-government). The {cmd:genplace} command produces a variable label that records the origin of such a 
+names (implied pre-stacked names are derived internally). At a third stage, resulting batteries may be 
+characterized by the (weighted) mean values of their member items, becoming battery placement variables 
+with new names, each of which reflects the entity being placed (in electoral studies, perhaps a parliament 
+or government). The {cmd:genplace} command produces a variable label that records the origin of any such 
 battery placement variable.{break}
     VARIABLE LISTS thus look different before stacking than after stacking. Additionally, StackMe 
 commands provide two different ways to refer to stacked variables:{break}
-(1) in a varlist of what originally were stubnames, accompanied by an optioned "reference" name (of the 
-battery being placed or the variable from which distances are being calculated or the name to be given 
-to y-hat affinities), as documented in the helpfiles for relevant StackMe commands. Alternatively,{break}
+(1) in a {it:varlist} of what originally were stubnames, accompanied by an optioned "reference" {it:varname} (of 
+the battery being placed or of the variable from which distances are to be calculated or of the name to be 
+given to a new y-hat affinity variable), as documented in the helpfiles for relevant StackMe commands. 
+Alternatively,{break}
 (2) in a series of lists, separated by || and each starting with the name of the reference variable 
-followed by a colon (":"). The colon is, in turn, followed by a list of variables to be associated with 
-that reference variable, as documented (and similar to conventions used elsewhere in Stata – e.g. Stata's 
-{help mixed:{bf:mixed}} command). The two formats can be interspersed in the same varlist, as signalled 
-by the presence or absence of a colon following the first name in a list, as documented.{break}
+followed by a colon (":"). The colon is, in turn, followed by a {it:varlist} to be associated with that 
+reference variable, documented as above (and similar to conventions used elsewhere in Stata – e.g. Stata's 
+{help mixed:{bf:mixed}} command). The two formats can be interspersed in the same {it:varlist}, as signalled by 
+the presence or absence of a colon following the first {it:varname} in a list, documented as above.{break}
    
 
 {title:Authors}
