@@ -92,7 +92,7 @@ permitting calculation of weighted means){p_end}
 (e.g. legislature or government level if the battery items relate to political parties). Placements 
 can optionally be weighted by the (weighted) number of respondents and/or by substantively 
 meaningful weights (e.g. proportions of seats or ministries controlled by parties that are members 
-of a government){p_end}
+of a government).{p_end}
 
 {pstd}
 These tools largely duplicate existing commands in Stata but operate on data with multiple contexts 
@@ -181,6 +181,34 @@ contexts for (cross-section) time-series analyses and this happens automatically
 id variable is omitted from the {bf:contextvars} option).
 
 
+{pstd}
+A NOTE ON VARIABLE NAMING CONVENTIONS AND VARIABLE LISTS: StackMe command lines expect variable batteries
+to be named in two different ways depending on whether the command is issued before or after stacking. 
+Before stacking, variables from batteries of questions, one battery question for each battery item (for 
+instance regarding different political parties), are expected to all have the same stub-name, with 
+numeric suffixes that run from 1 to the number of items in the battery. Users with variable batteries 
+whose items have disperate names (or stubnames with alphabetic suffixes) will need to rename such variables 
+before using StackMe commands. After stacking, those different variables become a single variable named 
+by the stubname used before the data were reshaped. So what was a variable list (of battery items) before 
+stacking becomes a single battery variable after stacking. Note that the {cmd:genstacks} command, which 
+transforms variables from pre-stacked to post-stacked format, uses post-stacking conventions for variable 
+names (implied pre-stacking names are derived internally). At a third stage resulting batteries may be 
+characterized by the (weighted) mean values of their members, becoming battery placement variables with 
+new names each of which reflects the entity being placed (in electoral studies, perhaps a parliament or 
+government). The {cmd:genplace} command produces a variable label that records the origin of such a 
+battery placement variable.{break}
+    VARIABLE LISTS thus look different before stacking than after stacking. Additionally, StackMe 
+commands provide two different ways to refer to stacked variables:{break}
+(1) in a varlist of what originally were stubnames, accompanied by an optioned "reference" name (of the 
+battery being placed or the variable from which distances are being calculated or the name to be given 
+to y-hat affinities), as documented in the helpfiles for relevant StackMe commands. Alternatively,{break}
+(2) in a series of lists, separated by || and each starting with the name of the reference variable 
+followed by a colon (":"). The colon is, in turn, followed by a list of variables to be associated with 
+that reference variable, as documented (and similar to conventions used elsewhere in Stata – e.g. Stata's 
+{help mixed:{bf:mixed}} command). The two formats can be interspersed in the same varlist, as signalled 
+by the presence or absence of a colon following the first name in a list, as documented.{break}
+   
+
 {title:Authors}
 
 {pstd}
@@ -193,6 +221,5 @@ includes previous code and other contributions by Elias Dinas
 
 {pstd}
 If you use {bf:StackMe} in published work, please use the following citation:{break}
-De Sio, L. and Franklin, M. (2011), StackMe: A Stata package for analysis of multi-level data 
+De Sio, L. and Franklin, M. (2011) "StackMe: A Stata package for analysis of multi-level data" 
 (version 0.9), {it:Statistical Software Components}, Boston College Department of Economics.
-
