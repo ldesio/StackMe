@@ -18,8 +18,9 @@
 {synoptset 25 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth res:pondent(varname)}}(required) the variable containing the respondent's self-placement 
-in the space (e.g. the issue space) in which items (e.g. the political parties) have been placed.{p_end}
+{synopt :{opth res:pondent(varname)}}the (default) reference variable containing the respondent's 
+self-placement in the space (e.g. an issue space) in which items (e.g. the political parties) have 
+been placed.{p_end}
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
@@ -111,8 +112,10 @@ multiple batteries in the help text for {bf:{help genstacks:genstacks}}.
 {title:Options}
 
 {phang}
-{opth respondent(varname)} (required) the variable containing the respondent's self-placement on the battery 
-of items.
+{opth respondent(varname)} the reference variable containing the respondent's (default) self-placement on 
+the battery of items. May be overriden by (successive) prefix ({it:varname:}) variable(s), each following 
+"||" dividers and each introducing additional {it:varlist}(s) for which distances to each new reference 
+variable will be calculated.
 
 {phang}
 {opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts 
