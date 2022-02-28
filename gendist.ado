@@ -1,3 +1,79 @@
+capture program drop gendist
+
+program define gendist
+
+	version 9.0
+
+*set trace on
+
+
+	gettoken anything options : 0, parse(",")				// Put everything from "," into `options'
+
+	if strrpos("`anything'"," if")>0  {						// See if there is an 'if' component
+		local anything = substr("`anything'",1,strrpos("`anything'"," if"))
+		local if=substr("`anything'",strrpos("`anything'"," if"),.)	// `if' string will be passed to gendistP
+	}
+	if substr("`options'",1,1) != ","  {
+		display as error("Need list of options, starting with comma")
+		exit
+	}
+	
+	// Process complex varlist syntax in preparation for processing each varlist in turn by calling gendistP (the original program)
+	
+	local pipedsyntax = 0
+	
+	if (strpos("`anything'",":")!=0 | strpos("`anything'","||")!=0) {
+		local pipedsyntax = 1
+	} 
+	else {
+		local thisRef = "`respondent'"						// Use `respondent' as reference if not pipedsyntax
+		local varlist
+		foreach var of varlist `anything' {
+			local varlist `varlist' `var'
+		}
+	}
+	
+	display ".." _continue
+
+	while ("`anything'" != "")  {
+		
+		if (`pipedsyntax'==1) {								// Here we process next segment of quasi-varlist
+		
+			gettoken string : anything, parse("||")		 	// 'string' gets all up to "||" or to end of anything
+															//  (anything)
+			//display "{pstd}{text}"
+
+			//display "Processing {bf:`string'}:{break}"
+			if (strpos("`string'",":")==0) {				// No colon in this segment
+				local thisRef = "`respondent'"				// Use `respondent' as reference if no colon
+				local varlist `string'
+				}
+			else {
+				// colon
+				gettoken thisRef postcolon: string, parse(": ") 
+				gettoken varlist: postcolon, parse("||") 	// Previously up to ": " actually to end of segment
+			}
+		} 		
+		else local anything	= ""							// Just one varlist so empty `anything'
+		
+		if "`thisResp'"==""&strpos("`options'","res")==0  { // Only need check for 1st 3 chars of 'respondent'
+			display as error "{pstd}{text}Need a reference variable in option {bf:respondent}."
+			exit
+		}													// Only now do we know if there is a reference prefix
+		
+		gendistP `varlist' `if' `options'					// `options' starts with a comma
+		
+
+	} // next pipe-delimited varlist, if any
+	
+	
+	  // Remove following from gendistP since they are executed only following the last call on gendistP
+
+	display ""
+	display "done."
+	
+end	
+
 capture program drop createImputedCopy
 program define createImputedCopy
 	version 9.0
@@ -11,8 +87,8 @@ program define createImputedCopy
 	
 end
 
-capture program drop gendist
-program define gendist
+capture program drop gendistP
+program define gendistP
 	version 9.0
 	
 	syntax varlist(min=1), [CONtextvars(varlist)] [PPRefix(name)] [DPRefix(name)] RESpondent(varname) [MISsing(string)] [ROUnd] [REPlace] [MPRefix(name)] [MCOuntname(name)] [MPLuggedcountname(name)] [STAckid(varname)] [NOStacks] [DROpmissing]
@@ -50,9 +126,10 @@ program define gendist
 	local nvars : list sizeof varlist
 	
 	tokenize `varlist'
-    local first `1'
+    	local first `1'
 	local last ``nvars''
 
+	noisily display "." _continue
 	
 	if ("`missing'"!="") {
 		capture drop `missingCntName'
@@ -74,6 +151,7 @@ program define gendist
 
 		}
 	}
+	noisily display "." _continue
 
 	capture drop _ctx_temp
 	capture label drop _ctx_temp
@@ -116,6 +194,7 @@ program define gendist
 	display as text
 	display "{pstd}{text}Computing distances between R's position ({result:`respondent'}){break}"
 	display "and her placement of different objects: {result:`varlist'}"
+	display ""
 
 	// create imputed copies first
 	if ("`missing'"!="") {
@@ -123,7 +202,9 @@ program define gendist
 			createImputedCopy `var', type("`missing'") imputeprefix("`imputePref'")
 		}
 	}
-	
+
+	noisily display "." _continue
+
 	// create empty variables regardless of context
 	if ("`missing'"!="") {
 		foreach var of varlist `varlist' {
@@ -141,86 +222,53 @@ program define gendist
 			label variable `fullDistancePref'`var' "`newlab'"
 		}
 	}
-	
-	display ""
-	
-	//display "{text}{pstd}"
-	// loops over all contexts
-	foreach context in `contexts' {
-		display "{text}{pstd}Context {result:`context'}: Generating " _continue
-		foreach var of varlist `varlist' {
-			if ("`missing'"=="mean") {
-			
-				quietly summarize `imputePref'`var' if `ctxvar'==`context'
-				quietly return list
-				local theMean = r(mean)
-				if ("`round'"=="round") local theMean = round(`theMean')
-				
-				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==. & `ctxvar'==`context'
-				capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent') if `ctxvar'==`context'
-				
-				display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
-				
- 
-			}
-			else if ("`missing'"=="same") {
-			
-				quietly summarize `imputePref'`var' if `respondent'==`imputePref'`var' & `ctxvar'==`context'
-				quietly return list
-				local theMean = r(mean)
-				if ("`round'"=="round") local theMean = round(`theMean')
-				
-				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==. & `ctxvar'==`context'
-				capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent') if `ctxvar'==`context'
-				
-				display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
-
-			}
-			else if ("`missing'"=="diff") {
-			
-				quietly summarize `imputePref'`var' if `respondent'!=`imputePref'`var' & `ctxvar'==`context'
-				quietly return list
-				local theMean = r(mean)
-				if ("`round'"=="round") local theMean = round(`theMean')
-				
-				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==. & `ctxvar'==`context'
-				
-				// now this also replaces with the mean, even for cases
-				// where party was placed the same as the respondent
-				capture replace `imputePref'`var'=`theMean' if `imputePref'`var'==`respondent' & `ctxvar'==`context'
-				
-				capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent') if `ctxvar'==`context'
-				
-				display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
-
-			}
-			else {
-				capture replace `fullDistancePref'`var' = abs(`var' - `respondent') if `ctxvar'==`context'
-				display "{result:`fullDistancePref'`var'}... " _continue
-
-			}
-
-			// centering, removed.
-			/*
-			if ("`nocenter'"!="") {
-				// do nothing
-			}
-			else {
-				quietly summarize `fullDistancePref'`var' if `ctxvar'==`context'
-				quietly return list
-				local theDistanceMean = r(mean)
-				replace `fullDistancePref'`var'=`fullDistancePref'`var'-`theDistanceMean' if `ctxvar'==`context'	
-			}
-			*/
 		
+	//display "{text}{pstd}"
+	sort `ctxvar'										// Preparatory to 'statsby:'
+
+*	display "{text}{pstd}Context {result:`context'}: Generating " _continue
+
+	foreach var of varlist `varlist' {
+		noisily display "." _continue
+
+		preserve
+		quietly {	
+		if ("`missing'"=="mean") statsby theMean=r(mean)   /* if */								, 	///
+			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
+				
+		else if ("`missing'"=="same") statsby theMean=r(mean) if `respondent'==`imputePref'`var',	///
+			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
+				
+		else if ("`missing'"=="diff") statsby theMean=r(mean) if `respondent'!=`imputePref'`var',	///
+			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
+			
+		else  {
+			statsby theMean=r(mean), by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
+			capture replace `fullDistancePref'`var' = abs(`var' - `respondent')
+			display "{result:`fullDistancePref'`var'}... " _continue
+			continue, break
 		}
-	
-		display "{break}"
-		display ""
-		//display as text
-		//display "{p_end}"
-		//display ""
-	}
+		capture frame drop stats
+		frame put _ctx_temp theMean, into(stats)
+				
+		restore
+		frlink m:1 _ctx_temp, frame(stats)
+		frget theMean, from(stats)
+		frame drop stats
+				
+		if ("`round'"=="round") replace theMean = round(theMean)
+				
+		capture replace `imputePref'`var' = theMean if `imputePref'`var'==. 
+		capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent')
+				
+		display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
+		
+		drop stats theMean
+		} // end quietly
+
+	} // next `var'
+
+	noisily display " "
 	
 	if ("`missing'"!="") {
 		quietly egen `missingImpCntName' = rowmiss(`imputedvars')
@@ -238,8 +286,6 @@ program define gendist
 	capture drop _ctx_temp
 	capture label drop _ctx_temp
 
-	display ""
-	display "done."
 	
 end	
 
