@@ -21,7 +21,9 @@ program define genstacks
 	display "{text}{pstd}"
 	
 		
-					// diagnosing batteries with different sizes: 
+		
+		
+					// Diagnosing batteries with different sizes: 
 		
 		if ("`nocheck'"!="nocheck") {
 		
@@ -118,8 +120,9 @@ program define genstacks
 			error 416
 		}
 	
-	
 					// End of diagnostics
+					
+					
 	
 	noisily display "." _continue
 			
@@ -128,6 +131,8 @@ program define genstacks
 	egen _respid=fill(1/2)
 	local stkvars = "_respid"
 	*/
+	
+	
 					// Enumerate all contexts
 	if ("`contextvars'" == "") {
 		//display "not set"
@@ -149,6 +154,8 @@ program define genstacks
 	
 	noisily display "." _continue
 	
+	
+	
 
 					// Get varlist and resondent ID
 	local varlist = ""
@@ -162,12 +169,13 @@ program define genstacks
 	}
 	else _respid = `respid'
 	
-	display "."	_newline _newline "WARNING: {bf:genstacks} saves a number of temporary files whose names start with '_'. They will " 
+	display "."	_newline "WARNING: {bf:genstacks} saves a number of temporary files whose names start with '_'. They will " 
 	display "         be stored in your active directory, in case you need to delete them manually." _newline
 
 	save "_genstacks_orig.dta"						// **** Saved because of restore glitch
 
 	display " "
+
 
 
 					// Reshape (stack) each context, append them to stacked file, context by context
@@ -231,6 +239,9 @@ local appendlist = "$appendlist"						// First command after resuming execution
 		save "_genstacks_stkd.dta", replace
 	
 	restore									// Restore default dataframe (works this time)
+
+
+
 
 					// Merge with preserved original data (constant across stacks)
 													
