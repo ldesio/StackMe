@@ -6,6 +6,7 @@ program define genstacks
 	version 9.0
 	syntax namelist, [CONtextvars(varlist)] [STAckid(name)] [ITEmname(name)] [TOTstackname(name)] [REPlace] [RESpid(name)] [NOCheck] [fe(namelist)] [FEPrefix(string)]
 	
+	*** SOMEHOW this version fails to process itemname, totstackname, fe or feprecix (what are those last two?)
 	
 	
 	gettoken firststub otherstubs: namelist					// Need `firststub' as "master battery" for diagnostics
