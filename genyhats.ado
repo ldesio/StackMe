@@ -1,4 +1,4 @@
-capture program drop npredcent
+capture program drop npredcent 
 program npredcent, byable(recall, noheader)    /* Program to predict and center a variable on its mean */
 	version 9.0
 	syntax varlist [if] , REPlace(name) [contextvars(string)] [center(string)] [logit] [stackname(name)] [effects(string)] [NOStacks] [STAckid(varname)]
