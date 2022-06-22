@@ -5,22 +5,21 @@
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
-{p2col :gendist {hline 2}}Generates distances for a battery of spatial placements{p_end}
+{p2col :gendist {hline 2}}Generates distances for batter(ies) of spatial placements{p_end}
 {p2colreset}{...}
 
 
 {title:Syntax}
 
 {p 8 16 2}
-{opt gendist} {varlist} 
+{opt gendist} {refvar[:]}{varlist} [|| {refvar[:]}{varliest} ...]
    [{cmd:,} {it:options}]
 
 {synoptset 25 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth res:pondent(varname)}}the (default) reference variable containing the respondent's 
-self-placement in the space (e.g. an issue space) in which items (e.g. the political parties) have 
-been placed.{p_end}
+{synopt :{opth res:pondent(varname)}}(required unless refvar supplied before earliest) the reference variable containing the respondent's self-placement 
+in the space (e.g. the issue space) in which items (e.g. the political parties) have been placed.{p_end}
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
