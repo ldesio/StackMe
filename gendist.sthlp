@@ -12,14 +12,22 @@
 {title:Syntax}
 
 {p 8 16 2}
-{opt gendist} {refvar[:]}{varlist} [|| {refvar[:]}{varliest} ...]
+{opt genyhats} refvar1: {indepvars}_1 [ || refvar2: {indepvars}_2 ... ] 
+   [{cmd:,} {it:options}]{p_end}
+	
+		or
+
+{p 8 16 2}
+{opt genyhats} {varlist} [{cmd:,} {it:options}]
+{p_end}
+
    [{cmd:,} {it:options}]
 
 {synoptset 25 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth res:pondent(varname)}}(required unless refvar supplied before earliest) the reference variable containing the respondent's self-placement 
-in the space (e.g. the issue space) in which items (e.g. the political parties) have been placed.{p_end}
+{synopt :{opth res:pondent(varname)}}(required for second syntax) the reference variable containing the respondent's 
+self-placement in the space (e.g. the issue space) in which items (e.g. the political parties) have been placed.{p_end}
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
@@ -45,12 +53,12 @@ after the generation of distances.
 
 {pstd}
 {cmd:gendist} generates Euclidean distances between positions (e.g. left-right positions) given in variables 
-that are members of battery(s) of spatial items (named in {it:varlist}) and the variable (named in 
-{bf:respondent} that contains the self-placement of the respondent on the same spatial scale. Distances 
-between the respondent and each spatial item in a battery are assigned to corresponding members of a new 
-battery of items. Only one battery of items can be processed on a single invocation of {cmd:gendist} unless 
-that command is issued after stacking, in which case several batteries can be specified using the stubnames 
-created when stacking.
+that are members of battery(s) of spatial items (named in (each) {it:varlist}) and the corresponding reference 
+variable that contains the self-placement of the respondent on the same spatial scale. Distances between 
+the respondent's reference location and each spatial item in a battery are assigned to corresponding members of a 
+new battery of items. Using the second syntax, multiple batteries of items can be processed on a single invocation  
+of {cmd:gendist}, even if the command is issued before stacking. If issued after stacking, only the first syntax 
+should be used, using as many as required of the stubnames created when stacking.
 
 {pstd}
 The items in the new battery are given names derived from appending the names in {it:varlist} to the
