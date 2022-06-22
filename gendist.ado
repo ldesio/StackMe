@@ -1,29 +1,140 @@
-capture program drop createImputedCopy							// Called by program gendistP (below)
+capture program drop gendist
+
+program define gendist
+
+	version 9.0									// gendist version 0.91, June 2022
+	
+	// This program is a front-end for what used to be gendist (now gendistP), calling gendistP once for
+	// each user-supplied varlist (separated by "||"), each varlist optionally prefixed by a reference 
+	// variable that effectively (re-)defines the `respondent' option (reference variable) for that varlist). 
+	// It uses a tempfile to save and merge the missing data plugging variables, though code is included 
+	// (commented out for now) to use data frames instead, should we learn how to implement stataversion()
+	// (which currently yields an "Unknown function" error, perhaps because introduced after Version 9).
+	
+	// QUESTION: Should we permit weights to be used when generating means for plugging missing data, as we
+	//           do for genmeans and genplace? (NOTE those only permit aweight, fweight and iweight because
+	//	     of limitations to Stata's 'summarize' command).
+	
+
+											// Command line is in `0'
+	gettoken anything postcomma : 0, parse(",")					// Put everything from "," into `postcomma'
+	
+	
+	if substr("`postcomma'",1,1) != ","  {
+		display as error("Need list of options, starting with comma")
+		exit
+	}
+	local options = "`postcomma'"							// Save `options' for use with each varlist
+	local optionsT = "`options'"							// Temp version will be sent on to gendispP
+
+	// Prepare to process each varlist in turn by calling gendistP (the original program)
+	
+	local pipedsyntax = 0
+	
+	if (strpos("`anything'", ":")>0 | strpos("`anything'", "||")>0) { // If `anything' has a colon or pipes
+		local pipedsyntax = 1
+		display _newline "{pstd}{text}{bf:gendist} is processing prefixed or multiple varlists"
+	} 
+	
+
+	while ("`anything'" != "") {
+		
+		if `pipedsyntax' == 0	 {
+		
+			local postcolon = "`anything'"					// No `postcolon': put `anything' there
+			local anything = ""						// Fall out of while loop if only one varlist
+		}
+		else  {									// `pipedsyntax' = 1
+			
+			gettoken string postpipes:anything, parse("||") // 'string' gets all up to "||" or to end of anything
+
+			gettoken precolon postcolon:string, parse(":")	// `precolon' gets all up to ":" or to end of string
+
+			local thisRef = ""								// Assume no prefixed reference variable
+			if strlen("`postcolon'")>0  {					// If there was a colon ...
+				local postcolon=substr("`postcolon'", 2, .) // Strip the colon from front of `postcolon'
+				local thisRef = "`precolon'"				//  and store the reference varname
+			}
+			
+			else local postcolon = "`precolon'"				// Else put varlist where it would have been
+			if "`postcolon'"==""  {
+				display as error("Need at least one var(list)")
+				exit
+			}
+
+		} // end else
+	  
+	  	
+		if "`thisRef'" == "" & strpos("`options'","res") == 0  {
+			display as error "If no varlist, prefix need reference var in option {bf:respondent}"
+			exit
+		}
+		else  {
+			if "`thisRef'"!=""  {
+				if strpos("`options'","res") == 0  {
+					local optionsT = "`options'"+" respondent("+"`thisRef'"+")"
+				}
+				else  {
+					display as error "Cannot option {bf:respondent} if varlist prefix is used"
+					exit
+				}
+			}
+		}
+
+
+		local varlist ""
+		foreach var of varlist `postcolon' {					// We put varlist in postcolon even if no colon
+			local varlist `varlist' `var'
+		}
+		
+		
+		gendistP `varlist' `optionsT'						// `options' (& `optionsT') start with a comma
+		
+
+		local start = strpos("`postpipes'", "||") + 2
+		local anything = substr("`postpipes'",`start', .)			// If there are more varlist(s) put into `anything'
+	
+
+	} // next while
+	
+	
+	  // Execute next line only following last call on gendistP
+
+	display _newline "done."
+		
+end	
+
+
+
+
+capture program drop createImputedCopy
+
 program define createImputedCopy
 	version 9.0
 	syntax varname, type(string) imputeprefix(name)
 	
-	capture drop `imputeprefix'`varlist'
-	quietly clonevar `imputeprefix'`varlist' = `varlist' 
-	local varlab : variable label `varlist'
+	capture drop `imputeprefix'`varlist'						// Presumably this is actually `varname'
+	quietly clonevar `imputeprefix'`varlist' = `varlist' 				// Imputed copy initially includes valid + missing data
+	local varlab : variable label `varlist'	
 	local newlab = "* MEAN-PLUGGED (`type') * " + "`varlab'"
-	label variable `imputeprefix'`varlist' "`newlab'"
+	quietly label variable `imputeprefix'`varlist' "`newlab'"			// In practice, syntax changes `imputeprefix' to `imputePref'
 	
 end
 
 
 
 
-capture program drop gendistP								// Called by program gendist (below)
+capture program drop gendistP
+
 program define gendistP
-	version 9.0									// Contains new code to use statsby instead of levelsof
+	version 9.0
 	
-set trace off
 	
-	syntax varlist(min=1), [CONtextvars(varlist)] [PPRefix(name)] [DPRefix(name)] RESpondent(varname) [MISsing(string)] [ROUnd] [REPlace] [MPRefix(name)] [MCOuntname(name)] [MPLuggedcountname(name)] [STAckid(varname)] [NOStacks] [DROpmissing]
+	syntax varlist(min=1), [CONtextvars(varlist)] [PPRefix(name)] [DPRefix(name)] RESpondent(varname) [MISsing(string)] [ROUnd] ///
+	       [REPlace] [MPRefix(name)] [MCOuntname(name)] [MPLuggedcountname(name)] [STAckid(varname)] [NOStacks] [DROpmissing]
 
 	if ("`missing'"=="" & "`pprefix'"!="") {
-		display "{text}{pstd}ERROR: the {bf:missing} option was not specified, thus the {bf:pprefix} option is illegal."
+		display "{text}{pstd}ERROR: The {bf:pprefix} can only be optioned if the {bf:missing} option was specified."
 		exit
 	}
 	
@@ -57,18 +168,16 @@ set trace off
 	tokenize `varlist'
     	local first `1'
 	local last ``nvars''
-
-*	noisily display "." _continue
 	
 	if ("`missing'"!="") {
 		capture drop `missingCntName'
 		capture label drop `missingCntName'
 		quietly egen `missingCntName' = rowmiss(`varlist')
-		capture label var `missingCntName' "N of missing values in `nvars' variables to impute (`first'...`last')"
+		capture label var `missingCntName' "N of missing values in `nvars' variables to plug (`first'...`last')"
 
 		capture drop `missingImpCntName'
 		capture label drop `missingImpCntName'
-		capture label var `missingImpCntName' "N of missing values in mean-plugged versions of `nvars' variables (`first'...`last')"
+		capture label var `missingImpCntName' "N missing values in mean-plugged versions of `nvars' variables (`first'...`last')"
 
 		local imputedvars = ""
 
@@ -76,11 +185,11 @@ set trace off
 			capture drop `missingFlagPref'`var'
 			quietly generate `missingFlagPref'`var' = missing(`var')
 			capture label var `missingFlagPref'`var' "Was `var' originally missing?"
-			local imputedvars = "`imputedvars' `imputePref'`var'"
+			local imputedvars = "`imputedvars' `imputePref'`var'"			// List of p_`var's
 
 		}
 	}
-
+	
 	capture drop _ctx_temp
 	capture label drop _ctx_temp
 
@@ -101,47 +210,39 @@ set trace off
 		local ctxvar = "_ctx_temp"
 	}
 	
-	
-	/* old naming too verbose
-	
-	if ("`missing'"!="") {
-		local fullDistancePref = "`imputePref'`distPref'`respondent'_"
-	}
-	else {
-		local fullDistancePref = "`distPref'`respondent'_"
-	}
-	*/
+
 	local fullDistancePref = "`distPref'"
 	
-	
-	
+		
 	// loads all values of the context variable
 	quietly levelsof `ctxvar', local(contexts)
 	
-	display in smcl
-	display as text
-	display "{pstd}{text}Computing distances between R's position ({result:`respondent'}){break}"
-	display "and her placement of different objects: {result:`varlist'}"
-	display ""
+	noisily display in smcl _continue
+	noisily display as text
+	noisily display "{pstd}{text}Computing distances between R's position ({result:`respondent'}) " _continue
+	noisily display "and her placement of objects: {break} {result:`varlist'}"
+	noisily display ""
 
-	// create imputed copies first
-	if ("`missing'"!="") {
+
+	// Clone imputed copies first
+	if ("`missing'"!="") {									// Cloned vars are named "`imputePref'`var'"
 		foreach var of varlist `varlist' {
 			createImputedCopy `var', type("`missing'") imputeprefix("`imputePref'")
-		}
+		}										// Note: `imputePref' vars only initialized if "`missing'"!=""
 	}
 
-	noisily display "." _continue
 
 	// create empty variables regardless of context
+	
 	if ("`missing'"!="") {
-		foreach var of varlist `varlist' {
+		  foreach var of varlist `varlist' {
 			capture drop `fullDistancePref'`var'
 			capture quietly gen `fullDistancePref'`var' = .
 			local newlab = "Euclidean distance between `respondent' and `imputePref'`var'"
 			label variable `fullDistancePref'`var' "`newlab'"
-		}
-	} 
+		  } // next `var'
+	}
+	
 	else {
 		foreach var of varlist `varlist' {
 			capture drop `fullDistancePref'`var'
@@ -149,169 +250,93 @@ set trace off
 			local newlab = "Euclidean distance between `respondent' and `var'"
 			label variable `fullDistancePref'`var' "`newlab'"
 		}
-	}
+	} // end else
 		
-	//display "{text}{pstd}"
-	sort `ctxvar'									// Preparatory to 'statsby:' (the primary change made)
 
-*	display "{text}{pstd}Context {result:`context'}: Generating " _continue
-
-	foreach var of varlist `varlist' {						// This is a conventional varlist provided by gendist (below)
-		noisily display "." _continue
-
-		preserve								// Command statsby will overwrite current memory
-		quietly {	
-		if ("`missing'"=="mean") statsby theMean=r(mean)   /* if */				, 	///
-			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
-				
-		else if ("`missing'"=="same") statsby theMean=r(mean) if `respondent'==`imputePref'`var',	///
-			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
-				
-		else if ("`missing'"=="diff") statsby theMean=r(mean) if `respondent'!=`imputePref'`var',	///
-			by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
-			
-		else  {
-			statsby theMean=r(mean), by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var'
-			capture replace `fullDistancePref'`var' = abs(`var' - `respondent')
-			display "{result:`fullDistancePref'`var'}... " _continue
-			continue, break
-		}
-		capture frame drop stats
-		frame put _ctx_temp theMean, into(stats)
-				
-		restore
-		frlink m:1 _ctx_temp, frame(stats)
-		frget theMean, from(stats)
-		frame drop stats
-				
-		if ("`round'"=="round") replace theMean = round(theMean)
-				
-		capture replace `imputePref'`var' = theMean if `imputePref'`var'==. 
-		capture replace `fullDistancePref'`var' = abs(`imputePref'`var' - `respondent')
-				
-		display "{result:`imputePref'`var'},{result:`fullDistancePref'`var'}... " _continue
 		
-		drop stats theMean
-		} // end quietly
+	sort `ctxvar'										// Preparatory to 'statsby:'
 
-	} // next `var'
 
-	noisily display " "
+	foreach var of varlist `varlist' {
+	     if "`missing'"==""  {									// If missing treatment was not optioned there are no p_vars
+	     capture replace `fullDistancePref'`var' = abs(`var'-`respondent')
+	display "..{result:`fullDistancePref'`var'}." _continue
+	    }											// (Lorenzo coded the above in an else clause)
+	    else  {										// If missing treatment was optioned
+		
+	        quietly {	
+	    
+		    preserve
+
+		    if ("`missing'"=="mean") statsby theMean=r(mean)						///
+			  by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var', meanonly
+				
+		    else if ("`missing'"=="same") statsby theMean=r(mean) if `respondent'==`imputePref'`var',	///
+			  by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var', meanonly
+				
+		    else if ("`missing'"=="diff") statsby theMean=r(mean) if `respondent'!=`imputePref'`var',	///
+			  by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var', meanonly
+
+/*		    if stataversion()>=1600  {							// Frame syntax is available **Commented out due to "unknown function"
+
+			  capture frame drop stats
+		      frame put _ctx_temp theMean, into(stats)
+			  
+		    }
+		    else {									// Frame syntax is not available
+*/			  keep _ctx_temp theMean
+			  tempfile tempfile
+			  save `tempfile'
+		  restore									// Move this to follow "} // end else" if stataversion can be made to work
+
+/*			} // end else								// **Commented out because "unknown function stataversion()"
+
+		  if stataversion()>=1600  {							// Frame syntax is available
+		  	frlink m:1 _ctx_temp, frame(stats)
+		  	frget theMean, from(stats)
+		  	frame drop stats
+		  }
+		  else  {									// Frame syntax is not available
+*/		  	merge m:1 _ctx_temp using `tempfile', nogen
+*		  } // end else
+
+		  if ("`round'"=="round") replace theMean = round(theMean)
+
+		  if "`missing'"!="diff"  capture replace `imputePref'`var' = theMean if `imputePref'`var'==. 
+		  else capture replace `imputePref'`var' = theMean if `respondent'!=`imputePref'`var' | `imputePref'`var'==.
+												// Treat `respondent'==`imputePref' as though missing (fearing PID bias)
+		  capture replace `fullDistancePref'`var' = abs(`imputePref'`var'-`respondent')
+												// Distance from plugged party location to resp location
+		  drop /*stats*/ theMean							// Uncpmment /*stats*/ if stataversion() can be made to work
+	      } // end quietly
+	  
+	      display "..{result:`imputePref'`var'},{result:`missingFlagPref'`var'},{result:`fullDistancePref'`var'}." _continue
+
+          } //end else
+
+    } // next `var'
+
+    noisily display " "
 	
 	if ("`missing'"!="") {
-		quietly egen `missingImpCntName' = rowmiss(`imputedvars')
-	} 
+		capture drop `missingCntName'
+		quietly egen `missingCntName' = rowmiss(`varlist') 
+		capture drop `missingImpCntName'
+		quietly egen `missingImpCntName' = rowmiss(`imputedvars')			// This line changed by MNF
+	}
+
+	if ("`dropmissing'" != "") {
+		capture drop `missingFlagPref'*
+		capture drop `imputePref'*
+	}
 	
 	if ("`replace'" != "") {
 		capture drop `varlist'
-	}
-
-	if ("`dropmissing'"!="") {
-		capture drop `missingFlagPref'*
-		capture drop `imputePref'*
 	}
 	
 	capture drop _ctx_temp
 	capture label drop _ctx_temp
 
-	
+set trace off
+
 end	
-
-
-
-
-capture program drop gendist								// Piped-varlist syntax processor for use in many StackMe programs
-			
-program define gendist									// Calls gendistP above (the original version of gendist)
-
-	version 9.0
-	
-*set trace on												
-
-											// Command line is in `0'
-	gettoken anything postcomma : 0, parse(",")					// Put everything from "," into `postcomma'
-
-	
-	if strrpos("`anything'"," if")>0  {						// See if there is an 'if' clause 
-		local ifloc = strrpos("`anything'"," if")				// Location of "if" is the prior " "
-		local anything = substr("`anything'",1, `ifloc'))			// Strip `anything' of `if' clause
-		local if = substr("`anything'", `ifloc', .) 				// Save `if' clause to use with (all) varlist(s)
-	}
-	
-	
-	if substr("`postcomma'",1,1) != ","  {
-		display as error("Need list of options, starting with comma")
-		exit
-	}
-	local options = "`postcomma'"							// Save `options' for use with (all) varlist(s)
-
-	// `anything' now contains only varlist(s)
-
-	// Prepare to process each varlist in turn by calling gendistP (the original program)
-	
-	local pipedsyntax = 0
-	
-	if (strpos("`anything'", ":")!=0 | strpos("`anything'", "||")!=0) { 		// If `anything' has a colon or pipes
-		local pipedsyntax = 1
-		display _newline "{pstd}{text}{bf:gendist} is processing prefixed or multiple varlists{break}" _newline
-	} 
-	
-*	display ".." _continue
-
-	while ("`anything'" != "")  {
-		
-		if `pipedsyntax' == 0	 {
-		
-			local postcolon = "`anything'"					// No `postcolon': put `anything' there
-			local anything = ""						// Fall out of while loop if only one varlist
-		}
-		else  {									// `pipedsyntax' = 1
-			
-			gettoken string postpipes:anything, parse("||") 		// 'string' gets all up to "||" or to end of anything
-
-			gettoken precolon postcolon:string, parse(":")	// `precolon' gets all up to ":" or to end of string
-
-			local thisRef = ""						// Assume no prefixed reference variable
-			if strlen("`postcolon'")>0  {					// If there was a colon ...
-				local postcolon=substr("`postcolon'", 3, .) 		// Strip the colon from front of `postcolon'
-				local thisRef = "`precolon'"				//  and store the reference varname
-			}
-			
-			else local postcolon = "`precolon'"				// Else put varlist where it would have been
-
-		} // end else
-	  
-	  	
-		if "`thisRef'" == "" & strpos("`options'","res") == 0  {
-			display as error "Need reference var in option {bf:respondent} if not in varlist prefix"
-			exit
-		}
-
-
-		local varlist ""
-		foreach var of varlist `postcolon' {					// We put varlist in postcolon even if no colon
-			local varlist `varlist' `var'
-		}
-		
-		
-		
-		gendistP `varlist' `if' `options'					// `options' starts with a comma
-		
-
-		local start = strpos("`postpipes'", "||") + 2
-		local anything = substr("`postpipes'",`start', .)			// Put any more varlist(s) into `anything'
-	
-
-	} // Process next (pipe-delimited) varlist, if any
-	
-	
-	  // Remove following lines from gendistP since they are executed only following the last call on gendistP
-
-	display ""
-	display "done."
-	
-	
-set trace off		
-	
-end	
-
