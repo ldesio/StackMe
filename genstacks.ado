@@ -3,259 +3,252 @@ program drop genstacks
 
 program define genstacks
 
-	version 9.0
-	syntax namelist, [CONtextvars(varlist)] [STAckid(name)] [ITEmname(name)] [TOTstackname(name)] [REPlace] [RESpid(name)] [NOCheck] [fe(namelist)] [FEPrefix(string)]
+	version 16.1											 // StackMe genstacks version 0.92, June 2022
 	
-	*** SOMEHOW this version fails to process itemname, totstackname, fe or feprecix (what are those last two?)
+	// This version of genstacks does not reshape each context separately but all contexts together. It uses external files 
+	// rather than frames because of limitations on the type of merges that frames support.
+	//   The program is effectively a wrapper for Stata's 'reshape' command. It's main sources of added value are 
+	// (1) to skip stubs that do not have numeric suffixes (e.g. RSYML1 as a supposed variable in a battery named RSYM) and 
+	// (2) to cull records that (after stacking) are all missing because stacked variables were all missing for certain 
+	// contexts (especially frequent in comparative election and party studies where some countries have more parties than 
+	// others and more parties at some elections than others).
 	
 	
-	gettoken firststub otherstubs: namelist					// Need `firststub' as "master battery" for diagnostics
+	syntax namelist,  [CONtextvars(varlist)] [UNItname(name)] [STAckid(name)] [ITEmname(name)] [TOTstackname(name)] [REPlace] [NOWarnings] ///
+					  [DELetemissing] [fe(namelist)] [FEPrefix(string)]
+					  
+	
+	
+	
+	
+								// Preprocess options with possible errors or requiring other manipulation . . .
+								
+	if strlen("`fe'") > 0  {
+		foreach fevar of local fe  {
+			if (strpos("`namelist'","`fevar'")==0) & ("`fevar'"!="_all")  {
+				noisily display as error "Optioned fe var not in list of variable stubs"
+				exit
+			}
+		}
+	}
+
+	if strlen("`replace'")>0  local r = 1
+	else local r = 0
+	if strlen("`nowarnings'")>0  local w = 0
+	else local w = 1
+
+	
+*	gettoken firststub otherstubs: namelist				// We no longer need `firststub' as "master battery" for diagnostics
 	
 	// namelist contains stubs
-	// stackvars contains vars which identify a set of PTVS: e.g. cid respid
+	// var denotes a varname in the list of variables, implied by a stub*, that are to be reshaped
 
 	set more off
 	
-	display in smcl
+	display in smcl _continue
 	display as text
+	
+	
+	
+	
+								// Diagnose batteries with different sizes or suffixes (indexes) . . .
+								
+	local previndexlist = ""
+	local diffindexlist = 0
+	local varlist = ""		
 
-	display "{text}{pstd}"
-	
-		
-		
-		
-					// Diagnosing batteries with different sizes: 
-		
-		if ("`nocheck'"!="nocheck") {
-		
-			local diffsize = 0
-			local previousvarsize = 0
-			foreach stub of local namelist {
-				local varexists = 0
+	foreach stub of local namelist {
+		local indexlist = ""
+		foreach var of varlist `stub'*  {
+					
+			// if what comes after the stub is not numeric, skip
+			// this is useful if different batteries share part of the stub (e.g. rsym and rsymp)
+			local strindex = substr("`var'",strlen("`stub'")+1,.)
+					
+			if (real("`strindex'")==.) continue			// Continue with next var if this one's suffix is not numeric
+			
+			local varlist = "`varlist' `var'"
+			local indexlist = "`indexlist' `strindex'"
 
-				
-				foreach var of varlist `stub'* {
-					
-					// if what comes after the stub is not numeric, skip
-					// this is useful if different batteries share part of the stub (e.g. rsym and rsymp)
-					local strindex = substr("`var'",strlen("`stub'")+1,.)
-					//display "`strindex'"
-					
-					if (real("`strindex'")==.) continue
-					
-					local varexists = `varexists' + 1
-				}
-				
-				
-				if (`varexists'==0) {
-					// unreachable anyway: it stops earlier with an error 
-					display "No variables starting with {bf:`stub'}"
-					exit
-				}
-				else {
-					display "Battery {bf:`stub'} contains `varexists' variables{break}"
-				}
-				
-				
-				// LDS Jan 2020: moved here (standard practice: it previously was at the beginning the loop, where it did not make sens), and added nonzero check. Now it works.
-				if (`previousvarsize'!=0 & `varexists'!=`previousvarsize') local diffsize = 1		
-				
-				
-				local previousvarsize = `varexists'
-			}
-			display ""
-			if (`diffsize'==1) {
-				display "ERROR: Not all batteries have the same size!"
-				display "Processing stopped."
-				error 416
-			}
+		} //next var
+		if "`previndexlist'" != ""  {					// If this is 2nd or subsequent battery
+			if indexnot("`indexlist'","`previndexlist'")>0  local diffindexlist = 1
+			if indexnot("`previndexlist'","`indexlist'")>0  local diffindexlist = 1
 		}
-		
-		
-		
-		//local itemlist = ""
-				
-		foreach var of varlist `firststub'* {
-			local strindex = substr("`var'",strlen("`firststub'")+1,.)
-			if (real("`strindex'")==.) continue
-			
-			//local itemlist = "`itemlist'`strindex',"
-			local itemlist `itemlist' `strindex'
-			
-		}
-		
-		
-*		display "***`itemlist'***"
-		display "{text}{pstd}"
 
-		noisily display _newline ".." _continue
-		
-		local error = 0
-		
-		foreach stub of local otherstubs {
-			
-			foreach var of varlist `stub'* {
+		} //next stub
+	if `diffindexlist'>0 & `w'  display as error "WARNING: Batteries do not match across battery stubnames"
+				
 
-				local strindex = substr("`var'",strlen("`stub'")+1,.)
-				
-				if (real("`strindex'")==.) continue
-				
-				local thisindex = real("`strindex'")
-				local thislist `thisindex'
-				
-				local isinlist : list thislist in itemlist
-				
-				if (`isinlist'==0) {
-					display as error "ERROR: battery {bf:`stub'} includes item with code {bf:`strindex'}, which is not present in master battery {bf:`firststub'}.{break}"
-					local error = 1
-				}
-			}
-			if (`error'==1) {
-				display " {break} {break}"
-			}
-			display "." _continue
-		}
-		
-		if (`error'==1) {
-			display "Processing stopped."
-			error 416
-		}
-	
-					// End of diagnostics
-					
-					
-	
-	noisily display "." _continue
-			
-	/*	
-	capture drop _respid
-	egen _respid=fill(1/2)
-	local stkvars = "_respid"
-	*/
-	
-	
-					// Enumerate all contexts
+								
+								
+								
+								
+								// Enumerate all contexts
+								
 	if ("`contextvars'" == "") {
-		//display "not set"
 		capture drop _ctx_temp
 		gen _ctx_temp = 1
 		local ctxvar = "_ctx_temp"
-		//local stkvars = "_ctx_temp `stackvars'"
 	}
 	else {
 		
 		capture drop _ctx_temp
-		capture label drop _ctx_temp
 		quietly _mkcross `contextvars', generate(_ctx_temp) missing
 		
-		//display "contextvar set as `contextvar'"
 		local ctxvar = "_ctx_temp"
-		//local stkvars = "`stackvars'"
 	}
 	
-	noisily display "." _continue
+
+	
+	
+								// Get varlist and respondent ID . . .
+
+	sort _ctx_temp										// Sort data in order by context so _respid increases by context
+	gen _respid = _n									// Not using 'bysort' since we are reshaping all contexts at once
+														// Not allowing user to provide this to avoid repeats across contexts
+	tempfile unstacked
+	quietly save `unstacked'							// Save original dataset to merge with reshaped variables
+	noisily display " "
+
 	
 	
 	
-
-					// Get varlist and resondent ID
-	local varlist = ""
-	foreach stub in `namelist'  {
-		local varlist = "`varlist' `stub'* "
-	}
-
-*	tempvar respid								// Gets lost between files
-	if strlen("`respid'") == 0  {
-		bysort _ctx_temp: gen _respid = _n				// No `respid' in options
-	}
-	else _respid = `respid'
+								// Reshape and merge as optioned . . .
 	
-	display "."	_newline "WARNING: {bf:genstacks} saves a number of temporary files whose names start with '_'. They will " 
-	display "         be stored in your active directory, in case you need to delete them manually." _newline
-
-	save "_genstacks_orig.dta"						// **** Saved because of restore glitch
-
-	display " "
-
-
-
-					// Reshape (stack) each context, append them to stacked file, context by context
-					
-	quietly summarize _ctx_temp, meanonly
-	local max = r(max)
-	noisily display "Reshaping optioned variables into temporary '_genstacks#.dta' files with max # = `max' "	
-	noisily display "Illustration for first context follows ..." _newline
-
-	keep _ctx_temp _respid `varlist'					// Keep only id vars and vars being reshaped
+	quietly keep _respid _ctx_temp `varlist'			// Keep just the variables to be reshaped (and identifiers)
 	
-	quietly summarize _ctx_temp, meanonly
-	local max = r(max)
+	reshape long `namelist', i(_respid) j(_genstacks_item)	// Values of '_genstacks_item' are supplied by 'reshape'
+
+	bysort _respid:  gen _genstacks_stack = _n
+	egen _genstacks_totstacks = max(_genstacks_stack), by(_respid)
 	
-	quietly levelsof _ctx_temp, local(C)	
-
-	local appendlist = ""							// List of filenames for successive contexts
-	local count = 0								// Could use `c' but that would be a hostage to fortune
-	foreach c of local C  {	
-		local count = `count' + 1
-		local stackfile "_genstacks`c'"
-*		tempfile `stackfile'						// Does not appear to be discarded on exit.
-
-		preserve							// Preserve default dataframe
-		
-			quietly keep if _ctx_temp==`c'				// Keep just the context to be reshaped
-			if `count'==1  {
-			  reshape long `namelist', i(_respid) j(stack)		// Get reshape summary table and save 1st context
-			  quietly save "_genstacks_stkd.dta"
-			}
-			else  {							// Here suppress summary table and save to appendlist
-			  quietly reshape long `namelist', i(_respid) j(stack)
-			  quietly save "`stackfile'.dta"
-			  local appendlist "`appendlist' `stackfile'" 		// Save subsequent stacked files, appending names to `appendlist'
-			  if int(trunc(`count'/5)) * 5 == `count'  display "." _continue		
-			}
-			
-		restore								// Restore initial data works fine within loop but, on exiting
-	}									//  the loop, we find ourselves back with _genstacks_stkd.dta
-	display " "	_newline
-	
-
-global appendlist = "`appendlist'"						// In case we want to exit here while debugging
-*exit
-
-local appendlist = "$appendlist"						// First command after resuming execution
-
-	use "_genstacks_orig.dta", clear nolabel				// Work-around restores original data, needed 'cos restore fails
-
-	preserve								// Preserve default dataframe 
-	
-		use "_genstacks_stkd.dta", clear nolabel	 		// First context
-*		append using `appendlist', nolabel 				// This should work but yields "invalid '_genstacks3.dta''"
-										//  so we do it the (slower) hard way
-		local count = 1							// Start at 1 because 1st file is not appended
-		foreach stackfile of local appendlist  {
-			local count = `count' + 1
-			append using "`stackfile'.dta", nolabel
-			erase "`stackfile'.dta"
-		}
-		save "_genstacks_stkd.dta", replace
-	
-	restore									// Restore default dataframe (works this time)
-
-
-
-
-					// Merge with preserved original data (constant across stacks)
-													
 	noisily display _newline "Merging newly stacked variables with original data, constant across stacks"
 
-	merge 1:m _ctx_temp _respid using "_genstacks_stkd.dta", nolabel
+	merge m:1 _respid _ctx_temp using `unstacked', nogen nolabel
 	
-	erase "_genstacks_stkd.dta"
-	erase "_genstacks_orig.dta"  
-	noisily display _newline "All temporary files discarded (erased)."
+	
+	
+	
+	
+								// Flag and optionally drop stacks where all vars are missing . . .
+								
+	local totstubs = wordcount("`namelist'")
+	tempvar totmiss
+	egen `totmiss' = rowmiss(`namelist')
 
-	drop _respid _ctx_temp _merge
+	noisily display _newline "Flagging stacked records where all reshaped variables are missing, to delete if optioned"
+	tempvar dropable
+	gen `dropable' = 0
+	replace `dropable' = 1 if `totmiss'==`totstubs'
 	
-	display _newline "Done." _newline
+	if ("`deletemissing'"!="")  drop if `dropable'
+	noisily display " "
+	
+
+	
+	
+	
+								// label reshaped vars, based on last first var in each battery ...
+									
+	foreach stub of local namelist {
+		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
+
+			local strindex = substr("`var'",strlen("`stub'")+1,.)					
+			if (real("`strindex'")==.) continue			// Continue with next var if this one's suffix is not numeric
+
+			local label : variable label `var'
+
+			local loc = strpos("`label'","`var'")
+			if (`loc'>0)  {								// Omit varname, if any, from label (it has a numeric suffix)
+				local head = substr("`label'",1,`loc'-1) 
+				local tail = substr("`label'",`loc'+strlen("`var'")+1,.)
+				local label = "`head'`tail'"
+			}
+			
+			display "Labeling {result:`stub'}: `label'"
+			label var `stub' "`label'"
+														
+			continue, break								// Break out of loop now that we have the first var label
+		}
+	}
+
+	if `r'  drop `varlist'								// Dropping original battery member vars was optioned
+	
+	sort `_respid' _genstacks_stack	
+
+
+	
+	
+
+									// Process fixed effects if optioned . . .
+									
+	if ("`fe'"!="") {
+		if ("`feprefix'"!="") {
+			local feprefix = "`feprefix'"
+		}
+		else {
+			local feprefix = "fe_"
+		}
+		display _newline  "{text}{pstd}Applying fixed-effects treatment (saving and subtracting the respondent-level mean){break}"
+		display "to variables "
+		if ("`fe'"=="_all")  local fe = "`namelist'"
+		foreach fevar of local fe {
+			tempvar t
+			display "...`fevar' " _continue
+			capture drop `feprefix'`fevar'
+			bysort _respid: egen `t' = mean(`fevar')
+			gen `feprefix'`fevar' = `fevar' - `t'
+			drop `t'
+		}
+		
+		display _newline
+		
+	} //endif ("`fe...")
+	
+
+	
+									// Move stacking and stacked vars to end of dataset . . .
+	
+	quietly gen _genstacks = .
+	
+	order `namelist' _respid _genstacks_item _genstacks_stack _genstacks_totstacks ///
+	      , after(_genstacks)
+	
+	if ("`fe'"!="")  order  fe_*, after(_genstacks_totstacks)
+
+
+	
+		  
+		  
+									// Rename generated variables if optioned . . .
+									
+	if ("`unitname'" != "")  rename _respid `unitname'
+	else 					 rename _respid _genstacks_unit
+	
+	if ("`itemname'" != "")  rename _genstacks_item `itemname'
+	
+	if ("`stackid'" != "")   rename _genstacks_stack `stackid'
+	
+	if "`totstackname'" != ""  rename _genstacks_totstacks = `totstackname'
+
+	
+	
+	
+	
+	
+	
+									// Finish up . . .
+	
+	drop _ctx_temp _genstacks
+	
+									// NOT DONE IN THIS VERSION ...
+									// No check for duplicate stubnames because we drop vars that were reshaped, not stubs & suffixes
+									// Stata's 'reshape' handles stubnames that duplicate existing variables
+								
+	
+	noisily display "Done." _newline
+	
 
 end
+
