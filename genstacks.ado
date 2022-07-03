@@ -3,7 +3,7 @@ program drop genstacks
 
 program define genstacks
 
-	version 16.1											 // StackMe genstacks version 0.92, June 2022
+	version 16.1						// StackMe genstacks version 0.92, June 2022
 	
 	// This version of genstacks does not reshape each context separately but all contexts together. It uses external files 
 	// rather than frames because of limitations on the type of merges that frames support.
@@ -38,7 +38,7 @@ program define genstacks
 	else local w = 1
 
 	
-*	gettoken firststub otherstubs: namelist				// We no longer need `firststub' as "master battery" for diagnostics
+*	gettoken firststub otherstubs: namelist						// We no longer need `firststub' as "master battery" for diagnostics
 	
 	// namelist contains stubs
 	// var denotes a varname in the list of variables, implied by a stub*, that are to be reshaped
@@ -84,7 +84,7 @@ program define genstacks
 								
 								
 								
-								// Enumerate all contexts
+								// Enumerate all contexts . . .
 								
 	if ("`contextvars'" == "") {
 		capture drop _ctx_temp
@@ -106,9 +106,9 @@ program define genstacks
 
 	sort _ctx_temp										// Sort data in order by context so _respid increases by context
 	gen _respid = _n									// Not using 'bysort' since we are reshaping all contexts at once
-														// Not allowing user to provide this to avoid repeats across contexts
+												// Not allowing user to provide this to avoid repeats across contexts
 	tempfile unstacked
-	quietly save `unstacked'							// Save original dataset to merge with reshaped variables
+	quietly save `unstacked'								// Save original dataset to merge with reshaped variables
 	noisily display " "
 
 	
@@ -116,9 +116,9 @@ program define genstacks
 	
 								// Reshape and merge as optioned . . .
 	
-	quietly keep _respid _ctx_temp `varlist'			// Keep just the variables to be reshaped (and identifiers)
+	quietly keep _respid _ctx_temp `varlist'						// Keep just the variables to be reshaped (and identifiers)
 	
-	reshape long `namelist', i(_respid) j(_genstacks_item)	// Values of '_genstacks_item' are supplied by 'reshape'
+	reshape long `namelist', i(_respid) j(_genstacks_item)					// Values of '_genstacks_item' are supplied by 'reshape'
 
 	bysort _respid:  gen _genstacks_stack = _n
 	egen _genstacks_totstacks = max(_genstacks_stack), by(_respid)
@@ -152,15 +152,15 @@ program define genstacks
 								// label reshaped vars, based on last first var in each battery ...
 									
 	foreach stub of local namelist {
-		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
+		foreach var of varlist `stub'*  {					// Sleight-of-hand to get first var in each battery
 
 			local strindex = substr("`var'",strlen("`stub'")+1,.)					
-			if (real("`strindex'")==.) continue			// Continue with next var if this one's suffix is not numeric
+			if (real("`strindex'")==.) continue				// Continue with next var if this one's suffix is not numeric
 
 			local label : variable label `var'
 
 			local loc = strpos("`label'","`var'")
-			if (`loc'>0)  {								// Omit varname, if any, from label (it has a numeric suffix)
+			if (`loc'>0)  {							// Omit varname, if any, from label (it has a numeric suffix)
 				local head = substr("`label'",1,`loc'-1) 
 				local tail = substr("`label'",`loc'+strlen("`var'")+1,.)
 				local label = "`head'`tail'"
@@ -169,7 +169,7 @@ program define genstacks
 			display "Labeling {result:`stub'}: `label'"
 			label var `stub' "`label'"
 														
-			continue, break								// Break out of loop now that we have the first var label
+			continue, break							// Break out of loop now that we have the first var label
 		}
 	}
 
@@ -181,7 +181,7 @@ program define genstacks
 	
 	
 
-									// Process fixed effects if optioned . . .
+								// Process fixed effects if optioned . . .
 									
 	if ("`fe'"!="") {
 		if ("`feprefix'"!="") {
@@ -208,7 +208,8 @@ program define genstacks
 	
 
 	
-									// Move stacking and stacked vars to end of dataset . . .
+	
+								// Move stacking and stacked vars to end of dataset . . .
 	
 	quietly gen _genstacks = .
 	
@@ -218,10 +219,11 @@ program define genstacks
 	if ("`fe'"!="")  order  fe_*, after(_genstacks_totstacks)
 
 
-	
+
 		  
 		  
-									// Rename generated variables if optioned . . .
+									
+								// Rename generated variables if optioned . . .
 									
 	if ("`unitname'" != "")  rename _respid `unitname'
 	else 					 rename _respid _genstacks_unit
@@ -238,13 +240,13 @@ program define genstacks
 	
 	
 	
-									// Finish up . . .
+								// Finish up . . .
 	
 	drop _ctx_temp _genstacks
 	
-									// NOT DONE IN THIS VERSION ...
-									// No check for duplicate stubnames because we drop vars that were reshaped, not stubs & suffixes
-									// Stata's 'reshape' handles stubnames that duplicate existing variables
+								// NOT DONE IN THIS VERSION ...
+								// No check for duplicate stubnames because we drop vars that were reshaped, not stubs & suffixes
+								// Stata's 'reshape' handles stubnames that duplicate existing variables
 								
 	
 	noisily display "Done." _newline
