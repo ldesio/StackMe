@@ -5,8 +5,8 @@
 {title:Title}
 
 {p2colset 7 19 22 0}{...}
-{p2col :genplace {hline 2}} Generates a battery placement by averaging constituent item-level 
-placements{p_end}
+{p2col :genplace {hline 2}} Generates battery placement(s) by averaging constituent item-level 
+placements of variables constituting each named battery{p_end}
 {p2colreset}{...}
 
 
@@ -32,7 +32,8 @@ mean placement(s) will be generated{p_end}
 {title:Description}
 
 {pstd}
-The {cmd:genplace} command can be issued only after stacking. It places each battery named by a  
+Because it operates on the variables that were stubnames before stacking (see {help genstacks}), the 
+{cmd:genplace} command can be issued only after stacking. It places each battery named by a  
 variable in {it:varlist} on the same scale as the placements, evauations or scores recorded for each 
 item/stack in that battery. In voting studies, if the battery items are the left-right positions 
 of political parties then the battery placement might be the left-right position of a legislature or 
@@ -51,6 +52,11 @@ format that produces datasets containing much redundancy. (Users can, if they wi
 datasets into level-specific components stored in separate files and input into different Stata 
 dataframes, with linkage variables that save much filespace and execution time when using {cmd:genplace} 
 and other utilities).{p_end}
+{pstd}   NOTE (3): If multiple batteries are listed on the {cmd:genplace} {it:varlist} then all of 
+them will be treated in the same fashion, as established by the options accompanying that command. 
+So the user might place a government in terms of its position regarding each of a number of policies. 
+This means that the battery-names listed in {it:varlist} must be batteries of items that pertain to 
+the same object. Only the user can verify that this is the case.
 
 {pstd}
 SPECIAL NOTE COMPARING {help genplace:genplace} WITH {help genmeans:genmeans}: The data processing 
