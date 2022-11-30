@@ -2,7 +2,7 @@ capture program drop geniimpute_body
 
 program define geniimpute_body
 
-	version 13.0													// geniimpute+_body version 0.92
+	version 13.0											// geniimpute+_body version 0.92
 	
 	// This program is called by geniimputeP (below) once for each context for which imputed variables are to be 
 	// calculated. It is changed from previous versions by having all reference to contexts removed, since it is 
@@ -10,47 +10,49 @@ program define geniimpute_body
 	
 																	// Syntax of call from geniimputeP, not of original user command
 		
-		syntax varlist, ctxvar(varname) c(integer) nc(integer) ip(name) mfp(name) /*mcn(name) mic(name)*/ theptvs(varlist) ///						***
+		syntax varlist, ctxvar(varname) c(integer) nc(integer) ip(name) mfp(name) mcn(name) mic(name) theptvs(varlist) ///	
 		minofrange(string) maxofrange(string) imputedvars(varlist) addvars(varlist) contextlabel(string) [ extradiag(string) ///
-		round(string) dropmissing(string) replace(string) boundvalues(string) limitdiag(string) select(string) noinflate(string)]
+		round(string) dropmissing(string) replace(string) boundvalues(string) limitdiag(string) select(string) noinflate(string) ]
 																	// Some unprocessed flag options included in this list
 				
 
 		local ncontexts = `nc'										// Transfer local parameters set in iimputeP 
 		local imputeprefix = "`ip'"
 		local missingflagprefix = "`mfp'"
-*		local missingCntName = "`mcn'"								// Dropped from this version of iimpute											***
-*		local missingImpCntName = "`mic'"							// Ditto, due to complexities arising from multiple varlists (see help text)	***
+		local missingCntName = "`mcn'"								// Now a tempvar passed from geniimputeP										***
+		local missingImpCntName = "`mic'"							// Ditto, due to complexities arising from multiple varlists (see help text)	***
 		local thePTVs = "`theptvs'"									// thePTVs, created in geniimputeP, passed as `theptvs' (all lowercase)
-		local rangemin = `minofrange'								// `rangemin' and `rangemax' were not set in iimputeP; 
-		local rangemax = `maxofrange'								// they must be set according to options passed in above options-list
+		local rangemin = `minofrange'								// `rangemin' and `rangemax' were set in iimputeP according to user options
+		local rangemax = `maxofrange'								
 		local inflate = 1											// This flag must be post-processed so that it takes on two values
 		if "`noinflate'"=="noinflate" inflate = 0					// Remaining options (`imputedvars'...) need no post-processing
 																		
 												/*	
 												incremental simple imputation logic: select cases with 1 missing PTV, impute that PTV 
-												(starting from PTVS with fewest missing cases...); cases with 2, etc..., until you 
+												(starting from PTVS with fewest missing cases...); then cases with 2, etc..., until you 
 												reach cases with all PTVs missing. On PTVs in imputed cases, add random noise so that 
 												variance equals variance in non-missing cases.
 												
-												`missingCntName and missingImpCntname are retained in the code itself, to provide diagnostics'
+												`missingCntName and missingImpCntname are retained in the code itself, used for extra diagnostics'
 												*/		
-																	// Variable processing moved from here to geniimputeP, below
+												
+												
+												// Variable processing moved from here to geniimputeP, below
 
-set trace off
 
+																	
 												// Set diagnostic display flags
 								
 *	foreach context in `contexts' {									// Commented out because this is now done in geniimputeP
 	
 *		local contextLabel : label (`contextvar') `context'			// Moved to geniimputeP
 		
-		local thiscontext = `c'
+		local thiscontext = `c'										// Passed as argument from geniimputeP
 		
 		local showDiag = 1											// By default show all diagnostics
 		local showMode = "noisily"
 		
-		if (`limitdiag' > -1 & (`thiscontext' > `limitdiag')) {	
+		if (`limitdiag' > -1 & (`thiscontext' > `limitdiag')) {		// If no limit or limit not yet reached . . .
 			local showDiag = 0
 			local showMode = "quietly"
 		}
@@ -60,36 +62,33 @@ set trace off
 		
 												// count observations in this context
 												
-		quietly count /*if `contextvar'==`context'*/
-		local numobs = r(N)
+		quietly count /*if `contextvar'==`context'*/				// This `if' removed ubiquitously as `geniimpute_body' now processes just 1 context
+		local numobs = r(N)											// N of observations in this context
 		
-		local countUsedPTVs = 0
-		local usedPTVs ""
-		local countPTVs = 0
+		local countUsedPTVs = 0										// Count of vars to be imputed and list of their names
+		local usedPTVs ""											// `usedPTVs' was generalized some versions ago to refer to vars to be imputed
+		local countPTVs = 0											// Ditto for other vars with PTVs in their names
 		
-		local nonmisPTVs = ""
+		local nonmisPTVs = ""										// List of vars to be imputed that empirically have no missing observations
 		local numPTV = ""
 		
 		
 		
 		
 		foreach var of varlist `thePTVs' {		// Process each PTV (legacy name for vars to be imputed)
-*if `c'==1 set trace on		
 			
 			quietly count if missing(`var') 
 			local missingPTVs = r(N)									// N of missing cases for this PTV within this context
 				
-			if `missingPTVs' == 0  local nonmisPTVs = "`nonmisPTVs' `var'"
+			if `missingPTVs'==0  local nonmisPTVs ="`nonmisPTVs' `var'" // Accumulate list of non-missing PTVs
 			// if no. of missing values less than no. of observations, this PTV is used
-			if `missingPTVs'<`numobs' & `missingPTVs'>0  {				// Mark added check for `missingptvs'>0 
+			if `missingPTVs'<`numobs' & `missingPTVs'>0  {				// Mark added check for `missingPTVs'>0 
 				local countUsedPTVs = `countUsedPTVs' + 1				// N of PTVs with some but not all missing cases
 				local usedPTVs `usedPTVs' `var'
 				local ptvobs = `numobs' - `missingPTVs'
-*				local numPTV = "`numPTV' `ptvobs'"						// Decided on N for context
-*				local imputedvars `imputedvars' `imputeprefix'`var' 	// Fill this local string later, in order of number missing for each
 				local miscnts = "`miscnts' " + string(`missingPTVs')
 			}
-			local countPTVs = `countPTVs' + 1
+			local countPTVs = `countPTVs' + 1							// N of vars specified by user in varlist
 			
 		} //next `var'
 		
@@ -107,32 +106,37 @@ set trace off
 		local countUnusedPTVs = `countPTVs' - `countUsedPTVs'
 		
 		
-		
+	
+	
+	
 		
 												// Display diagnostics for each variable, if optioned
+												
 		if (`ncontexts' > 1  & `showDiag') {
 			display _newline "{pstd}Context {result:`thiscontext'} ({result:`contextlabel'}) imputes "
 		}	
 
 		if (`showDiag') {						
 			local uP = trim("`usedPTVs'")
-			display "{result:`countUsedPTVs'} items ({bf:`uP'}), N = `numobs'"
-		}
+			display "{result:`countUsedPTVs'} items" /*({bf:`uP'})*/ ", N = `numobs'"
+		}																 // Suppress varnames, which will appear in list that follows
 		
-set trace off
+
 		local missingCounts ""
 		local npty = 0
 		foreach var of local usedPTVs {
 			local npty = `npty' + 1
 			local thisN = real(word("`miscnts'", `npty'))
-				// very, very dirty trick:							 // Mark thinks its a pretty neat trick! 										***
+				// very, very dirty trick:							 	 // Mark thinks its a pretty neat trick! 									***
 			local missingCounts = "`missingCounts'" + ///
 			   substr("000000",1,7-length("`thisN'")) + ///
-			   "`thisN'_`var' "										 // Final space ensures one word per party
+			   "`thisN'_`var' "										 	 // Final space ensures one word per party
 		} //next `var'
 
-		local missingCounts : list sort missingCounts
+		local missingCounts : list sort missingCounts				 	 // Sort list of missingCounts_varname into ascending order by missingCounts
 		local nvals = wordcount("`missingCounts'")
+		
+		
 		
 		
 		if "`select'" != ""  {					// Selecting only additional vars with more missing cases than last in missingCounts ?? 			***
@@ -178,35 +182,34 @@ set trace off
 												// Impute each member of `thesePTVs' in turn, transferring it from `thesePTVs' to `imputedPTVs"'
 
 		local remainingPTVs = "`thesePTVs'"							 	 // `remainingPTVs' are prdered by N of missing values
-		local imputedPTVs = ""											 // List of increasing Ns of imputed PTVs, to be used in following imputations
+		local imputedPTVs = ""											 // List of imputed PTVs, to be used in following imputations
 		
 		while "`remainingPTVs'" != ""  {								 // Continue imputing until there arw no `remainingPTVs' 
 
-			gettoken thisPTV remainingPTVs : remainingPTVs				 // Remove first varname from remainingPTVs
+			gettoken thisPTV remainingPTVs : remainingPTVs				 // Remove first varname from remainingPTVs; it is var to be imputed
 			tempvar tmp
 
+			if "`extradiag'"!="" & `showDiag'  display "{break}impute `thisPTV' `remainingPTVs' `imputedPTVs' `addvars'"
 			quietly impute `thisPTV' `remainingPTVs' `imputedPTVs' `addvars', generate(`tmp')
 
-			quietly replace `imputeprefix'`thisPTV' = `tmp'
+			quietly replace `imputeprefix'`thisPTV' = `tmp'				 // Replace it with imputed version
 			drop `tmp'
 			
 			local imputedPTVs = "`imputedPTVs' `imputeprefix'`thisPTV' " //  and add it to `imputedPTVs'
 			
 		} //endwhile													 //  ensuring subsequent imputations take advantage of already imputed var
 		
-		tempvar tmpXXX													// Record n of missing values per case in `missingImpCntName'
+		tempvar tmpXXX													 // Record n of missing values per case in `missingImpCntName'
 		quietly egen `tmpXXX' = rowmiss(`imputedPTVs') 
-		quietly replace `missingImpCntName' = `tmpXXX' /*- `countUnusedPTVs'*/ // DK why we would subtract `countUnusedPTVs' ??????????			 	***
+		quietly replace `missingImpCntName' = `tmpXXX' - `countUnusedPTVs' // DK why we would subtract `countUnusedPTVs' ??????????				 	***
 		quietly drop `tmpXXX'
 
 		
 					
 					
 	
-	
-	
 												
-												// If optioned, round, constrain, and/or restrict (plugged) values (why only plugged values?)		***
+												// If optioned, round, constrain, and/or enforce bounds of (plugged) values
 		if ("`round'"=="round") {
 		
 			if (`showDiag') {													// Report that this is done, per context, if optioned
@@ -220,11 +223,10 @@ set trace off
 			}	
 		} //endif `round'
 
-		
-		
+				
 		
 		if (`rangemin' != 999999999) | (`rangemax' != -999999999) {
-			if (`showDiag') {
+			if (`showDiag') {													// Report that this is done, per context, if optioned
 				display "constrained " _continue
 			}
 
@@ -232,12 +234,12 @@ set trace off
 				//tab i_`var' if orig_mis_`var'==1, missing
 				if (`rangemin' != 999999999) {
 				quietly replace `imputeprefix'`var' = `rangemin' if `imputeprefix'`var' < `rangemin'  & `missingflagprefix'`var'==1 
-				}																// Lorenzo's version only adjusted range of plugged values			***
-				if (`rangemax' != -999999999) {									// I can see the logic, but then we should change the documentation ***
-					if (`showDiag') {											//  to make it clear that we do this. I can see reasons why we might***
-																				//  want to change the range of existing values, to for conformity; ***
-						display " constrained `rangemin' - `rangemax'			//  but perhaps the user should do this outside of geniimpute?		***
-					}															//  Same applies to `round' but not to constrict
+				}																
+				if (`rangemax' != -999999999) {									
+					if (`showDiag') {											
+																			
+						display " constrained `rangemin' - `rangemax'			
+					}															
 					quietly replace `imputeprefix'`var' =`rangemax' if `imputeprefix'`var'>`rangemax'&`imputeprefix'`var'<.&`missingflagprefix'`var'==1 
 				} 
 				//tab i_`var' if orig_mis_`var'==1, missing
@@ -245,19 +247,22 @@ set trace off
 		} //endif `rangemin'	
 		
 		
-		if ("`restrictvalues'" != "")  {										// Maybe we should do this in iimputeP so as to ensure same
-				local minvar = r(min)											//  min and max across contexts. Put varname, min and max
-				local maxvar = r(max)											//  in one word of multi-word local, passed to iimpute_body?		***
-				if `var'<`minvar' replace var = `minvar'
-				if `var'>`maxvar' replace var = `maxvar'
-				if (`showDiag') {
-					display "restricted " _continue
-				}
-		}
+		if ("`boundvalues'" != "")  {	
+			if (`showDiag') {													// Report that this is done, per context, if optioned
+				display " bounded " _continue												
+			}																	// Maybe we should do this in iimputeP so as to ensure same
+			foreach var in `usedPTVs'  {										//  min and max across contexts. Put varname, min and max
+				quietly sum `var'												//  in one word of multi-word local, passed to iimpute_body? 		***
+				local boundmin = r(min)	
+				local boundmax = r(max)	
+				quietly replace `imputeprefix'`var' = `boundmin' if `imputeprefix'`var' < `boundmin'  & `missingflagprefix'`var'==1 
+				quietly replace `imputeprefix'`var' = `boundmax' if `imputeprefix'`var' > `boundmax'  & `missingflagprefix'`var'==1 
+			}
+		} //endif `boundvalues'
 		
 		
 		
-*if `c'==1  set trace on		
+
 		
 		
 		local lenN = length("`numobs'")			// Allow space for longest N (ie context N) in displayed diagnostics per variable
@@ -268,9 +273,9 @@ set trace off
 			local oN = r(N)
 			local oSD = r(sd)
 																						
-			quietly summarize `imputeprefix'`var' /*if `missingflagprefix'`var'==1*/ // Get N and SD of imputed var, including unimputed values		***
-			local iSD = r(sd)
-			local iN = r(N)
+			quietly summarize `imputeprefix'`var' /*if `missingflagprefix'`var'==1*/ // Get N and SD of imputed var, including unimputed values	
+			local iSD = r(sd)													// (Doesn't affect inflation, only diagnostics)						***
+			local iN = r(N)																	
 			if (`iSD' != .) {
 
 			  if (`showDiag')  {
@@ -280,14 +285,14 @@ set trace off
 				local blnk = " "
 				if `gapo'==1  display "{break}`var': {space `gap'} original N `blnk'`oN' SD " %5.2f `oSD' ",{space `gapi'} imputed N `iN' SD " %5.2f `iSD' ","
 				else display "{break}`var': {space `gap'} original N {space `gapo'} `oN' SD" %5.2f `oSD' ",{space `gapi'} imputed N `iN' SD " %5.2f `iSD' ","
-			  }																	  // For some unfathomable reason {space `gapo'(=1)} prints as "  "
+			  }																	  // For some unfathomable reason {space `gapo'(=1)} prints as "   "
 
 			  
 								
 			  if (`inflate' == 1) {												  // From option `noinflate' during option post-processing, above
-				quietly replace `imputeprefix'`var' = `imputeprefix'`var' + rnormal(0, `oSD') if `missingflagprefix'`var'==1 // Inflate just imputed values
-				quietly summarize `imputeprefix'`var' /*if `missingflagprefix'`var'==1*/ // But get SD of all values, not just imputed values		***
-
+				quietly replace `imputeprefix'`var' =`imputeprefix'`var'+rnormal(0, `oSD') if `missingflagprefix'`var'==1 //Inflate just imputed values
+				quietly summarize `imputeprefix'`var' /*if `missingflagprefix'`var'==1*/ // Surely, need SD of all values, not just imputed values?	 ***
+			
 				local iSD = r(sd)
 				if (`showDiag') {
 					display " inflated SD " %5.2f `iSD' "{break}"
@@ -304,55 +309,8 @@ set trace off
 			
 		} //next `var'
 
-		if `c' == `limitdiag' display  "{p_end}"						   			// Ensure dots start on newline after limit of diagnostics reached
-		
-		
-		
-		if ("`round'"=="round") {
-			
-			foreach var in `usedPTVs' {
-				//tab i_`var' if orig_mis_`var'==1, missing
-				quietly replace `imputeprefix'`var' = round(`imputeprefix'`var') if `missingflagprefix'`var'==1 
-				//tab i_`var' if orig_mis_`var'==1, missing							// Only round imputed values? Need to mention in helpfile 		***
-			}
-			
-		} //endif `round'
-		
-		
-		
+		if `c' == `limitdiag' display  "{p_end}"						   		  // Ensure dots start on newline after limit of diagnostics reached
 
-		if (`rangemin' != 999999999) | (`rangemax' != -999999999 | "`restrictvalues'" != "") {
-
-			foreach var in `usedPTVs' {
-				//tab i_`var' if orig_mis_`var'==1 /*& `contextvar'==`context'*/, missing
-				if (`rangemin' != 999999999) {
-					quietly replace `imputeprefix'`var' = `rangemin' if `imputeprefix'`var' < `rangemin' & `missingflagprefix'`var'==1
-				}																
-				if (`rangemax' != -999999999) {
-					quietly replace `imputeprefix'`var' = `rangemax' if `imputeprefix'`var' > `rangemax' & `imputeprefix'`var' < . ///
-												& `missingflagprefix'`var'==1
-				}
-				
-				if ("`boundvalues'" != "")  {
-					quietly sum `var'												 // Maybe we should do this in iimputeP so as to ensure same
-					local minvar = r(min)											 //  min and max across contexts. Put varname, min and max
-					local maxvar = r(max)											 //  in one word of multi-word local, passed to iimpute_body?	***
-					if `var'<`minvar' replace var = `minvar'
-					if `var'>`maxvar' replace var = `maxvar'						 // But then we would not take account of contextual differences?
-				}
-
-			} //next `var'
-
-			if (`showDiag') {
-				display ""
-			}
-
-		} //endif `rangemin'
-		
-
-
-				
-*if `c'==1  set trace on		
 				
 		if (`showDiag') {
 			display "{break}"
@@ -405,11 +363,13 @@ program define geniimputeP
 
 	
 	syntax varlist, ///										// `0' is unchanged, so syntax can still be unpacked here
-		[ADDitional(varlist)] [CONtextvars(varlist)] [REStrictvalues] [MINofrange(integer 999999999)] [MAXofrange(integer -999999999)]  ///
-		[BOUndvalues] [IPRefix(name)] [MPRefix(name)] /*[MCOuntname(name)] [MIMputedcountname(name)]*/ [LIMitdiag(integer -1)] [EXTradiag] ///
-		[ROUnd] [STAckid(varname)] [NOStacks] [DROpmissing] [NOInflate] [REPlace] [SELect]	// MCOuntname and MIMputedcountname dropped 			***
+		[ADDitional(varlist)] [CONtextvars(varlist)] [MINofrange(integer 999999999)] [MAXofrange(integer -999999999)] [BOUndedvalues] ///
+		[IPRefix(name)] [MPRefix(name)] /*[MCOuntname(name)] [MIMputedcountname(name)]*/ [LIMitdiag(integer -1)] [EXTradiag] ///
+		[ROUndedvalues] [STAckid(varname)] [NOStacks] [DROpmissing] [NOInflate] [REPlace] [SELected] // MCOuntname and MIMputedcountname dropped 			***
 
 *display "P limitdiag `limitdiag'"
+
+
 												// Establish original default options (or revised defaults if using pipes syntax)
 *set trace on		
 															// $opt1 would hold prefix strings saved after processing any previous varlist/options
@@ -425,8 +385,8 @@ program define geniimputeP
 		if ("`missingflagprefix'"=="")  local missingflagprefix = word("$opt1",2)
 *		if ("`missingCntName'"=="") 	local missingCntName = word("$opt1",3)		// Dropped from this version of iimpute
 *		if ("`missingImpCntName'"=="")  local missingImpCntName = word("$opt1",4)	// Ditto
-		if ("`usestacks'"=="") 			local usestacks = word("$opt1",5) 			// Actually a flag, not a prefix, but saved with prefixes for convenience
-		if ("`usestacks'"=="no") 		local nostacks = "nostacks"		  			// `nostacks', the user-supplied option, is not symmetrcal as needed for $opt3
+		if ("`usestacks'"=="") 			local usestacks = word("$opt1",5) // Actually a flag, not a prefix, but saved with prefixes for convenience
+		if ("`usestacks'"=="no") 		local nostacks = "nostacks"		  // `nostacks', the user-supplied option, is not symmetrcal as needed for $opt3
 	}
 *display "imputeprefix `imputeprefix'; missingflagprefix `missingflagprefix'; missingCntName `missingCntName'; missingImpCntName `missingImpCntName';"
 *display "usestacks `usestacks'"
@@ -440,7 +400,7 @@ program define geniimputeP
 		if ("`round'"=="" & "`round1'"!="") local round = "`round1'"
 		if ("`noinflate'"=="" & "`noinflate1'"!="") local noinflate = "`noinflate1'"
 		if ("`dropmissing'"=="" & "`dropmissing1'"!="") local dropmissing = "`dropmissing1'"
-		if ("`boundvalues'"=="" & "`boundvalues1'"!="") local boundvalues = "`boundvalues1'"
+		if ("`boundvalues'"=="" & "`boundvalues1'"!="") local boundvalues = "`boundedvalues1'"
 	}
 *display "*** extradiag `extradiag'; round `round'; noinflate `noinflate'; dropmissing `dropmissing'; restrictvalues `restrictvalues'"
 
@@ -468,12 +428,16 @@ program define geniimputeP
 	  
 	if ("`iprefix'"!="") local imputeprefix ="`iprefix'"	  // If new options are specified, these override defaults or previous options	
 	if ("`mprefix'"!="") local missingflagprefix ="`mprefix'" // Note first 2 option-names are all lower case, unlike the next two
-*	if ("`mcountname'"!="")  local missingCntName ="`mcountname'"
+*	if ("`mcountname'"!="")  local missingCntName ="`mcountname'" //
 *	if ("`mimputedcountname'"!="") local missingImpCntName ="`mimputedcountname'"	
 	if "`nostacks'" != ""  local usestacks ="no"
 	if "`usestacks'"!="no" local usestacks ="yes"			  // Provides symmetrical flag, always one or the other
-	
+	if "`boundedvalues'"!="" local boundvalues ="boundvalues" // Remove two letters from option-name, as implemented below
+	if "`roundedvalues'"!="" local round ="round" 			  // Shorten option-name, as implemented below
 
+
+	
+	
 
 												// Pre-process varlist and variables saved by iimpute
 	local nvars : list sizeof varlist	
@@ -483,22 +447,22 @@ program define geniimputeP
 
 	local thePTVs `varlist'										// from string to genuine list (Mark says not sure what is at issue here)			***
 	
-	local missingCntName = "_iimpute_mc"						// Tho no longer added to dataset, still needed for diagnostics						***
+	local missingCntName = "_iimpute_mc"						// Tho no longer added to dataset, still needed for functionality					***
 	local missingImpCntName = "_iimpute_mic"					// Ditto
-	tempvar `missingCntName'
-	tempvar `missingImpCntName'
 
-	capture drop `missingCntName'
+	capture drop `missingCntName'								// Needed for subsequent varlists
 	capture label drop `missingCntName'
+	tempvar `missingCntName'
 	quietly egen `missingCntName' = rowmiss(`varlist')			// Var holding N of missing cases for any variable to be impoted
 	capture label var `missingCntName' "N of missing values in `nvars' variables to impute (`first'...`last')"
 
 	capture drop `missingImpCntName'
 	capture label drop `missingImpCntName'
+	tempvar `missingImpCntName'
 	quietly gen `missingImpCntName' = `missingCntName'			// Default N of missing imputed values to N of unimputed values
 	capture label var `missingImpCntName' "N of missing values in imputed versions of `nvars' variables (`first'...`last')"
 
-*display "*** stackid `stackid'; nostacks `nostacks'"
+	
 	if ("`stackid'" != "") & ("`nostacks'" == "") {
 		local thisCtxVars = "`contextvars' `stackid'"			// In this version `stackid', if any, is included within each context
 	}
@@ -506,8 +470,6 @@ program define geniimputeP
 		local thisCtxVars = "`contextvars'"
 	}
 	
-	
-*set trace on	
 	if ("`thisCtxVars'" == "") {
 		quietly gen _hb_temp_ctx = 1
 		local ctxvar = "_hb_temp_ctx"
@@ -516,16 +478,16 @@ program define geniimputeP
 		quietly _mkcross `thisCtxVars', generate(_hb_temp_ctx) missing
 		local ctxvar = "_hb_temp_ctx"
 	}
-*set trace on	
 
+	
 	set more off
 	
 	
 	
 	
 												// Variable processing moved here from geniimpute_body, above
-	local imputedvars											
-	
+
+	local imputedvars											// Will hold list of variables to be imputed									
 	
 	foreach var of varlist `thePTVs'  {
 		capture drop `imputeprefix'`var'
@@ -534,7 +496,7 @@ program define geniimputeP
 		quietly clonevar `imputeprefix'`var' = `var' 
 		local imputedvars `imputedvars' `imputeprefix'`var'
 		local varlab : variable label `var'
-		local newlab = "IMPUTED " + "`varlab'"
+		local newlab = "IMP " + "`varlab'"
 		quietly label variable `imputeprefix'`var' "`newlab'"
 	}
 	
@@ -564,14 +526,10 @@ program define geniimputeP
 				if (`count' >= `newaddcount') continue, break	// Break out of loop when reach max length of impute varlist
 			}
 			display as error "{text}{pstd}using only first `count' additional vars: {bf:`newadditional'}"
-			display ""
+			display ""											// Maybe should use variables with greatest N of valid cases?						***
 			local addvars = "`additional'"
 		}
 	} //endif `nptvs'
-
-
-	
-	
 	
 
 												// Here call geniimpute_body once for each context
@@ -584,8 +542,7 @@ program define geniimputeP
 
 	if (`limitdiag' != 0)  display _newline "Looping over `ncontexts' contexts and/or stacks..."
 
-pause check globals	
-*set trace on
+
 	foreach c of local C   {									// Replace this with forvalues c = 1/`ncontexts' id _mkcross makes adjacent ids?	*** 							***
 
 		local contextLabel : label (`ctxvar') `c'				// Moved from geniimpute_body
@@ -594,18 +551,17 @@ pause check globals
 			quietly keep if `ctxvar'==`c'						// `themin' references option `rangemin' changed from `minofrange'
 					
 			geniimpute_body `thePTVs',  ctxvar(`ctxvar') c(`c') nc(`ncontexts') ip(`imputeprefix') mfp(`missingflagprefix') select(`select') ///
-				/*mcn(`missingCntName') mic(`missingImpCntName')*/ theptvs(`thePTVs') imputedvars(`imputedvars') addvars(`addvars')	///
+				mcn(`missingCntName') mic(`missingImpCntName') theptvs(`thePTVs') imputedvars(`imputedvars') addvars(`addvars')	///
 				contextlabel("`contextLabel'") extradiag(`extradiag') round(`round') dropmissing(`dropmissing') noinflate(`noinflate') /// 
 				replace(`replace') boundvalues(`boundvalues') minofrange(`minofrange') maxofrange(`maxofrange') limitdiag(`limitdiag')
 																
-			tempfile `c'										//   preprocessed above and passed to geniimpute_body in specific args
+			tempfile `c'										// `c' becomes context-specific tempfile name
 			
-*			label drop _hb_temp_ctx								// Avoid redundant diagnostics
 			keep `ctxvar' `iprefix'* `mprefix'* `missingCntName' `missingImpCntName'
 																// Keep just additions to original data
 			quietly save `c'									// Save in temp file for this context
 			if `c'==1  global temp = "`c'.dta"					// Name of file holding imputed data for first contect
-			if `c'>1  global appendtemp = "$appendtemp `c'.dta" // Extending list of files holding imputed data for later contexts
+			if `c'>1  global appendtemp = "$appendtemp `c'.dta" // Extending list of files that hold imputed data for later contexts
 		
 		restore
 
@@ -614,8 +570,9 @@ pause check globals
 
 	
 	
-*set trace on
+
 	preserve									// Here retrieve imputed data for first context then append imputed data for remaining contexts
+	
 																
 		quietly use $temp, clear								// First context, saved in previous codeblock
 		local napp = wordcount("$appendtemp")
@@ -638,7 +595,7 @@ pause check globals
 	
 	
 												// Here tidy up befpre proceeding with next varlist, if pipes syntax is in use, or exiting iimpute
-*set trace on	
+
 	global temp ""												// Effectively drop these globals
 	global appendtemp ""
 	
@@ -692,3 +649,7 @@ pause check globals
 set trace off
 
 end
+
+
+
+
