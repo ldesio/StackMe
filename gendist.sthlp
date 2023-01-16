@@ -1,50 +1,57 @@
 {smcl}
 {cmd:help gendist}
 {hline}
+*! Help text for gendist version 2.0 running under Stata versions 9 or 16.1, version chosen at run time. Jan'22
 
 {title:Title}
 
-{p2colset 5 20 22 2}{...}
-{p2col :gendist {hline 2}}Generates distances for batter(ies) of spatial placements{p_end}
+{p2colset 5 16 16 2}{...}
+{p2col :{cmd:gendist} {hline 2}}Generates distances from respondent self-placements for batter(ies) of spatial item(s){p_end}
 {p2colreset}{...}
 
 
 {title:Syntax}
 
-{p 8 16 2}
-{opt genyhats} refvar1: {indepvars}_1 [ || refvar2: {indepvars}_2 ... ] 
-   [{cmd:,} {it:options}]{p_end}
-	
-		or
+{p 6 14 2}
+{opt gendist} {varlist}[{cmd:,} {it:options}]
 
-{p 8 16 2}
-{opt genyhats} {varlist} [{cmd:,} {it:options}]
-{p_end}
+{p 9 14 2}appropriate for unrelated variable(s) or a single battery of variables before or after stacking; or
 
-   [{cmd:,} {it:options}]
 
-{synoptset 25 tabbed}{...}
+{p 6 14 2}
+{opt gendist} [{help varlist:selfplace}:] {varlist} [{cmd:,} {it:options}] [ {bf:||} [{help varname:selfplace}:] 
+				{varlist} [{cmd:,} {it:options}] [ || ... ]
+
+{p 9 14 2}appropriate before stacking to process multiple batteries separated by "||"
+				
+				
+
+{synoptset 24 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opth res:pondent(varname)}}(required for second syntax) the reference variable containing the respondent's 
-self-placement in the space (e.g. the issue space) in which items (e.g. the political parties) have been placed.{p_end}
+{synopt :{opth sel:fplace(varname)}}(required if not prefixing {varlist}) a variable containing the respondent's self-placement 
+in the space (e.g. the issue space) in which {varlist} battery reference items (e.g. political parties) have been placed.{p_end}
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
 (by default all cases are treated as part of the same context).{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
-separately generated if {cmd:gendist} is invoked after stacking.{p_end}
+separately generated if {cmd:gendist} is issued after stacking.{p_end}
 {synopt :{opt nos:tack}}override the default behavior that treats each stack as a separate context.{p_end}
-{synopt :{opt mis:sing(mean|same|diff)}}plugs missing values on object placements{p_end}
-{synopt :{opt rou:nd}}rounds plugged values to the nearest integer{p_end}
-{synopt :{opt ppr:efix(name)}}prefix for generating mean-plugged placement variables (default is "p_"){p_end}
-{synopt :{opt mpr:efix(name)}}prefix for generating variables indicating original missingness of either 
-component (item location or respondent location) of a distance measure (default is "m_"){p_end}
-{synopt :{opt dpr:efix(name)}}prefix for generating distance variables (default is "d_"){p_end}
+{synopt :{opt mis:sing(mean|same|diff)}}basis for plugging missing values on battery placements.{p_end}
+{synopt :{opt rou:nd}}rounds plugged values to the nearest integer.{p_end}
+{synopt :{opt ppr:efix(name)}}prefix for generated (optionally mean-plugged) placement variables (default is "p_").{p_end}
+{synopt :{opt mpr:efix(name)}}prefix for generated variables indicating original missing status of either 
+component (item location or respondent location) of a distance measure (default is "m_").{p_end}
+{synopt :{opt dpr:efix(name)}}prefix for generated distance variables (default is "d_").{p_end}
+{synopt :{opt plu:gall}}replace ALL battery values by plugging-values generated in accordance with option {opt missing}, 
+constant across respondents.{p_end}
 {synopt :{opt mco:untname(name)}}name of a generated variable reporting original count of missing items 
-for each case (default is "_gendist_mc"){p_end}
+for each case (default is "_gendist_mc").{p_end}
 {synopt :{opt mpl:uggedcountname(name)}}name of a generated variable reporting the count
-of missing items for each case after mean-plugging (default is "_gendist_mpc"){p_end}
-{synopt :{opt rep:lace}}drops all party location variables and mean-plugged placement variables 
+of missing items for each case after mean-plugging (default is "_gendist_mpc").{p_end}
+{synopt :{opt rep:lace}}drops original party location variables and generated mean-plugged placement variables 
 after the generation of distances.
+
+{p 5 5}When multiple batteries are specified, options for the first battery remain in effect unless changed.
 
 
 {synoptline}
@@ -52,87 +59,92 @@ after the generation of distances.
 {title:Description}
 
 {pstd}
-{cmd:gendist} generates Euclidean distances between positions (e.g. left-right positions) given in variables 
-that are members of battery(s) of spatial items (named in (each) {it:varlist}) and the corresponding reference 
-variable that contains the self-placement of the respondent on the same spatial scale. Distances between 
-the respondent's reference location and each spatial item in a battery are assigned to corresponding members of a 
-new battery of items. Using the second syntax, multiple batteries of items can be processed on a single invocation  
-of {cmd:gendist}, even if the command is issued before stacking. If issued after stacking, only the first syntax 
-should be used, using as many as required of the stubnames created when stacking.
+{cmd:gendist} generates Euclidean distances for batter(ies) of spatial variables (so-called "reference 
+variables" listed in {varlist}) whose distance from each respondent's self-placement is to be measured, 
+using the same spatial scale. Distances between the respondent and each reference variable are placed in 
+corresponding members of a new battery of variables.
 
 {pstd}
-The items in the new battery are given names derived from appending the names in {it:varlist} to the
-prefix established in option {bf:dprefix} (default {it:d_}).
+The variables in the new battery of distances are given names derived from appending the names in {varlist} to 
+the prefix established in option {opt dprefix} (default {it:d_}).
 
 {pstd}
-If optioned by {bf:missing}, {cmd:gendist} also generates a new battery of items with the prefix established 
-in option {bf:pprefix} (default {it:p_}) which is largely identical to the original battery but with missing 
-values plugged by mean values. These plugging values can be mean placements (e.g. of political parties on the 
-left-right scale) made by {it:all} respondents, mean placements made by respondents who place themselves at 
-the {it:same} position as the object being placed, or mean placements made by respondents who place themselves 
-at a {it:different} position, depending on what is specified in option {bf:missing}. If the plugging values were 
-derived from respondents placing themselves differently then {it:same} respondents are considered to be missing 
-and their placements are replaced by the plugging value (see discussions below and details under {bf:Options}).
+If optioned by {bf:missing}, {cmd:gendist} also generates a new battery of variables with the prefix established 
+in option {bf:pprefix} (default {it:p_}) which is identical to the original battery but with missing values 
+plugged by mean values. Those mean values can be mean placements (e.g. of political parties on the left-right 
+scale) by all respondents, mean placements by respondents who place themselves at the same position as the 
+reference placement, or mean placements by respondents who place themselves at a different position, 
+depending on what is specified in option {bf:missing}. 
 
 {pstd}
 Conventionally in published work the plugged value has been based on all placements. However, it might be 
-thought that respondents having the same position would be more knowledgeable about the object concerned. 
-Alternatively it might be thought that respondents having the same position might include individuals who  
-simply assumed that 'their' party had the same position as they did. But this implies that non-missing 
-placements of such parties also should be treated as missing. That is what this option achieves, plugging 
-more cases than the other options. Each of the {bf:missing} options is defensible theoretically so the user 
-should think carefully about which to employ. The default is not to plug the missing data, so that distances 
-are generated only for responses that were initially non-missing.
+thought that respondents having the same position would be more knowledgeable about the reference object 
+concerned. Alternatively it might be thought that respondents having the same position might include 
+individuals who were simply assuming that 'their' reference object (eg. political party) had the same 
+position as themselves. Each of the {bf:missing} options is defensible theoretically so the user should 
+think carefully about which to employ. The default is not to plug the missing data, so that distances 
+are generated only for valid cases.
 
 {pstd}
 The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
 treats each stack as a separate context to take into account along with any higher-level contexts. However, 
 the {cmd:nostack} option can be employed to force {cmd:gendist} to ignore the stack-specific contexts. 
 In addition, this command can be employed with or without distinguishing between higher-level contexts, if 
-any, (with or without the {cmd:contextvars} option) depending on what makes methodological sense.{break}
-NOTE that it is unlikely to make methodological sense to employ {cmd:gendist} after stacking 
-along with both the {cmd:nostack} and the {cmd:mean} options, since this would result in missing 
-values being plugged with a mean that combined the values of what were (before stacking) several different 
-variables.
+any, (with or without the {cmd:contextvars} option) depending on what makes methodological sense.
+
+{pstd} 
+NOTE that it is unlikely to make methodological sense to employ {cmd:gendist} after stacking along with 
+both the {cmd:nostack} and a {cmd:missing} option, since this would result in missing values being plugged 
+with a mean that combined the values of what were (before stacking) several different variables.
 
 {pstd}
-SPECIAL NOTE ON MULTIPLE BATTERIES. Even when {cmd:gendist} is invoked to process multiple batteries after 
-stacking, it is only aware of one battery at a time: the battery it is currently processing. Thus 
+SPECIAL NOTE ON MULTIPLE BATTERIES. Gendist is only aware of the battery it is currently processing. Thus 
 it cannot diagnose an error if that battery is of a different length than other batteries of items 
-pertaining to the objects (e.g. political parties) being asked about. Yet stacked datasets (the type of 
-datasets for which distances are wanted) absolutely require all batteries pertaining to the objects being 
-stacked to contain the same number of items and have these items in the same sequential order 
-({cmd:gendist} can only produce stacks in the correct order, padded as needed with stacks that contain 
-only missing values, if the numeric suffixes to all batteries of items are correct). In datasets 
-derived from election studies is is quite common for some questions (e.g. about party locations on certain 
-issues) to be asked only for a subset of the objects being investigated (e.g. parties). Moreover, questions 
-relating to those objects may not always list them in the same order. If the user employs 
-{cmd:tab1} or {cmd:gendummies} to generate a battery of dummy variables corresponding to questions that 
-did not list all parties or listed them in a different order then not only may the number of items in 
-the resulting battery be different from those in another battery but also the numeric suffixes generated 
-by {cmd:tab1} or {cmd:gendummies} may refer to different objects. One part of this problem is 
-alleviated by the use of {bf:{help gendummies:gendummies}} which generates dummy variable suffixes from 
-the values actually found in the data, rather then numbering these sequentially as does {cmd:tab1}. 
-But those values do need to be correct, which only the user can check. See also the special note on 
-multiple batteries in the help text for {bf:{help genstacks:genstacks}}.
+pertaining to the objects (eg political parties) being asked about. But in datasets derived from election 
+studies it is quite common for some questions (eg about party locations on certain issues) to be asked 
+only for a subset of the objects being investigated (eg parties). Moreover, questions relating to those 
+objects may not always list them in the same order. If the user employs Stata's {cmd:tab1} or {cmd:stackme}'s 
+{cmd:gendummies} to generate a battery of dummy variables corresponding to questions that did not list all 
+parties, or listed them in a different order, then not only may the number of items in the resulting battery 
+be different from those in another battery but also the numeric suffixes generated by {cmd:tab1} or 
+{cmd:gendummies} may refer to different objects for different batteries.{break}
+{space 3}Yet stacked datasets (the type of datasets for which distances are normally wanted) absolutely 
+require all batteries pertaining to the objects being stacked to have the same ID numbers for the same items 
+and to have these items in the correct sequential order. Command {cmd:gendist} will produce stacks in the 
+correct order, provided the numeric suffixes employed in all batteries involving the same multiple items  
+are the same for each item across batteries. One part of this problem is alleviated by the use of 
+{help gendummies}, which generates dummy variable suffixes from the values actually found in the data, 
+rather then numbering these sequentially as does Stata's {cmd:tab1} command. But those values do need 
+to be correct, which only the user can check. See also the special note on multiple batteries in the 
+help text for {help genstacks}.
+
+{pstd}
+SPECIAL NOTE ON REFERENCE VALUES. The reference values from which distances to respondents are calculated 
+(often the left-right or policy positions of political parties) might be assigned by experts or derive from 
+some other external source. Alternatively, respondents might themselves be performing as "experts" in regard 
+to the locations of the reference items. In that case it might be appropriate to use the {opt plugall} option 
+to produce a constant value across all respondents that is based on the expertise of respondents deemed 
+particularly expert. For plugging values created in accordance with option {opt missing(mean)} those values 
+are the same as the mean across all (missing-plugged) respondents (the same value that would be generated by 
+{help genmeans} and {help genplace}); but for plugging values created in accordance with option 
+{opt missing(same)} and {opt missing(diff)}, plugging values will be the means across a subset of respondents 
+defined by option {opt missing}. So plugall-processed reference values from {cmd:gendist} might in some 
+circumstances be preferred to reference values generated by {help genmeans} or {help genplace}.
 
 {title:Options}
 
 {phang}
-{opth respondent(varname)} the reference variable containing the respondent's (default) self-placement on 
-the battery of items. May be overriden by (successive) prefix ({it:varname:}) variable(s), each following 
-"||" dividers and each introducing additional {it:varlist}(s) for which distances to each new reference 
-variable will be calculated.
+{opth selfplace(varname)} (required unless this {varname} prefixes the corresponding {varlist}) the variable 
+containing the respondent's self-placement on the scale used for the corresponding battery of reference items.
 
 {phang}
-{opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts 
-(e.g. country and year). By default all cases are assumed to belong to the same context.
+{opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts
+(by default all cases are assumed to belong to the same context).
 
 {phang}
-{opth stackid(varname)} if specified, a variable identifying each different "stack" (equivalent to the Stata 
-{bf:{help reshape:reshape long}}'s {it:j} index) for which distances will be separately generated in the absence 
-of the {cmd:nostack} option. The default is to use the "genstacks_stack" variable if the {cmd:gendist} command 
-is issued after stacking.
+{opth stackid(varname)} if specified, a variable identifying different "stacks", for which distances will be 
+separately generated in the absence of the {cmd:nostack} option. The default is to use the "genstacks_stack" 
+variable if the {cmd:gendist} command is issued after stacking.
 
 {phang}
 {opt nostack} if present, overrides the default behavior of treating each stack as a separate context (has 
@@ -141,20 +153,26 @@ no effect if data are not stacked).
 {phang}
 {opth missing(mean|same|diff)} if present, determines treatment of missing values for object placement variables
 (by default they remain missing).{break}
-  If {bf:mean} is specified, missing values are replaced with the overall mean placement of that object,
-calculated across the whole sample.{break}
-  If {bf:same} is specified, missing values are replaced with the mean placement of the object, calculated
-only among those respondents who placed themselves at the same position as they placed the object.{break}
-  If {bf:diff} is specified, missing values are replaced with the mean placement of the object,
-calculated only among those respondents who placed themselves on a different position than they placed the 
-object. This replacement is also applied to placements that were the same as respondents' self-placement on 
-the object. (See discussion under 'Description' above regarding choice between these options).{break}
-  When missing values are plugged, a set of p_{it:varlist} variables is generated, and the original
+  {space 3}If {bf:mean} is specified, missing values are replaced with the overall mean placement of that object,
+calculated on the whole sample.{break}
+  {space 3}If {bf:same} is specified, missing values are replaced with the mean placement of the object, calculated 
+only among those respondents that placed themselves on the same position as the object (seldom used).{break}
+  {space 3}If {bf:diff} is specified, missing values are replaced with the mean placement of the object, calculated 
+only among those respondents who placed themselves at a different position than the reference item (see 
+discussion under {bf:Description}, above, regarding choice between these options).{break}
+  {space 3}When missing values are plugged, a set of p_{it:varlist} variables is generated, and the original
 variables are left unchanged (the p_ prefix can be altered by use of the option {bf:pprefix}).{break}
-NOTE: More sophisticated imputation facilites are offered by {bf:{help iimpute:iimpute}}.
+NOTE: More sophisticated imputation facilites are offered by {bf:{help geniimpute:geniimpute}}.{break}
+NOTE: Consider using option {bf:plugall} to treat (e.g.) party locations as constant across respondents 
+(see SPECIAL NOTE ON REFERENCE VALUES under {bf:Description}, above).
 
 {phang}
-{opt round} if present, causes rounding of all plugged values to the closest integer. 
+{opt round} if present, causes rounding of all plugged values to the closest integer.
+
+{phang}
+{opt plugall} if present, causes ALL values of each reference variable to be replaced with plugging 
+values calculated according to option {bf:missing}, thus yielding values that are constant across respondents. 
+(see SPECIAL NOTE ON REFERENCE VALUES under {bf Description}, above).
 
 {phang}
 {opth dprefix(name)} if present, provides a prefix for generated distance variables (default is "d_").
@@ -164,7 +182,7 @@ NOTE: More sophisticated imputation facilites are offered by {bf:{help iimpute:i
 
 {phang}
 {opth mprefix(name)} if present, provides a prefix for generated variables indicating for each case whether, 
-before mean-plugging an item in the battery, either the object placement or the respondent placement was 
+before mean-plugging of an item in the battery, either the item placement or the respondent placement was 
 missing for that case (default is "m_").
 
 {phang}
@@ -175,12 +193,15 @@ missing items (default is "_gendist_mc"){p_end}
 {opth mpluggedcountname(name)} if specified, name of a generated variable reporting number of
 missing items after mean-plugging, which could still be non-zero (even after all missing values 
 on item positions have been plugged) if the respondent's own self-placement is missing (default is 
-"_gendist_mpc").
+"_gendist_mpc"){p_end}
 
 {phang}
 {opt replace} if specified, drops all party position and mean-plugged 
-placement variables after the generation of distance 
-measures{p_end}
+placement variables after the generation of distance measures{p_end}
+
+{p 4 4}When multiple batteries are specified, options for the first battery remain in effect unless changed 
+by being (re-)specified in a later {opt option}-list.
+
 
 {title:Examples:}
 
@@ -197,23 +218,20 @@ by simple mean-plugging, and then rounded to the nearest integer.{p_end}{break}
 {synoptset 16 tabbed}{...}
 {synopt:p_{it:var1} p_{it:var2} ... (or other prefix set by option {bf:pprefix})} a set of mean-plugged 
 placement variables with names p_var1, p_var2, etc., where the names var1, var2, etc. match the original 
-variable names for items in the battery (if stacked, the battery stubname). Those original variables are 
-left unchanged. The p_ variables hold the plugging values (the same value for all cases) created 
-according to option {bf:missing}, except those where the self-placement of the respondent is missing.{p_end}
+variable names. Those variables are left unchanged.{p_end}
 {synopt:m_{it:var1} m_{it:var2} ... (or other prefix set by option {bf:mprefix})} a set of variables with    
-names m_var1, m_var2, etc., where the names var1, var2, etc. match the original variable names for items 
-in the battery (if stacked, the battery stubname). These variables indicate the original missingness (=1 
-if missing, =0 otherwise) of the variable or stub name, or of the corresponding self-placement of the 
-the respondent on the scale concerned.{p_end}
+names m_var1, m_var2, etc., where the names var1, var2, etc. match the original variable names of the 
+battery of items. These variables indicate the original missingness of var1, var2, etc., or of the 
+corresponding placement of the respondent on the scale concerned.{p_end}
 {synopt:d_{it:var1} d_{it:var2 ...} (or other prefix set by option {bf:dprefix})} a set of distances 
 from the respondent to each (mean-plugged if optioned) placement variable. These distance variables are 
-named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names for items 
-in the battery (if stacked, the battery stubname). Those original variables are left unchanged.{p_end}
+named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names. Those 
+variables are left unchanged.{p_end}
 {synopt:_gendist_mc} a variable showing the original count of missing items for each case.{p_end}
 {synopt:_gendist_mpc} a variable showing the count of remaining missing items for each case after 
 mean-plugging.{p_end}
 
 {phang}
 NOTE that a subsequent invocation of {cmd:gendist} will replace {it:_gendist_mc} and {it:_gendist_mpc} with 
-new counts of missing values for that invocation of {cmd:gendist}. So, if the values will be of later 
-interest, the user should save those values after issuing the previous command.
+new counts of missing values for that invocation of {cmd:gendist}. So the user should save these 
+values after issuing the previous command, if the values will be of later interest.
