@@ -2,22 +2,31 @@ capture program drop gendist
 
 program define gendist
 
-	version 9.0											// gendist version 0.92, June 2022
+*!  gendist version 2.0 runs on Stata Version 9 (but faster on Version 16) after minor update of gendist version 0.92, June 2022
+*!  choose tabs 4 at top right of github window
+
+	version 16.1										// gendist version 2.0, June 2022, updated Jan 2022
+	
+*!  Stata version 16.1 (originally 9.0); gendist version 2.0, updated Jan'22 from major re-write in June'22
 	
 	// This program is a front-end for what used to be gendist (now gendistP), calling gendistP once for
 	// each user-supplied varlist (separated by "||"), each varlist optionally prefixed by a reference 
 	// variable that effectively (re-)defines the `respondent' option (reference variable) for that varlist). 
 	// It uses a tempfile to save and merge the missing data plugging variables, though code is included 
-	// (commented out for now) to use data frames instead, should we learn how to implement stataversion()
-	// (which currently yields an "Unknown function" error, perhaps because introduced after Version 9).
+	// to use data frames instead, now we know how to implement stataversion() as a mata command, thus: 
+	// mata: st_numscalar("temp", statasetversion()), returning version in scalar temp.
+	//    gendist version 2 removes recently introduced code to plug plr==rlr missing values with diff- m_vars 
+	// (only appropriate when distances are from constant-valued party positions, because varying plrs will 
+	// have their variance arbitrarily truncated. It introduces a new "plugall" option that plugs all 
+	// plr values with the same plugging value, producing the constant values suited to plr!=rlr.
 	
-	// QUESTION: Should we permit weights to be used when generating means for plugging missing data, as we
-	//           do for genmeans and genplace? (NOTE those only permit aweight, fweight and iweight because
-	//	     	 of limitations to Stata's 'summarize' command).
+	
+	// QUESTION: Should we create a (hardly different) version of gendist to calculate proximities?
 	
 
 											// Command line is in `0'
-	gettoken anything postcomma : 0, parse(",")					// Put everything from "," into `postcomma'
+											
+	gettoken anything postcomma : 0, parse(",")				// Put everything from "," into `postcomma'
 	
 	
 	if substr("`postcomma'",1,1) != ","  {
@@ -42,9 +51,9 @@ program define gendist
 		if `pipedsyntax' == 0	 {
 		
 			local postcolon = "`anything'"					// No `postcolon': put `anything' there
-			local anything = ""						// Fall out of while loop if only one varlist
+			local anything = ""								// Fall out of while loop if only one varlist
 		}
-		else  {									// `pipedsyntax' = 1
+		else  {												// `pipedsyntax' = 1
 			
 			gettoken string postpipes:anything, parse("||") // 'string' gets all up to "||" or to end of anything
 
@@ -83,7 +92,7 @@ program define gendist
 
 
 		local varlist ""
-		foreach var of varlist `postcolon' {					// We put varlist in postcolon even if no colon
+		foreach var of varlist `postcolon' {				// We put varlist in postcolon even if no colon
 			local varlist `varlist' `var'
 		}
 		
@@ -92,7 +101,7 @@ program define gendist
 		
 
 		local start = strpos("`postpipes'", "||") + 2
-		local anything = substr("`postpipes'",`start', .)			// If there are more varlist(s) put into `anything'
+		local anything = substr("`postpipes'",`start', .)	// If there are more varlist(s) put into `anything'
 	
 
 	} // next while
@@ -114,10 +123,10 @@ program define createImputedCopy
 	syntax varname, type(string) imputeprefix(name)
 	
 	capture drop `imputeprefix'`varlist'						// Presumably this is actually `varname'
-	quietly clonevar `imputeprefix'`varlist' = `varlist' 				// Imputed copy initially includes valid + missing data
+	quietly clonevar `imputeprefix'`varlist' = `varlist' 		// Imputed copy initially includes valid + missing data
 	local varlab : variable label `varlist'	
 	local newlab = "* MEAN-PLUGGED (`type') * " + "`varlab'"
-	quietly label variable `imputeprefix'`varlist' "`newlab'"			// In practice, syntax changes `imputeprefix' to `imputePref'
+	quietly label variable `imputeprefix'`varlist' "`newlab'"	// In practice, syntax changes `imputeprefix' to `imputePref'
 	
 end
 
@@ -131,11 +140,11 @@ program define gendistP
 	
 	
 	syntax varlist(min=1), [CONtextvars(varlist)] [PPRefix(name)] [DPRefix(name)] RESpondent(varname) [MISsing(string)] [ROUnd] ///
-	       [REPlace] [MPRefix(name)] [MCOuntname(name)] [MPLuggedcountname(name)] [STAckid(varname)] [NOStacks] [DROpmissing]
+	       [REPlace] [PLUgall] [MPRefix(name)] [MCOuntname(name)] [MPLuggedcountname(name)] [STAckid(varname)] [NOStacks] [DROpmissing]
 
 	if ("`missing'"=="" & "`pprefix'"!="") {
 		display "{text}{pstd}ERROR: The {bf:pprefix} can only be optioned if the {bf:missing} option was specified."
-		exit
+		error 999
 	}
 	
 	local imputePref = "p_"
@@ -228,7 +237,7 @@ program define gendistP
 	if ("`missing'"!="") {									// Cloned vars are named "`imputePref'`var'"
 		foreach var of varlist `varlist' {
 			createImputedCopy `var', type("`missing'") imputeprefix("`imputePref'")
-		}										// Note: `imputePref' vars only initialized if "`missing'"!=""
+		}													// Note: `imputePref' vars only initialized if "`missing'"!=""
 	}
 
 
@@ -257,18 +266,20 @@ program define gendistP
 	sort `ctxvar'										// Preparatory to 'statsby:'
 
 
+	mata: st_numscalar("VERSION", statasetversion())	// Get stata verion # (*100) from Mata (PUT SCALAR IN CAPS TO DISTINGUISH IT)
+	
 	foreach var of varlist `varlist' {
-	     if "`missing'"==""  {									// If missing treatment was not optioned there are no p_vars
-	     capture replace `fullDistancePref'`var' = abs(`var'-`respondent')
-	display "..{result:`fullDistancePref'`var'}." _continue
-	    }											// (Lorenzo coded the above in an else clause)
-	    else  {										// If missing treatment was optioned
+	    if "`missing'"==""  {							// If missing treatment was not optioned there are no p_vars
+			capture replace `fullDistancePref'`var' = abs(`var'-`respondent')
+			display "..{result:`fullDistancePref'`var'}." _continue
+	    }												// (Lorenzo coded the above in an else clause)
+	    else  {											// If missing treatment was optioned
 		
 	        quietly {	
 	    
 		    preserve
 
-		    if ("`missing'"=="mean") statsby theMean=r(mean)						///
+		    if ("`missing'"=="mean") statsby theMean=r(mean)											///
 			  by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var', meanonly
 				
 		    else if ("`missing'"=="same") statsby theMean=r(mean) if `respondent'==`imputePref'`var',	///
@@ -277,40 +288,55 @@ program define gendistP
 		    else if ("`missing'"=="diff") statsby theMean=r(mean) if `respondent'!=`imputePref'`var',	///
 			  by(_ctx_temp) clear nodots nolegend: summarize `imputePref'`var', meanonly
 
-/*		    if stataversion()>=1600  {							// Frame syntax is available **Commented out due to "unknown function"
+			//endelse
+			
+			
+			  
+			if VERSION>=1600  {						// Frame syntax is available; no longer commented out due to "unknown function"
 			  capture frame drop stats
 		      frame put _ctx_temp theMean, into(stats)
-			  
 		    }
 		    else {									// Frame syntax is not available
-*/			  keep _ctx_temp theMean
+			  keep _ctx_temp theMean
 			  tempfile tempfile
 			  save `tempfile'
-		  restore									// Move this to follow "} // end else" if stataversion can be made to work
+			} // end else							// **Commented out because "unknown function stataversion()"
 
-/*			} // end else								// **Commented out because "unknown function stataversion()"
-		  if stataversion()>=1600  {							// Frame syntax is available
-		  	frlink m:1 _ctx_temp, frame(stats)
-		  	frget theMean, from(stats)
-		  	frame drop stats
-		  }
-		  else  {									// Frame syntax is not available
-*/		  	merge m:1 _ctx_temp using `tempfile', nogen
-*		  } // end else
+		    restore									// Move this to follow "} // end else" if stataversion can be made to work
+
+
+			if VERSION>=1600  {						// Frame syntax is available
+		  	  frlink m:1 _ctx_temp, frame(stats)
+		  	  frget theMean, from(stats)
+		  	  frame drop stats
+		    }
+		    else  {									// Frame syntax is not available
+		  	  merge m:1 _ctx_temp using `tempfile', nogen
+		    } // end else
 
 		  if ("`round'"=="round") replace theMean = round(theMean)
 
-		  if "`missing'"!="diff"  capture replace `imputePref'`var' = theMean if `imputePref'`var'==. 
-		  else capture replace `imputePref'`var' = theMean if `respondent'!=`imputePref'`var' | `imputePref'`var'==.
-												// Treat `respondent'==`imputePref' as though missing (fearing PID bias)
+		  if "`missing'"!="" capture replace `imputePref'`var' = theMean if `imputePref'`var'==. 
+*		  else capture replace `imputePref'`var' = theMean if `respondent'!=`imputePref'`var' | `imputePref'`var'==.
+												// DONT treat `respondent'==`imputePref' as though missing (fearing PID bias) !!
+												
+		  if "`plugall'"  {						// If user has optioned constant reference values across respondents . . .
+		  	tempvar temp1 temp2
+		  	egen `temp1' = mean(`imputePref'`var'), by(_ctx_temp)
+			egen `temp2' = mean(temp1), by(_ctx_temp) // fill in values that are still missing (i.e.)
+			replace `imputePref'`var' = `temp2' // ** CHECK IF THIS IS NEEDED TO FILL IN MISSING VALUES LEFT BY FIRST egen **
+			drop `temp1' `temp2'
+		  }
 		  capture replace `fullDistancePref'`var' = abs(`imputePref'`var'-`respondent')
 												// Distance from plugged party location to resp location
-		  drop /*stats*/ theMean							// Uncpmment /*stats*/ if stataversion() can be made to work
+		  drop theMean							// Uncpmment /*stats*/ if stataversion() can be made to work. DONE.
+		  if VERSION>=1600 drop stats
+		  
 	      } // end quietly
 	  
 	      display "..{result:`imputePref'`var'},{result:`missingFlagPref'`var'},{result:`fullDistancePref'`var'}." _continue
 
-          } //end else
+        } //end else
 
     } // next `var'
 
