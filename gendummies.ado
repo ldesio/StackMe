@@ -1,45 +1,40 @@
-/*
-REQUIRES vallist							// Why? Seems to work fine like this, and we don't want
-*/									//  users to have to acquire any external ado files
-	
 capture program drop gendummies
-program define gendummies
+
+program define gendummies																									
+
+*!  Stata version 9.0; genyhats version 2, updated Apr'23 by Mark from major re-write in June'22
+
 	version 9.0
-	syntax varlist, [PREfix(name)] [INCludemissing]
-	local varlist = "`varlist'"
+										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
+										// that end with "**" need to be tailored to specific stackMe commands
+										
+														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		
+	local optMask = "STUbname(name) LIMitdiag(integer -1) INCludemissing NOSTUbnme"					    	 					//	**
 
-	local nvars = wordcount("`varlist'")
-	forvalues i = 1/`nvars'  {
-		local varname = word("`varlist'",`i')
-		confirm numeric variable `varname' 
-		quietly levelsof `varname', local(values)
-		
-		local thePrefix = "`varname'"				// Here `prefix' is a stubname
-		if ("`prefix'"!="" & `nvars'==1)  {			// Alternative stubname not allowed if more than 1 var in varlist
-			local thePrefix = "`prefix'"
-		}
+														// Ensure prefixvar for this stackMe command is placed first and its 
+														// negative is placed last; ensure options with arguments preceed toggle 
+														// (aka flag) options; limitdiag should folloow last argument, followed
+														// by any flag options for this command. Options (apart from limitdiag) 
+														// common to all stackMe `cmd's will be added in stackmeWrapper.
+														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)	**
 
-		foreach v in `values'  {
-			//display `v'
-			capture drop `thePrefix'`v'
-			gen `thePrefix'`v' = (`varname'==`v')
-		
-			local labellist : value label `varname'
-			local label : label (`varname') `v'
-		
-			label variable `thePrefix'`v' "`varname'==`v' `label'"
-		
-		
-			if ("`includemissing'"=="includemissing")  {
-				foreach var of varlist `thePrefix'*  {
-					if ("`var'"!="`varname'")  {
-						replace `thePrefix'`v' = 0 if `varname'>=.
-					}
-				}
-			}
-			else {
-				replace `thePrefix'`v'=. if `varname'>=.
-			}
-		} // next `v'
-	} // next `i'
-end
+	local prfxtyp = /*"var"*/"othr"						// Nature of varlist prefix – var(list) or other. (`depvarname will			**
+														// be referred to as `opt1', the first word of `optMask', in codeblock 
+														// (0) of stackmeWrapper called just below). `opt1' is always the name 
+														// of an option that holds a varname or varlist (which must be referred
+														// using double-quotes). Normally the variable named in `opt1' can be 
+														// updated by the prefix to a varlist, but not in genyhats.
+	
+*	*************************									   
+	stackmeWrapper gendummies `0' \ prfxtyp(`prfxtyp') `optMask' // Name of stackme cmd followed by rest of cmd-line					
+*	*************************							// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
+														// (`prfxtyp' placed for convenience; will be moved to follow options)
+														// (that happens on fifth line of stackmeWrapper's codeblock 0)
+	
+
+end gendummies			
+
+
+*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks ARE COMMON TO MOST STACKME COMMANDS and are
+*  added in stackMeWrapper (limitdiag is also common to other commands but is included here as a delimeter)
+
