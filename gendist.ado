@@ -17,7 +17,7 @@ program define gendist
 															// `respondent' is not valid in version 2 but included to be helpful	**
 															// Ensure prefix option for this stackMe command is placed first
 															// and its negative is placed last; ensure options w args preceed 
-															// toggle (aka flag) options.	
+															// toggle (aka flag) options, which start after limitdiag().	
 																				
 																
 	local prfxtyp = "var"/*"othr"*/							// Nature of varlist prefix – var(list) or other. (`stubname' will		**
