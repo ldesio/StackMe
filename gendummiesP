@@ -1,0 +1,131 @@
+
+
+capture program drop gendummiesP
+
+program define gendummiesP
+
+*! Stata version 9.0; gendummies version 2, updated Mar'23 from major re-write in June'22
+
+   version 9.0												  // GendummiesP version 2 (was previously 'gendummies')
+	
+   // Version 2 allows varlists to be processed, either "naked" (using varnames as stubs) or extending those stubs with a 
+   // prefix that can be specific to each varlist.
+   
+   // NOTE that codeblocks importd from genyhatsP, which should be common across`cmd'Ps, needed some tweekng (see lines flagged **)
+	
+
+	syntax anything, [ STUbname(name) INCludemissing LIMitdiag(integer -1) ] ///
+					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) ctxvar(string) nc(integer 0) c(integer 0) ] 
+															  // `prfx' string and `isprfx' not used in gendummies
+
+
+	quietly count 	
+	local numobs = r(N)										  // N of observations in this context
+	
+
+	
+												// GENDUMMIES ONLY PROCESSES ONE CONTEXT ...
+			
+												// Cycle thru all varlists included in this call on `cmd'P
+		
+	forvalues nvl = 1/`nvarlst'  {							  // If multi-varlsts, any prefix on 1st var was already procssd
+															  // (any prefix is in `depvarname' & 'dvar')
+
+		gettoken anything postpipes:anything, parse("||")	  // `postpipes' then starts with "||" or is empty at end of cmd
+															  // `anything' (prepipes) has no colon for first varlist
+		gettoken precolon anything : anything,parse(":") 	  // See if varlist starts with indicator prefix 
+															  // `precolon' gets all of varlist up to ":" or to end of string
+		if "`anything'"!=""  {						  		  // If not empty we have a prefix string
+			local stubprfx = "`precolon'"				 	  // Put it in `stubprfx'												**
+*			local isprfx = "isprfx"						 	  // Commented out because `isprfx' not used in gendummies	
+			local anything = strltrim(substr("`anything'",2,.)) // strip off the leading ":" with any following blanks
+		} //endif `anything'
+
+		else  {
+			local stubprfx = "`stubname'"					  // If there was no colon then use optioned stubname, if any			**
+			local anything = "`precolon'"				 	  // (and varlist was in `precolon')
+		}
+		
+		unab anything : `anything'							  // The only vars left are indepvars
+				   
+  
+		foreach var of varlist `anything'  {				  // Cycle thru var(s) in `anything'									**
+
+			confirm numeric variable `var'					  // Stata will exit with an error otherwise
+		
+			local thePrefix = ""							  // Default stubprefix is empty
+
+			if ("`stubprfx'"!="") local thePrefix ="`stubprfx'_" // 'thePrefix' is either an actual option or a prefix to varname
+
+			quietly levelsof `var', local(values)			  // Enumerate the category values for this variable
+
+			
+ 
+												// For each var, cycle thru all values
+		
+			foreach val of local values  {					  
+				if strpos("`val'",".")>0  {
+					display as error "For variable `var', found non-integer value `val'"
+					window stopbox stop "For variable `var, found non-integer value `val'"
+				}
+				capture confirm variable `thePrefix'`var'`val'
+				if _rc==0  {
+					display as error "variable `thePrefix'`var'`val' already exists"
+					window stopbox stop "variable `thePrefix'`var'`val' already exists"
+				}
+			
+				gen `thePrefix'`var'`val' = (`var'==`val') 		// This is the money command that creates a new var for each value
+		
+				local label : label (`var') `val'				// Value label for each category of `var' 
+				local len = strlen("`label'")					// ('var' may also have a variable label referenced in genstacks)
+				capture confirm number `label'					// If `label' is all numeric then it was foune unlabeled by numlabel
+				if _rc  {										// If _rc is non-0 then there is a proper label for this var
+					forvalues i = 1/`len'  {					// See if 'val' is repeated as label prefix
+						local j = `i'							// Store value of 'i', which has no value outside this loop
+						local k = substr("`label'",1,`j')		// Convert string to number if numeric
+						capture confirm number `k'				// Not numeric if last char is end-of-value character
+						if _rc>0  continue, break				// Found non-numeric char signalling end of label prefix
+					} //next value								//  (dk what value that is, but must be non-numeric)
+					local nprefix = substr("`label'", 1, `j'-1)	// Numeric prefix ends one char before end-of-prefix char
+					if `nprefix'==`val'  {						// If label prefix duplicates 'val' then 
+						local label =substr("`label'",`j'+1, .) // Strip 'labelprefix' & following char from start of 'label'
+						local label = strltrim("`label'")		// Strip any leading blanks following label prefix
+					}											// Ensures label does not end up with value repeated 3 times!
+					label variable `thePrefix'`var'`val' "`var'==`val' `label'"
+				} //endif 'len'>1								// (even twice, as happened with version 0.9, is arguably overkill)
+		
+				if ("`includemissing'"=="includemissing") {		// See if user optioned values of 0 for missing data
+					foreach newvar of varlist `thePrefix'`var'*  {
+						if ("`newvar'"!="`var'") {				// Exclude the stub itself
+							qui replace `thePrefix'`var'`val' = 0 if `var'>=.
+						}
+					} //end foreach
+				} //endif
+			
+				else {											// Otherwise make the new dummy missing if original value missng
+					qui replace `thePrefix'`var'`val'=. if `var'>=.
+				} //end else
+
+			} //next val
+
+		} //next `var'
+	  
+	  
+		
+													// (6) Break out of `nvl' loop if `postpipes' is empty (terminal common codeblck)
+													// 	   (or pre-process syntax for next varlist)
+
+				if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
+
+				local anything = strltrim(substr("`postpipes'",3,.))	// Strip leading "||" and any blanks from head of `postpipes'
+																		// (`anything' now contains next varlist and any later ones)
+				local stubname = ""										// (and empty the first option, whatever it is called)		**
+
+	} //next `nvl' 														// (next list of vars having same options)
+				
+   
+end //gendummiesP
+
+
+
+
