@@ -1,33 +1,38 @@
+
+
 capture program drop stackmeWrapper
 
-program define stackmeWrapper
+*!  This ado file contains programs stackme Wrapper and calls on all `cmd'P programs where `cmd' names a stackMe command
 
-*!  stackmeWrapper version 2.0 runs on Stata Version 9 (but faster on Version 16) after major update of stackMe package version 2.0, May 2023
-*!  choose tabs 4 at top right of github window
+program define stackmeWrapper	  		// Called by `cmd', the ado file & program named for the user-invoked stackMe command
+
+*!  Stata version 9.0; genyhats version 2, updated Apr'23 by Mark from a major re-write in June'22
 
 	version 9.0							// Wrapper for stackMe version 2.0, June 2022, updated Apr 2023. Version 2b extracts
-										// working data, based on [if][in] and the variables required, before calling `cmd'P;
-set tracedepth 3						// then merges the working data back with the original data
+										// working data, based on [if][in] and the variables required, before calling `cmd'P'
+set tracedepth 3						// repeatedly for each context and stack, saving each context in a separate file; then 
+										// merges the working data back with the original data.
+										
+										// Major block of comments follows codeblock (0)
 
 
 
-
-										// (0) Codeblock to process the optionslist transmitted by `cmd', the calling program
+										// (0) Codeblock to process the optionslist transmitted from `cmd', the calling program
 										
 	gettoken cmd rest : 0									// Get the command name from head of local `0' (what the user typed)
-	gettoken anything options : rest, parse(",")			// Split the rest between `anything' (varlist) and options
+	gettoken anything options : rest, parse(",")			// Split rest between pre- and post-comma (varlist pre, options post)
 	if "`options'"==""  {									// If there were no options ...
-		gettoken anything mask : anything, parse("\") 		// retrieve the options mask from the tail of `anything'
+		gettoken anything mask : anything, parse("\") 		//  retrieve the options mask from the tail of `anything'
 	}
 	
 	else gettoken options mask : options, parse("\")		// Otherwise split the options between options proper and Mask
 	local mask = strltrim(substr("`mask'", 2, .))			// Strip leading "\" and any space(s) from head of mask
-	gettoken prfxtyp mask : mask							// Get `prfxtyp' option+argument (all 1 word)) from head of mask
-															// (will be placed after last option, 9th line of codeblock 1)
+	gettoken prfxtyp mask : mask							// Get `prfxtyp' option+argument (all 1 word) from head of mask
+															
 	local endLastArg = strrpos("`mask'", ")" )				// Last option with arguments is followed by final ")"
 	local optArgs = substr("`mask'", 1, `endLastArg')		// Flags (aka toggles) need different processing than arguments, 
 	local firstFlag = wordcount("`optArgs'") + 1			//  so record word # in option-mask where flag options start
-			
+															// (additional count due to 2-word options to be subtracted below)
 	local optName = ""										// Local holding list of option-names, shorn of any arguments
 	foreach optArg of local mask  {							// Extract each word-pair of option-arguments from the option-mask
 		gettoken optName arg : optArg, parse( "(" )			// optName preceeds "(", if any, or optName fills whole word
@@ -35,11 +40,13 @@ set tracedepth 3						// then merges the working data back with the original dat
 		if (substr("`optName'",-1,1) != ")" )  {			// `optName' might be 2nd of two arguments – eg " -1) "
 			local optNames = "`optNames' `optName'" 		// (in which case it is not appended to list of `optName's)
 		}
+		else local firstFlag = `firstFlag' - 1				// Correct `firstFlag' for each 2-word `optArg' included in count
 
 	} //next `optArg'
 	
 	
-	local prfx = word("`optNames'",1)						// 1st optn has name of `item:'/`var(list):' prefix to a var(list)
+	local opt1 = word("`optNames'",1)						// 1st optn has name of `item:'/`var(list):'; (often later replaced 
+															//  by the prefix to a var(list) 
 																
 	
 		// ABOUT THE WRAPPER PROGRAM 
@@ -48,7 +55,7 @@ set tracedepth 3						// then merges the working data back with the original dat
 		// the same options and [if][in][weight] specifications, so that each set of varlists can be efficiently 
 		// processed during a single pass thru the data. Processing is performed by another command-specific 
 		// program, referred to as `cmd'P (the original ptvTools program that has been modified to suit the needs 
-		// of stackMe 2.0). These programs retain the names they had in ptvTools (except for `iimpute', which has been 
+		// of stackMe). These programs retain the names they had in ptvTools (except for `iimpute', which has been 
 		// renamed 'geniimpute' to accord with the naming convention used for other stackMe commands).
 		//    Multiple varlists imply multiple option-lists but, because the wrapper brings together varlists with
 		// the same options, users can supply a single option-list; and a principal task for the wrapper program is 
@@ -68,20 +75,22 @@ set tracedepth 3						// then merges the working data back with the original dat
 	
 	
 	
-										// (1) Preliminary pre-processing of everything up to and including the first options-list
+										// (1) Preliminary pre-processing of everything up to and including the first varlist
 	
 	if substr("`options'",1,5)==", opt"  local options = substr("`options'",11,.) // Strip off the opening ", options(" string
 	
 	local 0 = "`anything' `options'"						// `0' is where syntax commands expect to find a user-typed command-line
 	
 
-	syntax anything(id="varlist") [if][in][aw fw pw iw/], *	// For now we process only varlist and [ifinweight] components
+	syntax anything(id="varlist") [if][in][aw fw pw/], *	// For now we process only varlist and [ifinweight] components
 															// Trailing "*" makes `syntax' transfer any remaining text to `options'
 		
 	local needopts = 1										// MOST stackMe COMMANDS REQUIRE AN OPTIONS-LIST						
 	if "`cmd'"=="gendummies"  local needopts = 0 			// ADD ANY OTHER EXCEPTIONS, AS DISCOVERED								**
 	
-	local noMultiContxt = "`cmd'"!="genyhats" & "`cmd'"!="geniimpute" // (equally, the user could select/option just one context)	**
+
+	local noMultiContxt = "`cmd'"!="genyhats" & "`cmd'"!="geniimpute" // These are the only stackMe commands using multi-contexts	**
+															// (equally, the user could select/option just one context)	**
 															// "THIS LEAVES A '1' IF `cmd'P DOESN'T GENERATE NEWVAR(S) BY CONTEXT
 
 	local istoptlst = 1										// Switch set =0 when the first optionlist has been processed
@@ -105,10 +114,10 @@ set tracedepth 3						// then merges the working data back with the original dat
 	}
 	
 	gettoken opts postpipes : postcomma, parse("||")		// First options cmd extends from first "," to "||" or end of command
-	local opts = "`opts' `prfxtyp'"							// Append word containing `prfxtyp' option (+ argument) to opt-list
+	local opts = "`opts' `prfxtyp'"							// Append word containing `prfxtyp' option (incl argument) to opt-list
 
 	local restOfCmd = "`precomma'`postpipes'"				// All that remains of first `options' is the "||" that terminated it
-															// (next comma now preceeds what was originally the 2nd options-list)
+															// (next comma now preceeds what was originally any 2nd options-list)
 															// (`postpipes' starts with "|| "; ends with end of command)
 
 	local lastvarlst = 0									// Flag will identify final varlist in this (set of) varlist(s)
@@ -126,17 +135,17 @@ set tracedepth 3						// then merges the working data back with the original dat
 	}
 	
 
-	local nvarlst = 0										// Count of # of varlists with same options, accumulated in `multivarlist'
+	local nvarlst = 0										// Count of # of varlists with same opts, accumulated in `multivarlist'
 
 
 	
 	
-	while `more'  {											// Binary switch, set =1 above and =0 near end of codeblock (8), below
+	while `more'  {											// Binary switch, set =1 six lines up; =0 near end of codeblk 8, below
 															// (when no more varlists remain to be processed)
 										
 
 										
-	  local saveAnything = "`anything'"						// Save `anything' because ...
+*	  local saveAnything = "`anything'"						// Save `anything' because ...
 	  local 0 = "`anything'"								// Syntax command operates on contents of `0'; replaces `anything'
 	  qui syntax anything(id="varlist") [if][in][aw fw pw iw/] // (normally placed there when an adofile or program is entered)
 															// (but we need to store those exps as defaults for later varlists)
@@ -159,9 +168,6 @@ set tracedepth 3						// then merges the working data back with the original dat
 
 	   local saveAnything = "`anything'"					// Save the varlist from being overwritten by a syntax cmd
 
-										
-
-									
 									
 										
 										
@@ -177,17 +183,26 @@ set tracedepth 3						// then merges the working data back with the original dat
 	   if "`opts'"!=""  {									// If this varlist has any options appended ...
 															// (if no new `opt's, `optionsP' will have `opts' set by prev varlst)
 	   
-		  local 0 = ",`opts'"								// put them into `0' where syntax cmd expects to find them
+		  local 0 = ",`opts' "  							// lower list are common opts
+															// put them into `0' where syntax cmd expects to find them
 
-															
-		  syntax, [ `mask' NODiag ] prfxtyp(string) *		// `prfxtype' was set in `cmd' (the adofile that called this one)
+
+		  syntax, [`mask' NODIAg EXTradiag REPlace NEWoptions MODoptions NEWexpressions MODexpressions NOCONtexts NOSTAcks prfxtyp(string) ]
+															//`mask' was`optmask'
+															// `prfxtype' was set in `cmd' (the adofile that called this one)
 															// `prfxtyp' now is `string'; NODiag is abberviation for limitdiag(0)
 															// "*" at end of syntax gets unmatched options placed in local `options'
 
 		  if "`options'"!=""  {								// NOTE: `options' has now been emptied of all valid option names
+		    gettoken opt rest : options, parse("(")			// Extract the optname preceeding optn paren, if any, else whole of word
+			  if ("`cmd'"=="gendummies"&"`opt'"=="prefix") { // (any remaining might be legacy option-names)
+			  display as error "Option `opt' is option `opt1' in version 2{sf}" 
+			  window stopbox stop "Option `opt' is option `opt1' in version 2"	
+			}												//	  (Otherwise they are straightforward errors)
 			display as error "Unexpected or misspelled option-name(s): `options'{sf}" 
-			 window stopbox stop "Unexpected or misspelled option-name(s): `options'"	
+			window stopbox stop "Unexpected or misspelled option-name(s): `options'"	
 		  }		
+		  if "`cmd'"=="gendist" & "`prefix'"!=""  window stopbox note "Option 'prefix' is now option 'selfplace'}
 				
 		  local new = 0										//`newoptions' indicator; set =1 if an options-list is to be treated
 		  if "`newoptions'"!=""  {							//  as though it had been specified for the first varlist in a command
@@ -200,21 +215,36 @@ set tracedepth 3						// then merges the working data back with the original dat
 		
 		  local optionsP = ""								// Empty the list of options to be transmitted to `cmd'P
 
+		  if "`contextvars'"!=""  {							// Could be turning on use of 'stackid' in later varlist
+			capture confirm variable `contextvars'			// (in which case, need a variable in `stackid' (reason for no 'STAckid')
+			  if _rc>0  {
+			  display as error "Varlist for contextvars option must contain valid variable names"
+			  window stopbox stop "Varlist for contextvars option must contain valid variable names"
+			}
+		  }
+
+		  if "`stackid'"!=""  {								// Could be turning on use of 'stackid' in later varlist
+			capture confirm variable `stackid'				// (in which case, need a variable in `stackid')
+			if _rc>0 & "`cmd'"!="genstacks" {				// (unless cmd is 'genstacks' when name is for generated var)
+			  display as error "Varlist for stackid option must contain valid variable name"
+			  window stopbox stop "Varlist for stackid option must contain valid variable name"
+			}
+		  }
 		  													// Here handle negative options, which override any syntax output
 		  if ("`nocontexts'"!="") local contextvars = "" 	// For conformity with nostacks (different spelling needed for syntax)
 		  if ("`nostacks'"!="") local stackid = "" 			// To handle non-standard (legacy) syntax 			
-		  local noprfxs = "no`prfx's"						// Need extra step to get `prfx' name for this `cmd'
-		  if ("``noprfxs''"!="") local save`prfx'="" 		// For conformity with nostacks (note double-``'')
+		  local noopt1s = "no`opt1's"						// Need extra step to get `opt1' name for this `cmd'
+		  if ("``noopt1s''"!="") local save`opt1'="" 		// For conformity with nostacks (note double-``'')
 		  if ("`nodiag'"!="") local limitdiag = 0		  	// To handle non-standard (legacy) syntax 		
 
 		  
-		  local i = 0										// Type of argument depends on value of `i' relative to `j'				**
+		  local i = 0										// Type of argument depends on value of `i' relative to `j'	**
 
 		  local j = `firstFlag'	
 
 		  foreach opt of local optNames	{					// Cycle thru optNames for this command (set in stackmeCaller)
 		
-			 local i = `i' + 1								// Distinguishes options w string args (<9) from toggle opts (>8)
+			 local i = `i' + 1								// Distinguishes options w string args (<j) from toggle opts (>8)
 			
 			 if `new' local save`opt' = ""					// If user optioned `new', empty any saved version of this option
 			
@@ -241,54 +271,50 @@ set tracedepth 3						// then merges the working data back with the original dat
 		  } //next `opt'
 															// Still some additional special cases to go 
 															// (after dealing with stacking options)
-		  
-		  if ("`stackid'" == "") {							// If `stackid' not optioned ...
-		     capture confirm variable stackMe_stkid			// Version 2 default
-			 if !_rc {
-			   // action if exists
-			    local stackid = "stackMe_stkid"				// This needs to be inserted into other `cmd's							***
+															
+		  local dtalabel : data label
+		  if "`cmd'"!="gendummies'" & "`cmd'"!="genstacks" { // For these `cmd's, stacking is not relevant/required
+			 local word1 = word("`dtalabel'",1)
+			 tokenize "`word1'", parse("_")	  				// Unpack stackMe's data label
+			 if substr("`1'",1,7)=="stackMe"  {				// Words of label have "stackMe[_SMitem]" 
+
+/*		     ---------------------------------------------------------------------------------------------------------------
+			 capture confirm variable `3'					// stkid should be in word 3 -- NOT ANYMORE !
+
+				if !_rc {									// NOW ONLY SMitem IS IN LABEL, IF PRESENT ()
+				   // action if existsto					// (code remains in case of design change)
+				   local SMstkid = "`3'"
+				}
+
+				else {										// Go thru available sources of `stackid'
+				   // action if not
+				   noisily display "Data label does not name a valid stackid; use {help genid} or {help rename} to correct"
+		  			 			  //12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				   window stopbox stop "Data label does not name a valid stackid; use 'genid' or 'rename' to correct"
+				} 
+*/			//-----------------------------------------------------------------------------------------------------------
+
+			 } //endif substr
+			 
+			 else  {										 // No stacmMe data label
+				if `limitdiag'!=0   {						 // stacks are irrelevant to gendummies
+					noisily display  "NOTE: This dataset appears not to be stacked{sf}"
+					window stopbox note "This dataset appears not to be stacked"
+				}
+			 } //end else								 	 // (unless deliberately ignoring stack differences)
+
+/*		  ------------------------------------------------------------------------------------------------------------------------
+			 if "`3'"!="`stackid'" {						 // COMMENTED OUT AS ABOVE, BUT CODE REMAINS IN CASE NEEDED LATER
+			    noisily display "Optiond {opt sta:ckid} doesn't match stackMe label. Use command {help genid} or rename 'stackid'"
+			    window stopbox stop "Optioned stackid doesn't match stackMe label; use command genid or rename stackid"
 			 }
-
-			 else {											// Go thru available sources of `stackid'
-			   // action if not
-			   local stkid = ""
-			   local dtalabel : data label
-			   if "`dtalabel'"!=""  {
-				  gettoken pre_ post_ : dtalabel, parse("_")
-				  if "`pre_'"=="stackMe"  {
-					 gettoken stackme rest : dtalabel, parse("_") // Parse on "_" so "stackme", if any, is found at head of 'dtalabel'
-
-					 if "`stackme'"=="stackme" | "`stackme'"=="stackMe"  {
-					  	local stackid = substr("rest",2,.) // `stackid' held in data label follows "_" in first word of label
-					 }
-
-					 capture confirm variable stackid
-					 if _rc  /*& `unstkdNote'==""*/  {		// Only issue this note first time (commentd out 'cos hopefully redundnt)
-					    stackid = ""
-						if ("`nostacks'"=="") {
-						   noisily display "NOTE: This dataset appears to be unstacked{sf}"
-						   window stopbox note "This dataset appears to be unstacked"
-						}
-*					 local unstkdNote = "done" /*Commented out because hopefully redundant*/
-					 }										// (unless deliberately ignoring stack differences)
-				  } //endif `pre_-'
-
-				  else  {
-					 if ("`nostacks'"=="") {
-					 	noisily display  "NOTE: This dataset appears to be unstacked{sf}"
-						window stopbox note "This dataset appears to be unstacked"
-					 }
-				  } //end else											// (unless deliberately ignoring stack differences)
-			   } //endif `dtalabel'
-			 } //end else
-		  } //endif `stackid'
-		  
+*/		//------------------------------------------------------------------------------------------------------------------------
+		  } //end if`cmd'		  
 		 
 		  local optionsP =" `ifinw',"+stritrim("`optionsP'") // `ifinw' no longer prefixes `optionsP' as selectn now done by wrapper
 		  
-		  local istoptlst = 0								 // Flag indicates first optionlist has been processed
-															 // (after that, every option must be checked to see if previously set)
-															
+		  local istoptlst = 0								 // Flag indicates if first optionlist has been processed (was =1)
+
 	   } //endif "`opts'"!=""								 // Otherwise optionsP will hold options from previous varlst	
 
 	   if `istoptlst'==1  {									 // If there were no options specified for first varlist ...
@@ -299,96 +325,83 @@ set tracedepth 3						// then merges the working data back with the original dat
 	   
 	   
 								
-
-		
 		
 										// (3) Pre-process latest varlist (there may be multiple varlists per optionlist)
 
 															   // `varlist' was put in `anything' before `while' in mid-codeblock (1)
 															   // (updated 3 lines later and again following `cmd'P call, codeblk (6)
-															   
-	   if `nvarlst'==0  {									   // If this is NOT 2nd or later varlist in set of varlists
-	   
-	     gettoken precolon postcolon : anything, parse(":")	   // See if varlist starts with indicator prefix 
+															   	   
+	   gettoken precolon postcolon : anything, parse(":")	   // See if varlist starts with indicator prefix 
 															   // `precolon' gets all of varlist up to ":" or to end of string
-	     if "`postcolon'"!=""  {							   // If not empty we have a prefix var
+	   if "`postcolon'"!=""  {							   	   // If not empty we have a prefix var
+	   
+		  if strpos(substr("`postcolon'",2,.), ":")>0  {	   // If there is another colon in the same varlist ...
+			  display as error "More than one prefixing colon in varlist starting with <`precolon':>"
+			  window stopbox stop "More than one prefixing colon in varlist starting with <`precolon':>"
+		  }
 
-			local anything=strltrim(substr("`postcolon'",2,.)) // Strip leading colon from varlist leaving just battery vars 
-			local saveAnything ="`anything'" 				   // Put it in `saveAnything' to be transferred to `multivarlst'
+		  local saveAnything ="`anything'" 				   // Put it in `saveAnything' to be transferred to `multivarlst'
 
-			local thisInd = "`precolon'"					   // Store the indicator prefix (dont need to know what it was)
+		  local thisInd = "`precolon'"					   // Store the indicator prefix (dont need to know what it was)
 
-			if "`prfxtyp'"=="var"  {   						   // Here diagnose prefix error dependng on prefx type: var or other
-				capture confirm variable `thisInd'
-				local rc = _rc
-				if wordcount("`thisInd'") == 0 | `rc'>0  {
-					display as error "Prefix symbol ':' needs preceeding varname. Spelling/capitalization error?{sf}"
+		  if "`prfxtyp'"=="var"  {   					   // Here diagnose prefix error dependng on prefx type: var or other
+			  local nonv = ""
+			  foreach v of local thisInd  {
+				 capture confirm variable `v'			   // (in which case, need a variable in `v' 
+				 if _rc>0  {
+					display as error "Prefix symbol ':' needs preceeding varname; you named: `v'"
 					window stopbox stop "Prefix symbol ':' needs preceeding varname. Spelling/capitalization error?" 	
-				}
+				 }
+			  }
 
-				else  {
-					if "`thisInd'"==""  {						// Might need to change error msg
-						display as error "Prefix symbol (':') needs preceeding itemname{sf}"
-						if "`cmd'"=="gendummies"  window stopbox stop "Prefix symbol (':') needs preceeding stubname" 				**
-						if "`cmd'"=="genyhats"    window stopbox stop "Prefix symbol (':') needs preceeding yhat prefix"			**
-					} 
-				} //end else
-			} //endif 'prfxtyp'
+			  else  {
+				 if "`thisInd'"==""  {						// Might need to change error msg
+					display as error "Prefix symbol (':') needs stub/prefix)'"
+					if "`cmd'"=="gendummies"  {
+						window stopbox stop "Prefix symbol (':') needs preceeding stubname" 									**
+					}	
+					else if "`cmd'"=="genyhats"    window stopbox stop "Prefix symbol (':') needs preceeding yhat prefix"		**
+				 } //endif `thisInd'
+			  } //end else
+				
+		  } //endif 'prfxtyp'
 			
 					
-			if wordcount("`thisInd'") > 1 & "`cmd'"!="geniimpute"  {
-				window stopbox stop "Multiple 'prefix:' variables. Missing '||' ?"								
-			} //endif wordcount
+		  if wordcount("`thisInd'") > 1 & "`cmd'"!="geniimpute" { // geniimpute can have multiple prefix vars
+			 display as error "Multiple 'prefix:' variables. Missing '||' ?"
+			 window stopbox stop "Multiple 'prefix:' variables. Missing '||' ?"								
+		  } //endif wordcount
 																  
-			if strpos("`anything'","`thisInd'")>0  {
-				window stopbox stop "Prefix ``prfx'' appears in list of indepvars" 
-			}	
+		  if strpos("`postcolon'", "`thisInd'")>0 & "`cmd'"!="genyhats" & "`prfxtyp'"=="var"  {
+			 display as error "Prefix ``opt1'' appears in list of indepvars"
+			 window stopbox stop "Prefix ``opt1'' appears in list of indepvars" 
+		  }	
 			
 
-			
-			if "`thisInd'"!="" {								// Here deal with conflicts arising from a new prefix option
-			   local isprfx = "isprfx"							// Activate the `isprfx' local, flagging prefix presence to `cmd'P
-			   if "``prfx''"!=""  {								// Note double '' to establish whether `prfx' points to anything
-				  window stopbox note "WARNING: Indicator prefix takes precedence over indicator option" 
-																// This warning is only issued if the prefix exists (was optioned)
-				  if "`optionsP'"!=""  {						// If there are any existing options ...
-					local optname = strupper(substr("`prfx'",1,3))+substr("`prfx'", 4, .) // Need capitalized chars for syntax cmd
-					local 0 = " `optionsP'"						// Put accumulatd optns into `0' where syntax command can find them
-					syntax [anything][if][in][aw pw fw iw],`optname'(name) * // Extract existing `prfx' option from options list
-					local optionsP = "`wt', `options'" 			// Final "*" on syntax cmd puts unmatched options into `options'
-				  }												// (replace any `wt', stored earlier, siftd out by syntax cmmnd)
-			   } //endif ``prfx''
-			} //endif `thisind'
-			else  local isprfx = ""								// If no prefix variable, cancel the isprfx flag
-
-			if "`thisInd'"!=""  {								// If there was a prefix indicator variable 
-				local add2 = "`prfx'(`thisInd') `isprfx'"		// Flag so `cmd'P will know that 1st varlist is prefixed
-			}													// 'thisInd' isn't actual option so not saved in `save`opt''
-		
-			local optionsP = " `optionsP' `add2'"				// `optionsP', to append to `cmd'P', has "`ifinw'," before optns	
-																// (and here has `isprfx' appended, if varlist was prefixed)	
-		 } //endif `postcolon'!=""
-
-	   } //endif `nvarlst==0'									// If this is 2nd+ multivarlst it retains any prefix variables
+		  if "`thisInd'"!="" {								// Here deal with conflicts arising from a new prefix option
+			 if "``opt1''"!=""  & "`prfxtyp'"=="var"  {		// Note double '' to establish whether `opt1' points to anything
+				window stopbox note "WARNING: Indicator prefix `thisInd' takes precedence over indicator option ``opt1''" 
+			 } //endif ``opt1''	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		  } //endif `thisind'								// NOTE THAT only for genyhats does a prefix not replace `opt1'
+															// This warning is only issued if the prefix exists (was optioned)
+																
+	   } //endif `postcolon'!=""
 
 	
-	   if ("`cmd'"!="gendummies")  {							// This error check not needed for gendummies
-		  if "`thisInd'"=="" & "``prfx''"==""  { 				// Neither indicator variable nor depvar option?
-			 display as error "Need initial 'depvar:' or varname in corresponding option{sf}"
-			 window stopbox stop "Need initial depvar: or varname in corresponding option" 										//	**
+	   if ("`cmd'"!="gendummies" & "`cmd'"!="genstacks")  {	// This error check not needed for gendummies or genstacks
+		  if "`thisInd'"=="" & "``opt1''"==""  { 			// Neither indicator variable nor depvar option?
+			 display as error "Need initial `opt1': or varname in corresponding option{sf}"
+			 window stopbox stop "Need initial `opt1': or varname in corresponding option" 										//	**
 		  }
 	   }
 
 		
 		
-
-		
-															
 		
 										// (4) Accumulate any varlists to be passed to `cmd'P as a set, check for last varlist in set
 		
 																// Sets of varlsts have only one optn-list applying to all of them
-		if "`multivarlst'"!=""  local multivarlst = "`multivarlst' ||" 
+	    if "`multivarlst'"!=""  local multivarlst = "`multivarlst' ||" 
 		local multivarlst = "`multivarlst' `saveAnything'"		// Append latest varlist, following "||", if not first in set
 																// (`saveAnything' was saved after "while `more' {", way above )
 		local nvarlst = `nvarlst' + 1							// Count # of varlists in the set defined by having the same options
@@ -407,7 +420,7 @@ set tracedepth 3						// then merges the working data back with the original dat
 																
 
 		
-		if `lastvarlst'  {										// Switch was set =1, above, if this is last varlist in set of varlsts
+		if `lastvarlst'  {										// Switch was set =1, above, if this is last varlst in set of varlsts
 																// (or if there was only one varlist)
 			if "`optionsP'"==""  local optionsP = ", "			// Ensure options start with a comma even if `optionsP' is empty
 
@@ -415,45 +428,81 @@ set tracedepth 3						// then merges the working data back with the original dat
 
 
 			
-		
-	
+
+			
 										// (5) Before calling `cmd'P, drop the variables/cases not needed in the working dataset
-			tempvar _unit
-			gen `_unit' = _n										// unit ID that will govern merge of imputed vars with origdta
+
+			if "`contextvars'"!="" sort `contextvars'				// Put dataset in context order before enmerating overall _n
+			capture drop SMunit
+			gen SMunit = _n											// unit ID that will govern merge of imputed vars with origdta
 	
 			tempfile origdta										// Equivalent to 'default' frame for versions supporting frames	
 			quietly save `origdta'
 
 			local temp = ""											// Name of file/frame with processed vars for first context
 			local appendtemp = ""									// Names of files with processed vars for each subsequent contxt
-	
-			local prfxvar = ""										// By default there is no prefixvar for this varlist
-			if "``prfx''"!="" & "`prfxtyp'"=="var"  local prfxvar = "``prfx''" // Update the default if overriden by user
-	
-			local keep = strtrim(stritrim("`prfxvar' `contextvars' `stackid'" + subinstr("`multivarlst'", "||", " ", 99))) 
-																	// 'keep' gets all varnames, stripped of pipes and extra spaces
-																	   
-			if "`prfxtyp'"=="othr"  {								// But there might still be non-variable prefixes included
-				foreach word of local keep  {						// (note that `prfxtyp' is a fixed feature of this `cmd')
-					gettoken head tail : word, parse(":")			// If there is a "`string':" prefix, substitute a null string
-					if "`tail'"!=""  local keep = subinstr("`keep'", "`head':", "", 1) // (operationalized by "")
-				}
-			}
-
-			else local keep=stritrim(subinstr("`keep'",":"," ",99)) // Otherwise replace each colon with just one space
-		
-			unab varlist : `keep'									// Unabbreviate varnames & fill in ranges of implied varnames
-		
-			local keepvars = ""
-			foreach var of local varlist  {							// This varlist will have all vars mentioned in a multi-varlist
-				local sublst = subinstr("`varlst'","`var'", "", 1)	// Replace each `var' with "", effectively dropping that copy
-				if strpos("`sublst'","`var'")==0  local keepvars = "`keepvars' `var'" 
-			}														// And add it to 'keepvars' if there is no other copy
-
 
 			
-			if ("`if'"!=""  | "`in'"!="")  keep `if' `in'			// Keep in working dataset only cases to be processed
-			keep `_unit' `depvar' `keepvars' `ctxvar'				// Keep only vars involved in generating desired results			
+			local keep = subinstr("`multivarlst'", "||", " ", 99)   // Remove pipes from multivarlst
+
+			if "`cmd'"=="genstacks" {								// 'genstacks' varlists need special handling
+			
+			   local test = real(substr(word("`keep'",1),-1,1)) 	// See if final char of first word is numeric suffix
+			   
+			   if `test'==.  {										// Missing `test' value means namelist contains stubs
+			   
+				  local keepv = ""									// Will hold list of vars to be kept, derived from stubs
+				  
+				  foreach stub of local keep  {
+					 local lenstub = strlen("`stub'")
+					 foreach var of varlist `stub'*  {	
+						if real(substr("`var'",`lenstub'+1,.))<. {	// If remaining chars are numeric, append this var
+						   local keepv = "`keepv'`var' "
+						}
+					 } //next`var'									// Omit 'stackid' if `cmd' is 'genstacks'
+				  } //next`stub'
+				  
+			   } //endif `test'<.									// ('else' does not work following this '}')
+																	// Otherwise stubs already have numeric suffixes
+			   if `test'<. unab keepv : `keep'						// Unabbreviate varnames & fill in ranges of implied varnames
+																	// (at this point keepv contains variables from either source)
+			   local keep = strtrim(stritrim("`contextvars' `keepv'")) // Has no `opt1' or `prfx'; `stackid' (doesn't yet exist)
+																	// For genstacks, original multivarlst is replaced with `keepv'
+			} //end if`cmd'
+			
+			
+
+			else { 													// Otherwise `keep' contains normal varlist(s)
+																	// (a normal varlist may be prefixes that must be removed)
+			   local prfxvars = ""									// These need to be kept but not dropped
+																	
+			   while strpos("`keep'", ":")>0	{					// While there are still some colons in `keep'
+				  gettoken precolon postcolon : keep, parse(":")	// Find next colon in `keep'
+				  local lastwrd = strrpos("`precolon'"," ")			// Look backwards for start of word ending with that colon
+				  if "`prfxtyp'"=="var"  local prfxvars = "`prfxvars' " + substr("`precolon'",`lastwrd', .) // Starts with " "
+				  local keep = substr("`precolon'",1,`lastwrd') + strltrim(substr("`postcolon'",2,.)) // Strip prefix from tail of
+																	// precolon; colon from head of postcolon & put back in `keep'
+			   }
+			   if "`prfxvars'"!=""  unab prfxvars : prfxvars		// Unabbreviate any prefix varname(s)
+																	// (and add to list of vars now stripped of colons & prefixes)
+			   local keep = "`keep' " + strtrim(stritrim("``opt1'' `contextvars' `stackid' `prfxvars'")) //`prfxvars' empty if none
+																	// `keepv' includes only vars in the variable/stub lists
+			} //end else
+		
+																	// `keep' may contain duplicate variables, to be removed
+
+			local keepvars = ""										// `keepvars' includes context and auxiliary vars; 
+			foreach var of varlist `keep'  {						// This varlist will have all vars mentioned in a multi-varlist
+			   local sublst = subinstr("`varlst'","`var'", "", 1)	// Replace each duplicate with "", effectvely dropping that copy
+			   if strpos("`sublst'","`var'")==0  local keepvars = "`keep' `var'" 
+			}														// And add var to 'keepvars' if there is no other copy
+		
+	
+	
+
+*pause (6)	
+										// (6) Cycle thru each context in turn, repeatedly calling `cmd'P while appending
+										//     relevant options (plus count of # of varlists)		
 			
 			
 										
@@ -479,51 +528,47 @@ set tracedepth 3						// then merges the working data back with the original dat
 			}
 			else {
 				quietly _mkcross `stackvars' `if' `in', generate(`_temp_ctx') missing length(20) label ()
-				local ctxvar = "`_temp_ctx'"						// _mkcross includes only selected, producing sequential IDs
+				local ctxvar = "`_temp_ctx'"						 // _mkcross includes only selected, producing sequential IDs
 			}
-
-			local contextlabel : label (`ctxvar') 1					// *** DON'T KNOW WHAT TO DO WITH THIS VARIABLE LABEL 			***
 														
 			quietly sum `ctxvar'
-			local nc = r(max)										// This is the number of contexts, used below and in `cmd'P
+			local nc = r(max)										 // This is the number of contexts, used below and in `cmd'P
 		
+		
+			if ("`if'"!=""  | "`in'"!="")  keep `if' `in'			 // Keep in working dataset only cases to be processed
+			
+			keep SMunit `keepvars' `ctxvar'					 		 // Keep only vars involved in generating desired results	
+			
 
-		
-		
-	
+			if `noMultiContxt'  local nc = 1						 // If noMultiContxt then there is only 1 context
 
-	
-										// (6) Cycle thru each context in turn, repeatedly calling `cmd'P while appending
-										//     relevant options (plus count of # of varlists)		
-		
+			
 			forvalues c = 1/`nc'  {
 				
 				preserve
-				
-					quietly keep if `c'==`ctxvar'
-				
-
-				
+				 
+					if !`noMultiContxt' quietly keep if `c'==`ctxvar' // If there ARE multiple contexts, keep only this one
+*set trace on														  // (otherwise dont drop any contexts)
+set tracedepth 4
 *					******
-					`cmd'P `multivarlst' `optionsP'  prfx(`prfx') nvarlst(`nvarlst') ctxvar(`ctxvar') nc(`nc') c(`c') 
-*					******											// `isprfx', if any, is last item in `optionsP'
-				
-			
-				
-					tempfile i_`c'																																												  // Keep just additions to original data
-					quietly save `i_`c''							// Save results for this context in tempfile named "i_`c'"
+					`cmd'P `multivarlst' `wetyp'`weexp' `optionsP' ctxvar(`ctxvar') nc(`nc') c(`c') nvarlst(`nvarlst') 
+*					******
+set tracedepth 3							
 
-					if `c'==1  local temp = "`i_`c''"				// Save separately the file holding imputed data for 1st context
+					tempfile i_`c'																																												  // Keep just additions to original data
+					quietly save `i_`c''							  // Save results for this context in tempfile named "i_`c'"
+
+					if `c'==1  local temp = "`i_`c''"				  // Save separately the file holding imputed data for 1st context
 					else  {
-						local appendtemp = "`appendtemp' `i_`c''"	// For each following context, extend list of files w imputd dta
+						local appendtemp = "`appendtemp' `i_`c''"	  // For each following context, extend list of files w imputd dta
 					}
 
 				restore
 			  
 			} //next context
 
-			local multivarlst = ""									// Re-initialize local holding set of varlists with same options
-			local nvarlst = 0										// Ditto for local holding # of varlists having same options
+			local multivarlst = ""									  // Re-initialize local holding set of varlists with same options
+			local nvarlst = 0										  // Ditto for local holding # of varlists having same options
 			
 			
 		} //endif `lastvarlst'			
@@ -531,11 +576,9 @@ set tracedepth 3						// then merges the working data back with the original dat
 
 		
 	
-	
-	
-		
+
 										// (7) Look ahead for next varlst beyond pipes ("||") that maybe ended previous varlst/optns
-		
+*pause (7)		
 																// `postpipes' was stripped of leading "|| ", if any, in codeblk (4)
 		gettoken prepipes postpipes : postpipes, parse("||")  	// Look for  next "||", if any, or end of command
 		if "`postpipes'"=="" local lastvarlst = 1				// No more pipes, so this one is final varlist in this command
@@ -559,21 +602,10 @@ set tracedepth 3						// then merges the working data back with the original dat
 	
 	
 	
-	
-	
 										// (8) After processing last context (6), post-process and merge generated data with original
 	
-	if `noMultiContxt'  {										// If JUST ONE CONTEXT was processed as  then ...
-	
-		tempfile temp											// This is the whole working dataset for single context analyses
-		
-		quietly save `temp'	
-				
-	}
-	
-	else  {														// If MULTIPLE CONTEXTS were used then separate contexts were saved
-																// Collect up and append files saved for each context in codeblk (6)
-																
+	if !`noMultiContxt'  {										// Collect up and append files saved for each context in codeblk (6)
+																// (If there was only one context then just one was saved)
 		preserve
 
 			quietly use `temp', clear							// The tempfile in which the first context was saved in codeblock (6)
@@ -589,43 +621,73 @@ set tracedepth 3						// then merges the working data back with the original dat
 			quietly save `temp', replace
 		
 		restore
-		
 	
-	} //endif `noMultiContxt'
+	} //endif !`noMultiContxt'
+	
 	
 	
 	
 										// (9) Merge generated data with original data
 
 	quietly use `origdta', clear								// Restore the original data and merge with working data
-	
-	quietly merge 1:1 `_unit' using `temp', nogen				// Here the appropriate temp file is merged back with `origdta'
+
+	quietly merge 1:m SMunit using `temp', nogen				// Here the appropriate temp file is merged back with `origdta'
 				
 	erase `origdta'												// Erase tempfiles
 	erase `temp'
-	drop `_unit'												// Drop tempvar '_unit'	
 	capture drop __000*											// Drop any other remaing tempvars
 	capture label drop __000*									// (and their labels)
 	
 
+
+	if ("`replace'"=="replace") {
+	if `limitdiag' !=0  " noisily display " As requested, dropping {result:`keepvars'}...{break}"
+		drop `keepv'
+	}
 	
 	
 	
 										
 										// (10) Execute next lines only following final call on `cmd'P
-										
 	
-	if ("`replace'"=="replace") {
-	if `limitdiag' !=0  " noisily display " As requested, dropping {result:`keepvars'}...{break}"
-		drop `keepvars'
+	if "`cmd'"=="genstacks"  {										// Move this code to genstacks, the caller program
+	   label data "$dtalabel"
+	   noi display as error  _newline"Data label length is limited to 80 chars. Accept suggested label by typing 'q'. "
+	   noi display as error 		 "Otherwise paste the pause-string into command window, edit, return, then type q" _newline
+*                		  		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	   window stopbox note "Accept suggested label by typing 'q'; or else paste the pause-string displayed after 'OK' into cmd window, edit, return, then type q"
+	
+	   pause on
+	   pause label data "$dtalabel"
+	   pause off													// This will replace the suggested label, set in genstacksP
+	   
+	   local report = "Not saved"
+	   
+	   noi display as error _newline "Save stacked data under a new name to avoid overwriting the unstacked file?"															// Save dataset to avoid overwriting
+	   capture window stopbox rusure "Save stacked data under a new name to avoid overwriting the unstacked file?"
+	   if _rc==0  {
+	   	  capture window fsave filename "File in which to save the stacked dataset" "Stata Data (*.dta)" dta
+	   	  if _rc==0  {
+		     save "$filename"
+			 local report = "Done."
+		  }
+	   }
+	   if (`limitdiag'!=0)  noisily display _newline "`report'"
 	}
-
-	if (`limitdiag'!=0)  noisily display _newline "done."
-	else noisily display " "
 	
-	if "$`globalprfx'_stkvars"!="" global `globalprfx'stkvars = "" // SO FAR USED ONLY ONLY IN genyhatsP)							**
+	else  { 
 
+	   noisily display _newline "Done. "
+	
+	}
+	
+	
+	if "$globalprfx_stkvars"!="" global `globalprfx'stkvars = "" // SO FAR USED ONLY ONLY IN genyhatsP)							**
 
+	global dtalabel = ""
+	
+	
+	
 end //stackMeWrapper
 
 
