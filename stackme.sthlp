@@ -5,7 +5,7 @@
 {title:Title}
 
 {p2colset 3 14 14 2}{...}
-{p2col :{bf:StackMe} {hline 2}}package of Stata commands for pre-processing, generating, and 
+{p2col :{bf:StackMe} {hline 2}}package of Stata commands for pre-processing, creating, and 
 manipulating  stacked ({help reshape}d) data-sets for hierarchical (multi-level) analysis{p_end}
 {p2colreset}{...}
 
@@ -32,13 +32,13 @@ the other (wide) format.
 {pstd}
 {bf:IT IS IMPORTANT} to keep track of whether your dataset is stacked or not and, if stacked, what 
 is the "stack identification variable" (see option {opt sta:ckid} in {cmd:StackMe}'s {help genstacks}' 
-help text). This information is most conveniently kept at the start of the data label that can 
-document each Stata dataset. The {cmd:StackMe} command {help genstacks} will suggest an appropriate 
-data label for any dataset it {help reshape}s, created by prepending the string "stackme_" to the 
-name of the stackid variable (and two other stack- related variables) and placing that constructed 
-word at the front of whatever label might already have identified the data before stacking. The 
-user is invited to copy and paste this new label into the Stata command window, to be edited if 
-desired, before accepting it (by pressing the <return> key) as the new label for the stacked dataset.{p_end}
+help text). In datasets stacked by {cmd:stackMe}'s {help genstacks} this variable is named SMstkid 
+by default, and it is recommended that this name not be changed. The stackid generally identifies 
+the battery item that corresponds to each stack but if it does not then a variable must be
+created (if it does not already exist) that contains the identifiers of the battery items and 
+this variable must be named in the {opt ite:mname} option. That name is stored  
+in the first word of the data label of any dataset stacked by {cmd:stackMe}'s {help genstacks}, 
+before whatever label might already have identified the data before stacking.{p_end}
 
 {pstd}
 Analysis of hierarchical data makes rather special demands both in terms of methods of analysis and 
@@ -70,7 +70,7 @@ Critically, the dependent variable is usually generalized to accommodate multipl
 while, in electoral studies conducted in one country, a scholar might seek to answer a research 
 question such as "why do people vote Conservative?", with multiple countries having different 
 party systems that question will generally need to be reconceptualized in terms of votes for a 
-{it:generic} party – {it:any} party – with a question like "why do parties receive electoral 
+{it:generic} party – {it:any} party – with a research question like "why do parties receive electoral 
 support?" Such reconceptualization involves moving up the ladder of conceptual generality, which 
 also happens when "newspaper" is viewed as a "media outlet" or "school" is viewed as an "educational 
 establishment". Such reconceptualizations produce comparability across contexts if these involve 
@@ -333,7 +333,8 @@ string is used with any StackMe command that allows multiple {bf:{varlist}}s.  {
 {opt new:expressions}) can signal the presence of expression(s) and/or option(s) that cancel and replace 
 whatever expressions and options were previously in effect for the current command; alternatively, 
 {opt mod:options} (alias {opt mod:expressions}) can signal the presence of expression(s) and/or option(s) 
-that add to and/or modify whatever expressions/options were previously in place for the current command.{p_end}
+that add to and/or modify whatever expressions/options were previously in place for the current command. 
+{opt mod:options} is the default option assumed if none of these options introduce the options-list.{p_end}
 {pstd}{space 3}We should stress that these unusual directives must be placed at the start of any list of 
 options – a list that may be otherwise empty if only an expression (e.g. the {cmd:weight} expression) is being 
 added or changed. These backdoor {cmd:stackMe} conventions are not otherwise documented because they fly in the 
