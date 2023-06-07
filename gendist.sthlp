@@ -258,6 +258,7 @@ The first two groups of prefixed variables (p_ and m_ in the example) are droppe
 variables if {it:replace} is optioned.
 
 {phang}
-A subsequent invocation of {cmd:gendist} will replace {it:SMmco} and {it:SMmpc} with 
-new counts of missing values; so users should either provide different names (using the relevant options) 
-or save these values after issuing the previous command, if they will be of later interest.
+A subsequent invocation of {cmd:gendist} will replace {it:SMmc} and {it:SMmpc} with 
+new counts of missing values; so users should save these values after issuing the previous command, if they 
+will be of later interest.
+
