@@ -13,13 +13,13 @@
 {title:Syntax}
 
 {p 8 16 2}
-{opt genii:mpute} {it:stacked}_{varlist}{cmd:,} {opt options}
+{opt genii:mpute [if][in][weight]} {it:stacked}_{varlist}{cmd:,} {opt options}
 
 {p 4 4 2}
 or
 
 {p 8 16 2}
-{opt genii:mpute} {it:unstacked}_[addvars:]{varlist}{cmd:,} {opt options} [ {cmd:||} {it:unstacked}_[addvars:]{varlist}  ... ]
+{opt genii:mpute [if][in][weight]} {it:unstacked}_[addvars:]{varlist}{cmd:,} {opt options} [ {cmd:||} {it:unstacked}_[addvars:]{varlist}  ... ]
 
 
 {p 4 4 2}
@@ -328,6 +328,3 @@ prefixes in the course of a command-line can slow down (if only marginally) the 
 NOTE: The user can add counts of missing/nonmissing values for any set of variables (whose missing values have or have 
 not been replaced with imputed values) by using STATA's {help rowmiss} and {help rownonmiss} functions within its egen 
 command.{p_end}
-
-
-
