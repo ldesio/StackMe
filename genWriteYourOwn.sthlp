@@ -185,27 +185,27 @@ call on Stata help-files for assistance. For example, the {bf:Description} you w
 And here is some of the Stata code invoked by `cmd':{p_end}
 
 {p2colset 6 26 25 2}
-{space 4}{bf:program define polarindex}	{space 5} // Name of program invoked by {bf:genplace} (which added
-{space 4}	   			{space 4}//  the current varlist and weight exp to the call)
-{space 4}{bf:syntax anything, opts(string)} {space 2}// Describe the syntax used when invoking this `cmd'
-{space 4}	   			{space 4}// ("vars[weight], opts" – opts hold just the pprefix)
-{space 4}{bf:gettoken vars wt:anything,parse("[")} // Split `anything' into vars and wt (unused here)
-{space 4}	   			{space 4}// (weight expression will be needed by some programs,
-{space 4}	   			{space 4}//  so every user program needs these 3 lines of code)
+{space 4}{bf:program define polarindex}	{space 13} // Name of program invoked by {bf:genplace} (which added
+{space 4}	   			{space 14}//  the current varlist and weight exp to the call)
+{space 4}{bf:syntax anything, opts(string)} {space 12}// Describe the syntax used when invoking this `cmd'
+{space 4}	   			{space 14}// ("vars[weight], opts" – opts hold just the pprefix)
+{space 4}{bf:gettoken vars wt:anything,parse("[")}      // Split `anything' into vars and wt (unused here)
+{space 4}	   			{space 14}// (weight expression will be needed by some programs,
+{space 4}	   			{space 14}//  so every user program needs these 3 lines of code)
 
-{space 4}{bf:local prfx = word("`opts'",1)}   // Get what we need from the generic `opts' string
-{space 4}	   			{space 4}// (for this `cmd', only a prefix string was required)
+{space 4}{bf:local prfx = word("`opts'",1)} {space 10}  // Get what we need from the generic `opts' string
+{space 4}	   			{space 14}// (for this `cmd', only a prefix string was required)
 
-{space 4}{bf:foreach lrp of varlist vars} {   // Cycle thru each `lrp' in the {bf:genplace} varlist
-{space 4}    ,				 // (varlist holds left-right placements of each party)
+{space 4}{bf:foreach lrp of varlist vars} {  {space 10} // Cycle thru each `lrp' in the {bf:genplace} varlist
+{space 4}    ,			{space 14}// (varlist holds left-right placements of each party)
 {space 4}    :
-{space 4}    :				 // Code implementing Dalton's Polarization Index
+{space 4}    :			{space 14}// Code implementing Dalton's Polarization Index
 {space 4}    '
-{space 4}    {bf:generate `prfx'`lrp' = ...}  // Assign each result to the same (now "p_"-prefxd) var
-{space 4}	   			{space 4}// (separately for each combination of stack & context)
+{space 4}    {bf:generate `prfx'`lrp' = ...} {space 11}// Assign each result to the same (now "p_"-prefxd) var
+{space 4}	   			{space 14}// (separately for each combination of stack & context)
 {space 4}} //next `lrp'
 
-{space 4}{bf:end polarindex}		{space 5} // See the file {bf:polarindex.ado} for the full program
+{space 4}{bf:end polarindex}		{space 13} // See the file {bf:polarindex.ado} for the full program
 
 
 {p 2 2 2}
@@ -236,4 +236,4 @@ data there may be need for more elaborate generic variables (see the "generic va
 a user-supplied program that produces such a generic measure. The measure concerned is the measure of 
 "issue yield" introduced in the {help genplace} help file.{break} 
 
-[More to come].  
+[More to come]
