@@ -39,9 +39,10 @@ by option {opt ipr:efix}) the name of the variable for which missing values are 
 {synoptset 19 tabbed}{...}
 {synopthdr}
 {synoptline}
-{p2colset 4 24 22 2}
-{break}{p 2}{ul:Imputation options}
-{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model (can 
+
+{p 2}{ul:Imputation options}
+
+{p2colset 4 21 22 2}{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model (can 
 alternatively preceed the initial colon of a syntax 2 varlist){p_end}
 {synopt :{opt sel:ected}}selects variables from the {opt additional} list only if they have no more 
 missing values than the {bf:{varlist}} variable with most missing data{p_end}
@@ -55,6 +56,7 @@ is to leave imputed values unrounded){p_end}
 {synopt :{opt max:ofrange(#)}}maximum value of the imputed value range for all {it:varlist} variables{p_end}
 {synopt :{opt bou:ndedvalues}}bound the range of imputed values for each {it:varlist} variable to the same 
 bounds as found for that variable's unimputed values{p_end}
+
 {p 2}{ul:Data-structure options}
 
 {synopt :{opt con:textvars(varlist)}}a set of variables identifying different electoral contexts 
@@ -63,6 +65,7 @@ bounds as found for that variable's unimputed values{p_end}
 {synopt :{opt sta:ckid(varname)}}a variable identifying different "stacks" for which values will be 
 separately imputed if {cmd:geniimpute} is issued after stacking{p_end}
 {synopt :{opt nos:tacks}}override the default behavior that treats each stack as a separate context{p_end}
+
 {syntab:{ul:Output and naming options}}
 
 {synopt :{opt ipr:efix(name)}}prefix for generated imputed variables (default is "i_"){p_end}
@@ -325,4 +328,6 @@ prefixes in the course of a command-line can slow down (if only marginally) the 
 NOTE: The user can add counts of missing/nonmissing values for any set of variables (whose missing values have or have 
 not been replaced with imputed values) by using STATA's {help rowmiss} and {help rownonmiss} functions within its egen 
 command.{p_end}
+
+
 
