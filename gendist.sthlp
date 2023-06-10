@@ -12,15 +12,16 @@
 {title:Syntax}
 
 {p 6 14 2}
-{opt gendist} {varlist} [if][in][weight][{cmd:,} {it:options}]
+{opt gendist} {varlist} [if][in][weight]{cmd:,} {it:options}
 
 {p 9 9 2}generates distances for a single battery of variables measured on the same scale as 
-a single (optioned) respondent self-placement; alternatively,
+a single (optioned) respondent self-placement; 
 
+{p 6}Or
 
 {p 6 14 2}
-{opt gendist} [if][in][weight][{help varname:selfplace}:] {help varlist} [{cmd:,} {it:options}] [ {bf:||} [{help varname:selfplace}:] 
-				{help varlist} [{cmd:,} {it:options}] [ || ... ]
+{opt gendist} {help varname:selfplace}:] {varlist} [if][in][weight]{cmd:,} {it:options} [ {bf:||} [{help varname:selfplace}:] 
+				{help varlist}{cmd:,} {it:options} [ || ... ]
 
 {p 9 9 2}generates distances for multiple  batteries (separated by "||"), each of which can be 
 prifixed by a different respondent self-placement.
@@ -261,4 +262,3 @@ variables if {it:replace} is optioned.
 A subsequent invocation of {cmd:gendist} will replace {it:SMmc} and {it:SMmpc} with 
 new counts of missing values; so users should save these values after issuing the previous command, if they 
 will be of later interest.
-
