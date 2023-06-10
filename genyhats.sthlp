@@ -13,13 +13,13 @@
 {title:Syntax}
 
 {p 8 16 2}
-{opt genyh:ats [if][in][weight]} {indepvars} [{cmd:,} {it:options}]
+{opt genyh:ats} {bf:{indepvars} [if][in][weight]} [{cmd:,} {it:options}]
 {p_end}
 	
 		or
 
 {p 8 18}
-{opt genyh:ats [if][in][weight]} ydprefix: {indepvars}{bf:,} options [ {bf:||} ydprefix: {indepvars} [ {bf:||} ... ]{p_end}
+{opt genyh:ats} {it:ydprefix:} {bf:{indepvars} [if][in][weight], options [} {bf:||} ydprefix: {indepvars} [ {bf:||} ... ]{p_end}
 
 
 {p 4 4 2}
@@ -274,5 +274,3 @@ the name "vote" matches the name of the optioned dependent variable. That variab
 The first example features variables with numeric suffixes, suggesting that the resulting yi_-prefixed yhat variables 
 were created in unstacked data. The second example is more likely to be seen with stacked data, where numeric suffixes 
 are unusual.{p_end}
-
-
