@@ -17,15 +17,14 @@
 {p 9 9 2}generates distances for a single battery of variables measured on the same scale as 
 a single (optioned) respondent self-placement; 
 
-{p 6}Or
+{p 9}or
 
 {p 6 14 2}
 {opt gendist} {help varname:selfplace}:] {varlist} [if][in][weight]{cmd:,} {it:options} [ {bf:||} [{help varname:selfplace}:] 
 				{help varlist}{cmd:,} {it:options} [ || ... ]
 
 {p 9 9 2}generates distances for multiple  batteries (separated by "||"), each of which can be 
-prifixed by a different respondent self-placement.
-				
+prefixed by a different respondent self-placement.
 
 				
 {synoptset 24 tabbed}{...}
