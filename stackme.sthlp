@@ -5,7 +5,7 @@
 {title:Title}
 
 {p2colset 3 14 14 2}{...}
-{p2col :{bf:StackMe} {hline 2}}package of Stata commands for pre-processing, creating, and 
+{p2col :{bf:StackMe} {hline 2}}package of Stata commands for pre-processing, generating, and 
 manipulating  stacked ({help reshape}d) data-sets for hierarchical (multi-level) analysis{p_end}
 {p2colreset}{...}
 
@@ -14,20 +14,46 @@ manipulating  stacked ({help reshape}d) data-sets for hierarchical (multi-level)
 
 {pstd}
 The {cmd:stackMe} package is a collection of tools for generating and manipulating stacked 
-({help reshape:reshape}d) data. In the academic subfield of electoral studies, where StackMe was 
+{help reshape:(reshape}d) data. In the academic subfield of electoral studies, where StackMe was 
 designed, reshaping usually involves what are referred to as "batteries" of survey items that 
 result from asking the same survey question about each of a number of conceptually-connected 
 reference-items, often political parties. Each respondent to the survey provides a set of answers 
 to each battery of questions, producing a corresponding battery of variables in the resulting 
-dataset. If the same questions were asked about five political parties there would be five 
-responses in each battery at the respondent lavel of analysis. This way of organizing the data 
-is referred to by Stata as "wide" format. But, for many purposes, one might want a separate 
-case for each response, with the variables being "stacked" on top of each other in what Stata 
-refers to as "long" format. Such "reshaping" increases the number of cases in the data (fivefold 
-in this example) and changes the level of analysis from the respondent level to the response 
-level. So, in the vocabulary used by {cmd:StackMe}, batteries of variables are intimately 
-connected with stacks of variables, one being the long- format counterpart to the same data in 
-the other (wide) format.
+dataset. If the same questions were asked about four political parties there would be four 
+responses in each battery at the respondent level of analysis. This way of organizing the data 
+is referred to by Stata as "wide" format, as illustrated. 
+
+              Wide     
+    +------------------------+         Wide format layout of data regarding
+    |  i  plr1 plr2 plr3 plr4|         left-right positions (plr) of four
+    |------------------------|         parties, identified by numeric suffixes
+    |  1   4.1  4.5  6.5 5.4 |         1-4 appended to the "par" stub, for two
+    |  2   3.3  3.0  4.4 4.0 |	       respondents numbered i=1 and i=2.
+    +------------------------+         
+
+{pstd}
+But, for many purposes, one might want a separate observation for each response, with the variables 
+being "stacked" on top of each other in what Stata refers to as "long" format. Such "reshaping" 
+increases the number of observations in the data (fourfold in this example) and changes the level of 
+analysis from the respondent level to the response level, as shown.
+
+        Long         
+    +–––––––––––+
+    | i  j  plr |          Long format layout of the same data as shown above, 
+    |–––––––––––|          Note how what had been numeric suffixes to specific 
+    | 1  1  4.1 |          plr variables have morphed into values of the new 
+    | 1  2  4.5 |          variable "j"; and "plr" has lost its suffix since, in
+    | 1  3  6.5 |          long format, the four original variables have become
+    | 1  4  5.4 |          one. Thinking of the four plr columns above as them-
+    | 2  1  3.3 |          selves being stacks of values that have been inter-
+    | 2  2  3.0 |          leaved into the single "superstack" on the left, the
+    | 2  3  4.4 |          j-values identify the wide stack # within the long
+    | 2  4  4.0 |          superstack.
+    +–––––––––––+
+
+{pstd}
+So, in the vocabulary used by {cmd:StackMe}, batteries of variables are intimately connected 
+with stacks of variables, one being the long-format counterpart to the same data in wide format.
 
 {pstd}
 {bf:IT IS IMPORTANT} to keep track of whether your dataset is stacked or not and, if stacked, what 
@@ -50,18 +76,31 @@ variety of ways to prepare it for ensuing hierarchical (multi-level) analyses.{b
 {bf:1) Data stacking}{break}
 Firstly, data {it:stacking} is usually involved, implying that - in Stata terminology - analysis 
 may call for data in {it:long} rather than in {it:wide} format, as explained above. After 
-stacking ({help reshape}ing), each respondent is represented by multiple rows in the data matrix, 
+stacking (or {help reshape}ing), each respondent is represented by multiple rows in the data matrix, 
 one for each response that, before stacking, was not entirely missing. Given this need,
-StackMe facilitates the reshaping of a dataset with multiple contexts (e.g. countries)
+{cmd:StackMe} facilitates the reshaping of a dataset with multiple contexts (e.g. countries)
 each with possibly different numbers of items (e.g. political parties) in the battery(ies) to be 
-stacked. Batteries of different lengths imply missing data for all cases in certain contexts.{break}
-{space 3}In conventional comparative survey data (e.g. the European Social Survey or surveys 
+stacked. Batteries of different lengths imply missing data for all observations in certain contexts.{break}
+{space 3}{bf:Empty batteries} In conventional comparative survey data (e.g. the European Social Survey or surveys 
 post-processed by the Comparative Study of Electoral Systems) a fair number of question 
 batteries are largely empty so as to accommodate data from countries whose surveys had 
 larger numbers of battery items (e.g. political parties). After reshaping, such surveys produce 
-many rows that are entirely missing for all but respondents from a single (or very few) countries. 
+many observations that are entirely missing for all but respondents from a single (or very few) countries. 
 StackMe avoids burdoning memory and filespace with rows that consist entirely of missing data 
 due to such happenstances.{break}
+{space 3} Battery boundaries also have a number of implications relevant to the handling of 
+{bf:hierarchical data}. These arise because batteries of variables often have interrelationships 
+(typically negative inter-correlations due to patterns in respondent preferences) that can 
+affect multivariate analyses of any kind. For example, multivariate analyses are at the heart of 
+imputation estimations which may be deliberately performed using unstacked data in order to take 
+advantage of within-battery interrelationships when plugging observations for which answers to battery 
+questions are absent.{break}
+{marker Vocabulary}
+{space 3} {bf:Vocabulary} The malleability of data in terms of wide versus long format gives rise to ambiguity 
+when referring to "observations", a word that changes its meaning with changes in the level of 
+analysis. In {cmd:stackMe} we use the word "unit" to refer to observations at the original 
+level of analysis before stacking and the word "item" to refer to the variable (battery item) 
+that will become an observation after stacking.{break}
 
 {marker Genericvariable}
 {pstd}
@@ -72,14 +111,27 @@ question such as "why do people vote Conservative?", with multiple countries hav
 party systems that question will generally need to be reconceptualized in terms of votes for a 
 {it:generic} party – {it:any} party – with a research question like "why do parties receive electoral 
 support?" Such reconceptualization involves moving up the ladder of conceptual generality, which 
-also happens when "newspaper" is viewed as a "media outlet" or "school" is viewed as an "educational 
-establishment". Such reconceptualizations produce comparability across contexts if these involve 
-different party systems or media structures or educational systems, as is common. They also affect 
-{it:independent} ({it:input}) variables, which have to be reformulated to focus on their affinities 
-with the dependent ({it:outcome}) variable before they can be used in a stacked analysis. {cmd:StackMe} 
-generates two measures of affinity: proximities – inverted distances (see {help gendist}) – and, for 
-non-spatial items, so-called {it:y-hat}s (see {help genyhats}). The original motive for facilitating 
-the construction of these types of affinity measures was to encourage research employing PTV (for 
+also happens when "Sun-Times" is viewed as a "newspaper" or "Lincoln High" is viewed as an "school".  
+Such reconceptualizations produce comparability across contexts if these involve different party 
+systems or media structures or educational systems, as is common. They also affect {it:independent} 
+({it:input}) variables, which must be reformulated to focus on the process or mechanism that 
+brings the two together, often referred to as the "affinity" that an indep shows for a depvar.
+
+    +–––––––––––––––––––––––––––+
+    | i  j  plr  rlr  dlr  prox |         Deriving proximity as a measure of affinity between
+    |–––––––––––––––––––––––––––|         voters and parties in left-right terms. Variable plr
+    | 1  1  4.1  2.2  1.9  8.1  |         is as above; rlr is respondent's left-right position;
+    | 1  2  4.5  2.2  2.4  7.6  |         dlr is the distance between rlr and plr on a 10-point
+    | 2  1  3.3  6.5  2.3  7.5. |         scale. Proximity, the final variable, is inverse dis-
+    | 2  2  3.0  6.5  4.2  5.8. |         tance (10 - dlr), a measure of affinity between voters
+    +–––––––––––––––––––––––––––+         and parties in left-right terms.
+
+{pstd}
+{cmd:StackMe} generates three measures of affinity: proximities – inverted distances as shown above 
+(see {help gendist}) – and, for non-spatial items, either dummy variables (e.g. "this is the party 
+a respondent voted for", "this is the party a responded feels close to" – see {help gendummies}) or 
+so-called {it:y-hat}s (see {help genyhats}). Easing the construction of such affinity measures was 
+originally intended to encourage research employing PTV (for 
 Propensity To Vote) measures, derived from survey data, as a substitute for discrete choice modeling 
 from analysis of choices made (van der Eijk et al., 2006). But analysis of discrete choice data can 
 benefit just as much from many of the facilities that {cmd:StackMe} provides.{break}
@@ -137,12 +189,12 @@ random perturbations that permit iimputed data for multiple contexts to substitu
 and duplicated datasets employed in Stata's {bf:{help mi:mi}} suite of commands.{p_end}
 {p2col :{help gendummies:{ul:gendu}mmies}}generation of set(s) of dummy variables employing, as 
 numeric suffixes to the names of variables in each set, the numeric values that {cmd:gendummies} 
-actually finds in the data{p_end}
-{p2col :{help genstacks:{ul:genst}acks}}(Context-wise) reshaping of a dataset for response-level 
-analysis (see the relevant introductory paragraph above){p_end}
+actually finds in the data.{p_end}
 {p2col :{help gendist:{ul:gendi}st}}(Context-wise) generation of distances between spatially-located 
 self-placement variables and each member of a corresponding battery of spatial items, with customizable 
-treatment of missing data{p_end}
+treatment of missing data.{p_end}
+{p2col :{help genstacks:{ul:genst}acks}}(Context-wise) reshaping of a dataset for response-level 
+analysis (see the relevant introductory paragraph above){p_end}
 {p2col :{help genyhats:{ul:genyh}ats}}(Context-wise) generation of {it:y-hat} affinity measures that 
 connect {help indepvars} to {help depvars}{p_end}
 {p2col :{help genmeans:{ul:genme}ans}}generation of (optionally weighted) means of variables within 
@@ -164,26 +216,28 @@ dataset.{p_end}
 
 {pstd}
 The functionality of these tools can largely be emulated using existing Stata commands but those would in 
-many cases require multiple steps (or call for advanced programing skills) in order to operate on data with 
-multiple contexts (eg. countries or country-years), for each of which the data may need to be pre-processed, 
+many observations require multiple steps (or call for advanced programing skills) in order to operate on data 
+with multiple contexts (eg. countries or country-years), for each of which the data may need to be pre-processed, 
 or otherwise manipulated, separately. Moreover, many of the commands in {cmd:StackMe} have additional 
 features not readily duplicated with existing Stata commands, even for data that relate to a single context.
 
 {pstd}
 The commands take a variety of {help options}, as documented in individual help files, some with quite 
-cumbersome names. However, ALL options can be abbreviated to their first three characters and many can be 
-omitted (as documented).
+cumbersome names. However, ALL options can be abbreviated to their first three characters (except that 
+negating an option, where allowed, requires the letters "no" to precede those three characters as is 
+s) and many 
+can be omitted (as documented).
 
 {pstd}
 The commands save a variety of indicators and measures, most of them being given {varname}s based on the names 
 of the variable(s) from which they are derived (as documented). Three variables created by the command 
-{help genstacks} are needed by other {cmd:StackMe} commands and do not start with the underscore character. 
-These are {it:stackme_stk} (the stack identifier), {it:stackme_itm} (the identification code originally given 
-to each battery variable before these were {help reshape}d into stacks) and {it:stackme_nst} – the total number 
-of stacks, some of which might be all-missing (and thus not present) in certain contexts. The names of these 
-three variables are held in the first word of the data label for any dataset stacked by {help genstacks}. A 
-special- purpose {cmd:StackMe} utility ({help genid:{ul:genid}}) serves to extract, rename and/or replace these 
-ids in the data label of the currently {help use}d dataset.
+{help genstacks} are needed by other {cmd:StackMe} and should not be deleted or have their names changed. 
+These are {it:SMstkid} (the stack identifier), {it:SMnstks} (the largest number of stacks, some of which might 
+be all-missing and thus completely absent in certain contexts) and {it:SMunit}, the sequential id enumerating 
+all original observations over all contexts. Additionally, command {help genstacks} takes note of a user-defined 
+varname for an alternative stack identifier which it records in the first word of the data label for any dataset 
+stacked by {help genstacks}. A special-purpose {cmd:StackMe} utility ({help genid:{ul:genid}}) serves to extract, 
+rename and/or replace this final id in the data label of the currently {help use}d dataset.
 
 {marker Workflow}
 {title:Workflow}
@@ -205,7 +259,7 @@ used on unstacked data and/or they can be directed to ignore the stacked structu
 of the data by specifying the {opt nos:tack} option. This option has no effect on 
 {help gendummies:{ul:gendu}mmies} or {help genmeans:{ul:genme}ans} or on any 
 {cmd:StackMe} command that is being used on unstacked data (since unstacked data only have one stack 
-per case). With stacked data, ignoring the separate contexts represented by each stack might make 
+per observation). With stacked data, ignoring the separate contexts represented by each stack might make 
 sense if exploratory analysis had established that there is no stack-specific heterogeneity relevant 
 to the estimation model for which the data were being  pre-processed. Alternatively, the user might 
 employ this option so as to {help geniimpute:{ul:genii}mpute} a variable that is completely missing in 
@@ -288,20 +342,21 @@ Every StackMe command name should be followed by a Stata {varlist} ({help gensta
 these commands additionally offers an alternative {varlist} format that permits variables to be grouped into 
 batteries by use of so-called "pipes" ({bf:"||"}) that separate the variables belonging to each battery. Where 
 appropriate, each battery can be associated with an indicator variable (a {varname}) or {varlist}, suffixed by 
-a colon, that preceeds the {varlist} of battery-members) and each varlist will generally be followed by an 
-{it:{help option}}list, for example:{p_end}
+a colon, that preceeds the {varlist} of battery-members). This (set of) varlist(s) will generally be associated  with an {it:{help option}}list, for example:{p_end}
 
 {p 5 14}
 {opt gendi:st} [{help varname:selfplace}:] {varlist} {bf:[if][in][weight]}{cmd:,} {it:{help options}} [ {bf:||}
 [{help varname:selfplace}:] {break}{help varlist} ... ]
 
 {pstd}
-The "{bf:{help [if]} {help [in]} {help [weight]},} {help options}" that follow the first such {varlist} sets 
-expressions and options that 
-apply to that {varlist} and to all subsequent {varlist}s (in practice these expressions and options can occur 
-anywhere among the varlists concerned – not only following the first of them). But there can normally be only one 
-single occurrence of "{bf:[if][in][weight],} {opt options}" for any {cmd:StackMe} command (see {bf:Hidden Gems}, 
-below, for an exception).
+The optionlist may appear anywhere among the varlist(s) but generally follows either the first or the last 
+Of them. The {bf:{help [if]} {help [in]} {help [weight]}} expressions that generally follows a 
+{varlist} can also be placed following any of the varlists but is generally placed following the first of them.
+
+{pstd}
+There can normally be only one 
+single occurrence of "{bf:[if][in][weight], options}" for any {cmd:StackMe} command (but see 
+{help stackme##Hiddengems:Hidden Gems}, below, for an exception).
 
 {marker regardingversion2}
 {title:Note regarding version 2.0}
@@ -373,6 +428,6 @@ De Sio, L. and Franklin, M. (2011) "StackMe: A Stata package for analysis of mul
 
 {pstd}
 To better understand generic variable analysis in a comparative framework see:{break}
-Eijk, C. van der, Brug, W. van der, Kroh, M. and Franklin, M. (2006) "Rethinking the dependent variable 
-in voting behavior: On the measurement and analysis of electoral utilities", {it:Electoral Studies} 
-25(3): 424-447.
+Eijk, C. van der, Brug, W. van der, Kroh, M. and Franklin, M. (2006) "Rethinking the dependent 
+variable in voting behavior: On the measurement and analysis of electoral utilities", 
+{it:Electoral Studies} 25(3): 424-447.{p_end}
