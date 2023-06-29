@@ -35,14 +35,14 @@ in the space (e.g. the issue space) in which {varlist} battery reference items (
 {synopt :{opth nosel:fplace(varname)}}empty the prefix option (useful if wanting to 
 use prefix variables instead of the prefix option).{p_end}
 {synopt :{opth con:textvars(varlist)}}a set of variables identifying different electoral contexts
-(by default all cases are treated as part of the same context).{p_end}
+(by default all observations are treated as part of the same context).{p_end}
 {synopt :{opt nocon:texts}}override the default behavior that generates distances within each context (if 
 specified) separately.{p_end}
 {synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
 separately generated if {cmd:gendist} is issued after stacking.{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context.{p_end}
 {synopt :{opt mis:sing(all|same|diff)}}basis for plugging missing values on battery placements.{p_end}
-{synopt :{opt rou:nd}}rounds plugged values to the nearest integer.{p_end}
+{synopt :{opt rou:nd}}rounds calculated distances to the nearest integer.{p_end}
 {synopt :{opt ppr:efix(name)}}prefix for generated (optionally mean-plugged) placement variables (default is "p_").{p_end}
 {synopt :{opt mpr:efix(name)}}prefix for generated variables indicating original missing status of either 
 component (item location or respondent location) of a distance measure (default is "m_").{p_end}
@@ -50,9 +50,9 @@ component (item location or respondent location) of a distance measure (default 
 {synopt :{opt plu:gall}}replace ALL battery values by plugging-values generated in accordance with option {opt missing}, 
 constant across respondents.{p_end}
 {synopt :{opt mco:untname(name)}}name for a generated variable reporting original count of missing items; 
-for each case (default is SMmco).{p_end}
+for each observatiion (default is SMmco).{p_end}
 {synopt :{opt mpc:ountname(name)}}name of a generated variable reporting the count
-of missing items for each case after mean-plugging (default is SMmpc.{p_end}
+of missing items for each observation after mean-plugging (default is SMmpc.{p_end}
 {synopt :{opt rep:lace}}drops original party location variables, missing indicators and party placements 
 after the generation of distances.{p_end}
 {synopt :{opt lim:itdiag(#)}}limit progress reports to first # contexts for which distances are being calculated.{p_end}
@@ -84,13 +84,13 @@ reference placement, or mean placements by respondents who place themselves else
 specified in option {bf:missing}. 
 
 {pstd}
-Conventionally in published work the plugged value has been based on all placements. However, it might be 
+Conventionally in published work the plugging values have been based on all placements. However, it might be 
 thought that respondents having the same position would be more knowledgeable about the reference object 
 concerned. Alternatively it might be thought that respondents having the same position might include 
 individuals who were simply assuming that 'their' reference object (eg. political party) had the same 
 position as themselves. Each of the {bf:missing} options is defensible theoretically so the user should 
 think carefully about which to employ. The default is not to plug the missing data, so that distances 
-are generated only for valid cases.
+are generated only for valid observations.
 
 {pstd}
 The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
@@ -130,12 +130,12 @@ by {help genmeans} or {help genplace}.
 {title:Options}
 
 {phang}
-{opth selfplace(varname)} (required unless this {varname} already prefixes the preceding {varlist}) the variable 
+{opth selfplace(varname)} (required unless this {varname} already prefixes the relevant {varlist}) the variable 
 containing the respondent's self-placement on the scale used for the corresponding battery of reference items.
 
 {phang}
 {opth contextvars(varlist)} if present, variables whose combinations identify different electoral contexts
-(by default all cases are assumed to belong to the same context).
+(by default all observations are assumed to belong to the same context).
 
 {phang}
 {opt nocontexts} if present, overrides the default behavior of gendrating distances within each context (if 
@@ -167,7 +167,7 @@ NOTE: Consider using option {bf:plugall} to treat (e.g.) party locations as cons
 (see SPECIAL NOTE ON REFERENCE VALUES under {bf:Description}, above).
 
 {phang}
-{opt round} if present, causes rounding of all plugged values to the closest integer.
+{opt round} if present, causes rounding of all calculated distances to the closest integer.
 
 {phang}
 {opt plugall} if present, causes ALL values of each reference variable to be replaced with plugging 
@@ -181,9 +181,9 @@ values calculated according to option {bf:missing}, thus yielding values that ar
 {opth pprefix(name)} if present, provides a prefix for generated mean-plugged placements (default is "p_").
 
 {phang}
-{opth mprefix(name)} if present, provides a prefix for generated variables indicating for each case whether, 
+{opth mprefix(name)} if present, provides a prefix for generated variables indicating for each observation whether, 
 before mean-plugging of an item in the battery, either the item placement or the respondent placement was 
-missing for that case (default is "m_").
+missing for that observation (default is "m_").
 
 {phang}
 {opth mcountname(name)} if specified, name for a generated variable reporting original number of
@@ -194,10 +194,6 @@ missing items (default is to generate a variable named SMmc){p_end}
 missing items after mean-plugging, which could still be non-zero (even after all missing values 
 on item positions have been plugged) if the respondent's own self-placement is missing (default is 
 Generate a variable named SMmpc){p_end}
-
-{phang}
-{opt dropmissing} if specified, drops all party position and (optionally mean-plugged) placement 
-variables after the generation of distance measures{p_end}
 
 {phang}
 {opt replace} if specified, drops original party placement variables after the generation of distance 
@@ -249,8 +245,8 @@ corresponding placement of the respondent on the scale concerned.{p_end}
 from the respondent to each (mean-plugged if optioned) placement variable. These distance variables are 
 named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names. Those 
 variables are left unchanged.{p_end}
-{synopt:SMmc} a variable showing the original count of missing items for each case.{p_end}
-{synopt:SM_mpc} a variable showing the count of remaining missing items for each case after 
+{synopt:SMmc} a variable showing the original count of missing items for each observation.{p_end}
+{synopt:SM_mpc} a variable showing the count of remaining missing items for each observation after 
 mean-plugging.{p_end}
 
 {phang}
