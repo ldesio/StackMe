@@ -60,7 +60,7 @@ bounds as found for that variable's unimputed values{p_end}
 {p 2}{ul:Data-structure options}
 
 {synopt :{opt con:textvars(varlist)}}a set of variables identifying different electoral contexts 
-(by default all cases are treated as part of the same context){p_end}
+(by default all observations are treated as part of the same context){p_end}
 {synopt :{opt nocon:texts}}delete any previously-defined context variables{p_end}
 {synopt :{opt sta:ckid(varname)}}a variable identifying different "stacks" for which values will be 
 separately imputed if {cmd:geniimpute} is issued after stacking{p_end}
@@ -121,7 +121,7 @@ on the values of other members of a battery).
 
 {pstd}
 NOTE (1) that the sample used in the imputation model is the whole electoral 
-context and not only a restricted group of cases defined in step 1.
+context and not only a restricted group of observations defined in step 1.
 
 {pstd}
 NOTE (2) that the number of independent variables upon which to base the imputation (the total of 
@@ -223,11 +223,11 @@ for specific variables if the bounded range is smaller. Seldom used with variabl
 
 {phang}
 {opth contextvars(varlist)} if specified, variables whose combinations identify
-different electoral contexts (default is to treat all cases as part of the same context) 
+different electoral contexts (default is to treat all observations as part of the same context) 
 
 {phang}
 {opt nocontexts} if specified, override any previously specified contextvars and treat 
-all cases as part of the same context 
+all observations as part of the same context 
 
 {phang}
 {opth stackid(varname)} if specified, a variable identifying different "stacks" for which values will be 
@@ -314,7 +314,7 @@ names whose suffixes match the names of original variables for which missing dat
 variables are left unchanged (unless replaced).{p_end}
 
 {synopt:m_{it:name1} m_{it:name2} ... (or other prefix set by option {bf:mprefix})} a set of dummy variables 
-indicating, for each case, whether the value of the new variable was imputed for that particular observation 
+indicating, for each observation, whether the value of the new variable was imputed for that particular observation 
 (i.e. whether the original observation was missing).{p_end}
 
 {pstd}
