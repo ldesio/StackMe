@@ -3,7 +3,7 @@ capture program drop gendist
 
 program define gendist
 
-*!  Stata version 9.0; genyhats version 2.0, updated by MNF in Feb-May'23 from major re-write in June'22
+*!  Stata version 9.0; genyhats version 2, updated May'23 from major re-write in June'22
 
 	version 9.0
 										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
@@ -11,13 +11,14 @@ program define gendist
 									
 															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'
 
-	local optMask = "SELfplace(varname) CONtextvars(varlist) STAckid(varname) MISsing(string) PPRefix(name) MPRefix(name) "   ///	**
+	local optMask = "SELfplace(varname) CONtextvars(varlist) STAckid(varname) MISsing(string) PPRefix(name) MPRefix(name) "     ///	**
 				  + "DPRefix(name) MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMItdiag(integer -1) PLUgall " ///	**
-				  + "ROUnd NOSELfplace "
-															// `respondent' is not valid in version 2 but included to be helpful	**
+				  + "ROUnd REPlace NOSELfplace "			// `respondent' is not valid in version 2 but included to permit		**
+															//  helpful error message												**
+
 															// Ensure prefix option for this stackMe command is placed first
 															// and its negative is placed last; ensure options w args preceed 
-															// toggle (aka flag) options, which start after limitdiag().	
+															// toggle (aka flag) options.	
 																				
 																
 	local prfxtyp = "var"/*"othr"*/							// Nature of varlist prefix – var(list) or other. (`stubname' will		**
@@ -35,9 +36,8 @@ program define gendist
 															  // – that happens on fifth line of stackmeCaller's codeblock 0)
 	
 
-end //gendist			
+end // gendummies			
 
 
 
-*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS and are
-*  added in stackMeWrapper
+*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
