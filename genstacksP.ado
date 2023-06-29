@@ -7,9 +7,9 @@ program define genstacksP
 
 *!	Version 2 uses the command window to build label for stacked data; unlike version 2a which uses a dialog box.
 
-*!  Stata version 16.1 (originally 9.0); gendist version 2.0, updated Jan'23 by MNF from major re-write in June'22
+*!  Stata version 16.1 (originally 9.0); gendist version 2.0, updated Jan'22 from major re-write in June'22
 *!  Search sreshape for a faster reshape command published in 2019 (possibly already incorporated into Stata 17)
-*!  However, reshape is not the slow part. A faster merge command for data frames would be good!
+*!  However, reshape is not the slow part. A faster merge command would be good!
 
 
 	version 16.1											 // stackMe genstacks version 2.0, June 2022, updated 1'23, 2'23
@@ -57,6 +57,8 @@ program define genstacksP
 			exit
 		}
 	}		
+
+	
 	
 	
 	
@@ -110,6 +112,9 @@ program define genstacksP
 	noisily display ".." _continue							// First "busy"dots
 	
 
+	
+	
+	
 	
 	
 	
@@ -216,7 +221,7 @@ program define genstacksP
 
 
 			
-									// Diagnose batteries with different numbers of suffixes (indexes) . . .
+								// Diagnose batteries with different numbers of suffixes (indexes) . . .
 
 		local previndexlist = ""							// This codeblock may be redundant 'cos reshape checks ***
 		local diffindexlist = 0
@@ -267,7 +272,7 @@ program define genstacksP
 	
 	
 	
-									// Make labels for vars to be reshaped, based on first var in each battery ...
+								// Make labels for vars to be reshaped, based on first var in each battery ...
 
 	local suffixNotNum = ""								// Accumulate list of stubs w'out numeric suffixes
 		
@@ -348,10 +353,10 @@ program define genstacksP
 	
 	
 	
-									// Get respondent ID, save frame or tempfile of variables constant across stacks . . .
+								// Get respondent ID, save frame or tempfile of variables constant across stacks . . .
 														
-/*		------------------------------------------------------------------------------------------------------------------
-		mata: st_numscalar("STATAVERSION",statasetversion()) // COMMENTED OUT BECAUSE DONE IN WRAPPER
+/*
+		mata: st_numscalar("STATAVERSION",statasetversion()) // Commented out because slower than using tempfile
 
 		if STATAVERSION>1600  frame put _all, into(unstacked)
 		else  {
@@ -366,11 +371,10 @@ program define genstacksP
 	
 	
 	
-									// Reshape as optioned . . .
+								// Reshape as optioned . . .
 														
 		quietly keep `SMunit' `varlist'						// Keep just the variables to be reshaped (and identifiers)
-		-------------------------------------------------------------------------------------------------------------------
-*/									// End of wrapper codeblocks
+*/								// End of wrapper codeblocks
 	
 	
 	
@@ -385,8 +389,7 @@ program define genstacksP
 		order SMtotstacks, after(SMstkid)
 	
 
-/*		------------------------------------------------------------------------------------------------------------
-		if STATAVERSION>1600  {								// COMMENTED OUT BECAUSE NOW DONE IN WRAPPER
+/*		if STATAVERSION>1600  {								// Commented out because slower than merging a tempfile
 			quietly frlink m:1 `SMunit' _ctx_temp, frame(`unstacked')
 			quietly frget _all, from(`unstacked')
 			frame drop unstacked
@@ -395,7 +398,7 @@ program define genstacksP
 		   `displ' merge m:1 `SMunit' using `unstacked', nogen nolabel
 			erase `unstacked'
 *		}
-		------------------------------------------------------------------------------------------------------------
+		
 */		if !`w' noisily display "." _continue
 		
 		
@@ -438,6 +441,8 @@ program define genstacksP
 	
 	
 
+	
+
 									// Process fixed effects if optioned . . .
 
 	if ("`fe'"!="") {
@@ -460,7 +465,7 @@ program define genstacksP
 			if `w' display "`feprefix'`fevar' " _continue
 			capture drop `feprefix'`fevar'
 			quietly bysort `SMunit': egen `t' = mean(`fevar')	// Need to weight this calculation								***
-			`displ' gen `feprefix'`fevar' = `fevar' - `t'		// (BUT MARK THINKS THIS DUPLICATES MLM PROCEDURES)				***
+			`displ' gen `feprefix'`fevar' = `fevar' - `t'
 			drop `t'
 			local felist = "`felist' `feprefix'`fevar'"
 		}
@@ -482,7 +487,10 @@ program define genstacksP
 *                          12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		capture window stopbox rusure "SMunit, the default unitname, is used by other stackMe commands. Change it anyway?"
 		if _rc==0  rename SMunit `unitname'		 					// This names a new variable; itemname names an existing variable
-		else  window stopbox note "'SMunit' changed to `unitname'"
+		else  {
+			noisily display "'SMunit' changed to `unitname'"
+			window stopbox note "'SMunit' changed to `unitname'"
+		}
 	}
 	else local unitname "SMunit"
 
@@ -491,7 +499,10 @@ program define genstacksP
 *                              12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		capture window stopbox rusure "SMstkid, the default stackid name, is used by other stackMe commands. Change it anyway?"
 		if _rc==0 rename SMstkid `stackid'		 					// This names a new variable; itemname names an existing variable
-		else  window stopbox note "'SMstkid' changed to `stackid'"
+		else  {
+			noisily display "'SMstkid' changed to `stackid'"
+			window stopbox note "'SMstkid' changed to `stackid'"
+		}
 	}
 	else local stackid "SMstkid"
 	
@@ -546,7 +557,12 @@ program define genstacksP
 	} //end else
 	
 
+	
+	
+	
 end //genstacksP
+
+
 
 
 /*
