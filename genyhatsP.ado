@@ -17,17 +17,17 @@ program define genyhatsP
 	// `depvarname' processed by the wrapper was supplied as a prefix to the indepvarlist rather than as an option.
 	//    CRITICALLY, the presence or absence of a prefix to the indepvarlist determines whether yhats that are produced
 	// by bivariate or multivariate analyses (multivariate if the depvar is identified by the prefix).
-	//    genyhats-specific lines of code are suffixed with "**" to right
 	
-	
+
+																// genyhats-specific lines of code are suffixed with "**" to right
 	
 	version 16.1							// (0) genyhats version 2 preliminaries
 
-	syntax anything(id="varlist") [if][in][aw fw pw/],[DEPvarname(varname) CONtextvars(varlist) STAckid(varname)] ///
-	[ LOGit REPlace] YIPrefix(string) prfx(string) MPrefix(str) ADJust(string) EFFects(string) EFOrmat(string) ]  ///
-	[ limitdiag(integer -1) extradiag nvarlst(integer 1) ctxvar(string) nc(integer 0) c(integer 0) ]   
-																// Wrapper adds optns limitdiag & on
+	syntax anything(id="varlist") [if][in][aw fw pw/],[DEPvarname(varname) CONtextvars(varlist) STAckid(varname) LOGit REPlace] ///
+	[ YIPrefix(string) prfx(string) MPrefix(str) ADJust(string) EFFects(string) EFOrmat(string) limitdiag(integer -1) ] 	 	///
+	[ extradiag /*prfx(str) isprfx */nvarlst(integer 1) ctxvar(string) nc(integer 0) c(integer 0)] // Wrapper adds optns limitdiag & on
 																// There is also a global set by wrapper for "$yhatstkvars"	
+																// NOTE THAT prfx and `isprfx' are redundant	**
 	
 	
 	
@@ -57,7 +57,8 @@ program define genyhatsP
 			window stopbox stop "Valid adjustment options are {bf:mean}, {bf:constant} or {bf:no}"	
 		}
 	}
-			
+	
+				
 	local ydprefix = "`prfx'_"						 			// Legacy name for string that prefixes a multivariate analysis
 	
 	if ("`yiprefix'" == "") {
@@ -84,7 +85,9 @@ program define genyhatsP
 		else display " " _newline
 	}
 																// All of the above is overhead repeatd each time `cmd'P is invokd
-												
+
+															
+															
 	// HERE STARTS PROCESSING OF CURRENT CONTEXT . . .
 	
 			local contextlabel : label (`ctxvar') `c'			// Retrieve the label for this context built by _mkcross					**
@@ -92,9 +95,7 @@ program define genyhatsP
 			quietly count 	
 			local numobs = r(N)									// N of observations in this context
 			
-		
-		
-		
+pause `contextlabel'		
 		
 											// (3) Cycle thru all varlists included in this call on `cmd'P
 
@@ -110,8 +111,8 @@ program define genyhatsP
 						if `limitdiag'!=0  window stopbox note "Note that depvar prefix `precolon' duplicates existing varname"
 					}								
 					local ydprefix = "`precolon'_"				 //`ydprefix' is legacy prefx for multivariate regression depvar
-					local isprfx = "isprfx"						 // And set `isprfx' flag, then	...	
-					local anything = strltrim(substr("`anything'",2,.)) // strip off the leading ":" with any following blanks
+					local isprfx = "isprfx"						 // Set `isprfx' flag, then	...	
+					local anything = strltrim(substr("`anything'",2,.)) // strip off the leading ":" and any following blanks
 				} //endif `anything'
 				
 				else  local anything = "`precolon'"				 // If there was no colon then varlist was in `precolon'
@@ -130,22 +131,22 @@ program define genyhatsP
 				
 				
 
+								
 
 
 											// (4) Heavy lifting is done in program predcent (below)
 set tracedepth 4
 *				********
-				predcent  `indepvars' `wt', depvarname(`dvar') ydprefix("`ydprefix'") yiprefix("`yiprefix'") cen(`cen') ///																	
-			   /********/ `isprfx' `logit' `extradiag' 	    	  // Code for called program follows code for this one
+				predcent `indepvars' `wt', depvarname(`dvar') ydprefix("`ydprefix'") yiprefix("`yiprefix'") cen(`cen') ///																	
+						 `isprfx' `logit' `extradiag' 			// Code for called program follows code for this one
+*				********
 set tracedepth 3
-
-
-				if (`c'>1 & "`quietly'"!="")  {					  // Suppress progress dots for first context
-																  // (otherwise display them if no other diagnostice)														
+				if (`c'>1 & "`quietly'"!="")  {					// Suppress progress dots for first context
+																// (otherwise display them if no other diagnostice)														
 					if `nc'<38  noisily display ".." _continue
-					else  noisily display "." _continue			  // Halve the N of dots if would more than fill a line
+					else  noisily display "." _continue			// Halve the N of dots if would more than fill a line
 
-				} //endif	
+				}	
 
 
 			   
@@ -153,7 +154,7 @@ set tracedepth 3
 			   
 											// (5) Post-process the results, if optioned
 					
-				if ("`effects'"!="" & "`effects'"!="no") {	// I DON'T KNOW HOW TO TIDY THE OUTPUT								      *** 
+				if ("`effects'"!="" & "`effects'"!="no") {		// I DON'T KNOW HOW TO TIDY THE OUTPUT								****
 
 					local usefile = ""
 					if ("`effects'"!="window") {
@@ -170,8 +171,7 @@ set tracedepth 3
 							local cellfmt = "`efmt'"
 						}
 						esttab `usefile', cells("`cellfmt'") pr2(%8.3f) mtitles replace compress wide onecell plain label
-
-					} //endif(`logit'
+					}
 
 					else {										// Regression analysis
 						local cellfmt = "z(fmt(3) star)"
@@ -194,7 +194,7 @@ set tracedepth 3
 	
 
 
-											// (6) Break out of `nvl' loop if `postpipes' is empty (terminal codeblock common across all `cmd'P)
+											// (6) Break out of `nvl' loop if `postpipes' is empty (common terminal codeblock)
 											// 	   (or pre-process syntax for next varlist)
 
 				if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
@@ -217,7 +217,12 @@ end	genyhatsP
 
 
 
------------------------------------------------------- Begin predcent --------------------------------------------------
+--------------------------------------------------------End genyhatsP----------------------------------------------------------------
+
+
+
+--------------------------------------------------------Begin predcent---------------------------------------------------------------
+
 
 
 capture program drop predcent 
@@ -361,5 +366,6 @@ program define predcent   					// Program to predict and center variable(s) on t
 
 	} //end else bivariate
 
+	
 	
 end predcent
