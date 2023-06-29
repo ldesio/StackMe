@@ -5,7 +5,7 @@ program define gendistP
 	version 9.0												// gendist version 2.0, June 2022, updated May 2023
 	
 *!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
-*!  Stata version 9.0; gendist version 2, updated Mar-MY'23 by MND from major re-write in June'22
+*!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
 	
 	//    Version 2 removes recently introduced code to plug plr==rlr with diff-means, as though the plr 
 	// value had been missing. (This treatment turns out to be only appropriate when distances are from 
@@ -15,12 +15,11 @@ program define gendistP
 	// also introduces full [if][in][weight] processing, where appropriate. Context-by-context processing 
 	// was tried and discarded because the current use of "egen...by" proved faster.
 	
-		
 
-    syntax anything [if] [in] [aw fw pw/], [SELfplace(varname) CONtextvars(varlist) MISsing(string)] ///
-		[ STAckid(varname) PPRefix(name) MPRefix(name) DPRefix(name) PLUgall ROUnd REPlace ]		///
-		[ MCOuntname(name) MPLuggedcountname(name) LIMitdiag(integer -1) ctxvar(varname)] 	   ///
-		[ nvarlst(integer 1) nc(integer 0) c(integer 0) ]
+    syntax anything [if] [in] [aw fw pw/], [SELfplace(varname) CONtextvars(varlist) STAckid(varname) ]			///
+		[ MISsing(string) PPRefix(name) MPRefix(name) DPRefix(name) MCOuntname(name) MPLuggedcountname(name) ]	///
+		[ LIMitdiag(integer -1) PLUgall ROUnd REPlace NOSELfplace ctxvar(varname) nvarlst(integer 1) ]			///
+		[ nc(integer 0) c(integer 0) ]
 
 															// Context-by-context processing is not used by gendist
 															
@@ -31,7 +30,7 @@ program define gendistP
  
 	local optns = "`contextvars' `stackid'"					// Used in diagnostic display, below
   
-	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big numbr!	** 
+	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!	** 
 
 	
 
@@ -40,7 +39,7 @@ program define gendistP
 
 												
 	if "`stacks'"!=""  {									// Could be turning on use of 'stackid' in later optlist
-		capture confirm variable `stackid'					// (in which case, need a var in `stackid' (reason for NOSTAcks')
+		capture confirm variable `stackid'					// (in which case, need var in `stackid' (reason for NOSTAcks')
 		if _rc>0  {
 			display as error "Need variable name in option stackid(varname)"
 			error 999										// Cluge corrects disjunction between new and old syntax conventns
@@ -81,23 +80,33 @@ program define gendistP
 		local missingImpCntName = "`mpluggedcountname'"
 	}
 		
-	
-	if `limitdiag' !=0 & `count'<`limitdiag'  {
-		noisily display as text _continue
-		noisily display "{pstd}{text}Computing distances between R's position ({result:`selfplace'}) " _continue
-		noisily display "and their placement of objects: {break} {result:`varlist'} {break}"
-		noisily display "using cumulative options: `optns'{p_end}"
-	}
 
 	if ("`missing'"=="" & "`pprefix'"!="") {
 		display as error "The {bf:pprefix} can only be optioned if the {bf:missing} option is provided – exiting gendist"
 		window stopbox stop "The {bf:pprefix} can only be optioned if the {bf:missing} option is provided"
 	}	
 
+
+	
+	local stackvars = "`contextvars' `stkid'"
+		
+	tempvar _temp_ctx
+	if ("`stackvars'" == "") {
+		gen `_temp_ctx' = 0
+		quietly replace `_temp_ctx' = 1 `if' `in'
+		local ctxvar = "`_temp_ctx'"
+	}
+	else {
+		quietly _mkcross `stackvars', generate(`_temp_ctx') missing length(20) label ()
+		local ctxvar = "`_temp_ctx'"						 
+	}
 	
 
 	
-											// HERE STARTS PROCESSING OF CURRENT CONTEXT (all contexts together for gendist) . . .
+	
+	
+											// HERE STARTS PROCESSING OF CURRENT CONTEXT (all contexts for gendist) . . .
+	
 	
 	forvalues nvl = 1/`nvarlst'  {						 	// Cycle thru set of varlists with same options
 															// (any prefix is in `depvarname' & 'dvar')											
@@ -112,6 +121,14 @@ program define gendistP
 	  } //endif `anything'
 				
 	  else  local anything = "`precolon'"					// If there was no colon then varlist was in `precolon'
+	  
+	
+	  if `limitdiag' !=0 & `count'<`limitdiag'  {
+		noisily display as text _continue
+		noisily display "{pstd}{text}Computing distances between R's position ({result:`selfplace'}) " _continue
+		noisily display "and their placement of objects: {break} {result:`anything'} {break}"
+		noisily display "using cumulative options: `optns'{p_end}"
+	  }
 	  
 	  unab varlist : `anything'
 
@@ -156,7 +173,7 @@ program define gendistP
 
 		local istvar = word("`varlist'",1)
 
-*       ********											// Program is listed below
+*       ********											// Program (listed below) handles already existing var
 		isnewvar `istvar', prefix("`plugPrefx'")			// Cloned vars are named "`plugPrefx'`var'"
 *		********
 		
@@ -175,8 +192,8 @@ program define gendistP
 	  	
 		local istvar = word("`varlist'",1)
 		
-*		********
-		isnewvar `istvar', prefix("`distPrefx'")			// Program is listed below
+*		********											// Program (listed below handles already existing var
+		isnewvar `istvar', prefix("`distPrefx'")			// Cloned vars are named `distprefix'`var'
 *		*******
 
 		foreach var of varlist `varlist' {					// Here label as distances from p_`var'
@@ -206,43 +223,54 @@ program define gendistP
 		
 		local count = `count' + 1							// Count of vars processed, basis for limitdiag
 		
-	    if "`missing'"==""  {								// If missing treatment was not optioned there are no p_vars
-			capture replace `distPrefx'`var' = abs(`selfplace' - `var')
-	    }	
-	    else  {												//   Missing treatment was optioned ...
+															
+		replace `distPrefx'`var' = abs(`selfplace' - `var')	// Start with all distances, whether or not mean-plugging was optiond
+
+		
+	    if ("`missing'"!="") {								//   Missing treatment was optioned ...
 
 	        quietly {	
 	    
-				tempvar temp
+				tempvar temp								// `temp' is p-var value by context to use for plugging missing obs 
 															// Weighting calls on _gwmean (type net search _gwmean)
 				if ("`missing'"=="all")  {
-					egen `temp' =mean(`var'), by(`_temp_ctx') //  for version 2a; 
-				}
+					if "`weight'"!=""  {
+						egen `temp' = wmean(`var'), by(`_temp_ctx') weight(`wtexp') //  for version 2a; 
+					}										// Weighting calls on _gwmean (type 'net search _gwmean')
+					else {
+						egen `temp' = mean(`var') if `selfplace'==`plugPrefx'`var', by(`_temp_ctx')
+					}
+				}											// Otherwise we use the regular egen mean() function
+
 				if ("`missing'"=="sam")  {
 					if "`weight'"!=""  {
 						egen `temp' = wmean(`var') if `selfplace'==`plugPrefx'`var', by(`_temp_ctx') weight(`wtexp')
 					}										// Weighting calls on _gwmean (type 'net search _gwmean')
-					else egen `temp' = mean(`var') if `selfplace'==`plugPrefx'`var', by(`_temp_ctx')
-				}											// Otherwise we use the regular egen mean() function
+					else {
+						egen `temp' = mean(`var') if `selfplace'==`plugPrefx'`var', by(`_temp_ctx')
+					}										// Otherwise we use the regular egen mean() function
+				}
 				
 				if ("`missing'"=="dif")  {
 					if "`weight'"!=""  {
 						egen `temp' = wmean(`var') if `selfplace'!=`plugPrefx'`var', by(`_temp_ctx') weight(`wtexp')
 					}
-					else  egen `temp' = mean(`var') if `selfplace'!=`plugPrefx'`var', by(`_temp_ctx')
+					else  {
+						egen `temp' = mean(`var') if `selfplace'!=`plugPrefx'`var', by(`_temp_ctx')
+					}
 				}
 					
 
 
 				
-				tempvar temp2								// `temp2' gets mean over whole dataset, not just part in `temp'
+				tempvar temp2								// `temp2' gets mean over whole context, not just part in `temp'
 				egen `temp2' = mean(`temp'), by(`_temp_ctx')
 				
 				replace `plugPrefx'`var' =`temp2'			// Replace `plugPrefx'`var' with `temp2', to use for 'plugall'
 				drop `temp2'
 
-				replace `distPrefx'`var' = abs(`selfplace' - `temp')
-
+				replace `distPrefx'`var' = abs(`selfplace' - `temp') if `missPrefx'`var'
+															// By default, plug only observations that are missing
 				drop `temp'
 			
 			} // end quietly
@@ -277,30 +305,30 @@ program define gendistP
 		capture drop `plugPrefx'*
 	  }
 	
-		
-			
-											// (6) Break out of `nvl' loop if `postpipes' is empty (terminal codeblock comman across
-											// 	   (or pre-process syntax for next varlist)									   cmd'P
+				
+											// (6) Break out of `nvl' loop if `postpipes' is empty (common across stacmMe)
+											// 	   (or pre-process syntax for next varlist)
 
 	  if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
 
 	  local anything = strltrim(substr("`postpipes'",3,.))	// Strip leading "||" and any blanks from head of `postpipes'
-																		// (`anything' now contains next varlist and any later ones)
+															// (`anything' now contains next varlist and any later ones)
 	  local isprfx = ""										// Switch off the prefix flag if it was on
 
 				   
 				   
-	} //next `nvl' 												// (next list of vars having same options)
+	} //next `nvl' 											// (next list of vars having same options)
 
+	
 
 	
 end //gendistP
 
+--------------------------------------------------------End gendistP-------------------------------------------------
 
 
 
---------------------------------------------------------Begin createImputedCopy-----------------------------------------------
-
+---------------------------------------------------Begin createImputedCopy-------------------------------------------
 
 
 capture program drop createImputedCopy
@@ -317,9 +345,11 @@ program define createImputedCopy
 end //createimputed copy
 
 
+-------------------------------------------------------End createImputedCopy-------------------------------------------
 
---------------------------------------------------------------Begin isnewvar--------------------------------------------------
 
+
+----------------------------------------------------------Begin isnewvar-----------------------------------------------
 
 capture program drop isnewvar
 
@@ -334,5 +364,3 @@ program isnewvar
 	}
 	
 end //isnewvar
-
-
