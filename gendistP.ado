@@ -2,7 +2,7 @@ capture program drop gendistP
 
 program define gendistP
 
-	version 9.0												// gendist version 2.0, June 2022, updated May 2023
+	version 9.0												// gendist version 2.0, June 2022, updated July 2023
 	
 *!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
 *!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
@@ -41,7 +41,7 @@ program define gendistP
 	if "`stacks'"!=""  {									// Could be turning on use of 'stackid' in later optlist
 		capture confirm variable `stackid'					// (in which case, need var in `stackid' (reason for NOSTAcks')
 		if _rc>0  {
-			display as error "Need variable name in option stackid(varname)"
+			display as error "Need variable name in option stackid(varname){txt}"
 			error 999										// Cluge corrects disjunction between new and old syntax conventns
 		}
 	}
@@ -66,23 +66,23 @@ program define gendistP
 	}
 	
 	if ("`plugall'"!="" & "`missing'"=="")  {
-		display as error "The {opt plu:gall} option requires the {opt mis:sing} option – exiting gendist"
+		display as error "The {opt plu:gall} option requires the {opt mis:sing} option – exiting gendist{txt}"
 		window stopbox stop "The {opt plu:gall} option requires the {opt mis:sing} option"
 	}
 	
-	local missingCntName = ""
+	local missingCntName = "SMmisCount"
 	if ("`mcountname'"!="") {
 		local missingCntName = "`mcountname'"
 	}
 
-	local missingImpCntName = ""
+	local missingImpCntName = "SMmisPlugCount"
 	if ("`mpluggedcountname'"!="") {
 		local missingImpCntName = "`mpluggedcountname'"
 	}
 		
 
 	if ("`missing'"=="" & "`pprefix'"!="") {
-		display as error "The {bf:pprefix} can only be optioned if the {bf:missing} option is provided – exiting gendist"
+		display as error "The {bf:pprefix} can only be optioned if the {bf:missing} option is provided – exiting gendist{txt}"
 		window stopbox stop "The {bf:pprefix} can only be optioned if the {bf:missing} option is provided"
 	}	
 
@@ -221,13 +221,13 @@ program define gendistP
 
 	  foreach var of varlist `varlist'  {
 		
-		local count = `count' + 1							// Count of vars processed, basis for limitdiag
+		 local count = `count' + 1							// Count of vars processed, basis for limitdiag
 		
 															
-		replace `distPrefx'`var' = abs(`selfplace' - `var')	// Start with all distances, whether or not mean-plugging was optiond
+		 qui replace `distPrefx'`var' = abs(`selfplace' - `var') // Start with all distances, whether or not mean-plugging was optiond
 
 		
-	    if ("`missing'"!="") {								//   Missing treatment was optioned ...
+	     if ("`missing'"!="") {								//   Missing treatment was optioned ...
 
 	        quietly {	
 	    
@@ -243,7 +243,7 @@ program define gendistP
 				}											// Otherwise we use the regular egen mean() function
 
 				if ("`missing'"=="sam")  {
-					if "`weight'"!=""  {
+					if "`weight'"!=""      {
 						egen `temp' = wmean(`var') if `selfplace'==`plugPrefx'`var', by(`_temp_ctx') weight(`wtexp')
 					}										// Weighting calls on _gwmean (type 'net search _gwmean')
 					else {
@@ -275,38 +275,47 @@ program define gendistP
 			
 			} // end quietly
 
-        } //end else
-	  
-		if `limitdiag'==0 | `limitdiag'>`count' noisily display "." _continue // Extend row(s) of "busy" dots if no other diag
+         } //endif 'missing'
 
-		if "`plugall'"!=""  {								// If user optioned constant reference values across battry membrs
+		 if `limitdiag'==0 | `limitdiag'>`count' noisily display "." _continue // Extend row(s) of "busy" dots if no other diag
+
+		 if "`plugall'"!=""  {								// If user optioned constant reference values across battry membrs
 			quietly replace `distPrefx'`var' = abs(`selfplace' - `plugPrefx'`var')
-		}
- 
+		 }
+
+	     if ("`round'"!="")  {
+		 	quietly sum `var', meanonly
+			if r(mean)<=1  quietly replace `distPrefx'`var' = round(`distPrefx'`var', .1) 
+			else  {											// Round to nearest single digit decimal if `var' max <= 1
+			   quietly replace `distPrefx'`var' = round(`distPrefx'`var')
+			}
+		 }
+		 
 	  } // next `var'
 
-*     noisily display " "									// End row(s) of dots (NOT)
 	
 	  if "`missing'"!=""  {
-		if "`missingCntName'"!=""  {
+		 if "`missingCntName'"!=""  {
 			quietly egen `missingCntName' = rowmiss(`varlist')
 			capture label var `missingCntName' "N of missing values in `nvars' variables now plugged (`first'...`last')"
-		}
+		 }
 	  }
 
 	  if "`missingImpCntName'" !=""  {
-		quietly egen `missingImpCntName' = rowmiss(`imputedvars')
-		capture label var `missingImpCntName' "N of missng values in `nvars' mean-plugged vars (`first'...`last')"
+		  quietly egen `missingImpCntName' = rowmiss(`imputedvars')
+		  capture label var `missingImpCntName' "N of missng values in `nvars' mean-plugged vars (`first'...`last')"
 	  }
 	
 	  if ("`replace'" != "") {
-		capture drop `varlist'
-		capture drop `missPrefx'*
-		capture drop `plugPrefx'*
+		  capture drop `varlist'
+		  capture drop `missPrefx'*
+		  capture drop `plugPrefx'*
 	  }
 	
-				
-											// (6) Break out of `nvl' loop if `postpipes' is empty (common across stacmMe)
+	
+
+			
+											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
 											// 	   (or pre-process syntax for next varlist)
 
 	  if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
@@ -322,13 +331,15 @@ program define gendistP
 	
 
 	
+	
+	
 end //gendistP
 
---------------------------------------------------------End gendistP-------------------------------------------------
 
 
 
----------------------------------------------------Begin createImputedCopy-------------------------------------------
+
+
 
 
 capture program drop createImputedCopy
@@ -345,11 +356,8 @@ program define createImputedCopy
 end //createimputed copy
 
 
--------------------------------------------------------End createImputedCopy-------------------------------------------
 
 
-
-----------------------------------------------------------Begin isnewvar-----------------------------------------------
 
 capture program drop isnewvar
 
@@ -359,7 +367,7 @@ program isnewvar
 	
 	capture confirm variable `prefix'`varlist' 
 	if _rc==0  {
-		display as error _newline "`prefix'-prefixd vars already exist; type {bf:BREAK} (caps) to exit or {bf:q} to replace{break}"
+		display as error _newline "`prefix'-prefixd vars already exist; type {bf:BREAK} (caps) to exit or {bf:q} to replace{txt}{break}"
 		pause
 	}
 	
