@@ -1,20 +1,21 @@
 
 
+
 capture program drop gendummiesP
 
 program define gendummiesP
 
-*! Stata version 9.0; gendummies version 2, updated Mar'23 from major re-write in June'22
+*! Stata version 9.0; gendummies version 2, updated Mar'23 from major re-write in June'22; tweaked in July
 
    version 9.0												  // GendummiesP version 2 (was previously 'gendummies')
 	
-   // Version 2 allows varlists to be processed, either "naked" (using varnames as stubs) or extending those stubs with a 
-   // prefix that can be specific to each varlist.
-   
+   // Version 2 allows varlists to be processed, either "naked" (using varnames as stubs) or with different stubs in different
+   // varlists, grouping together successive varlists having the same options.
+
    // NOTE that codeblocks importd from genyhatsP, which should be common across`cmd'Ps, needed some tweekng (see lines flagged **)
 	
 
-	syntax anything, [ STUbname(name) INCludemissing LIMitdiag(integer -1) ] ///
+	syntax anything, [ STUbprefix(name) INCludemissing LIMitdiag(integer -1) ] ///
 					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) ctxvar(string) nc(integer 0) c(integer 0) ] 
 															  // `prfx' string and `isprfx' not used in gendummies
 
@@ -40,10 +41,9 @@ program define gendummiesP
 *			local isprfx = "isprfx"						 	  // Commented out because `isprfx' not used in gendummies	
 			local anything = strltrim(substr("`anything'",2,.)) // strip off the leading ":" with any following blanks
 		} //endif `anything'
-
 		else  {
-			local stubprfx = "`stubname'"					  // If there was no colon then use optioned stubname, if any			**
-			local anything = "`precolon'"				 	  // (and varlist was in `precolon')
+			local stubprfx = "`stubprefix'"					  // If there was no colon then use optioned stubprefix, if any			**
+			local anything = "`precolon'"				 	  // If there was no colon then varlist was in `precolon'
 		}
 		
 		unab anything : `anything'							  // The only vars left are indepvars
@@ -65,12 +65,12 @@ program define gendummiesP
 		
 			foreach val of local values  {					  
 				if strpos("`val'",".")>0  {
-					display as error "For variable `var', found non-integer value `val'"
+					display as error "For variable `var', found non-integer value `val'{txt}"
 					window stopbox stop "For variable `var, found non-integer value `val'"
 				}
 				capture confirm variable `thePrefix'`var'`val'
 				if _rc==0  {
-					display as error "variable `thePrefix'`var'`val' already exists"
+					display as error "variable `thePrefix'`var'`val' already exists{txt}"
 					window stopbox stop "variable `thePrefix'`var'`val' already exists"
 				}
 			
@@ -111,21 +111,37 @@ program define gendummiesP
 		} //next `var'
 	  
 	  
-		
-													// (6) Break out of `nvl' loop if `postpipes' is empty (terminal common codeblck)
+		********************************** TERMINAL CODEBLOCK COMMON ACROSS MOST `cmd'P *******************
+
+													// (6) Break out of `nvl' loop if `postpipes' is empty
 													// 	   (or pre-process syntax for next varlist)
 
 				if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
 
 				local anything = strltrim(substr("`postpipes'",3,.))	// Strip leading "||" and any blanks from head of `postpipes'
 																		// (`anything' now contains next varlist and any later ones)
-				local stubname = ""										// (and empty the first option, whatever it is called)		**
+/*				gettoken head tail : anything, parse("||")				// Extract 1st (of) varlist(s) leaving `anything' untouched
+				gettoken precolon postcolon : head,  parse(":") 		// Split `head' into precolon and postcolon, if any
 
-	} //next `nvl' 														// (next list of vars having same options)
+				if "`postcolon'"!=""  {									// If there was a colon in the previous varlist...
+				   gettoken precolon anything : anything, parse(":")	//  then extract the same precolon string from `anything'	**
+				   local `prfx' = strltrim("`precolon'")				//  (cannot put `prfx' where "precolon" appears, above)		**
+				   local anything = strltrim(substr("`anything'",2,.))	//  and strip off the leading ":" with any following blanks
+				   local isprfx = "isprfx"							  	// Switch on the "this varlist is prefixed" flag 
+				}
+
+				else  {													// No colon, so ...
+				   local isprfx = ""									// Switch off the prefix flag if it was on
+*/				   local stubprefix = ""								// (and empty the first option, whatever it is called)		**
+*			    } //end else
+
+	} //next `nvl' 												// (next list of vars having same options)
 				
+/*																		// No diagnostics for gendummies
+			if (`ncontexts' > 1 &`limitdiag'!=0  &`c'<`limitdiag') { 	// Display diagnostics, if optioned
+				noisily display _newline "Context {result:`c'} ({result:`contextlabel'}) has `numobs' cases"
+			}	
+*/			
+
    
 end //gendummiesP
-
-
-
-
