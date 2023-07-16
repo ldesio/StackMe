@@ -428,6 +428,4 @@ De Sio, L. and Franklin, M. (2011) "StackMe: A Stata package for analysis of mul
 
 {pstd}
 To better understand generic variable analysis in a comparative framework see:{break}
-Eijk, C. van der, Brug, W. van der, Kroh, M. and Franklin, M. (2006) "Rethinking the dependent 
-variable in voting behavior: On the measurement and analysis of electoral utilities", 
-{it:Electoral Studies} 25(3): 424-447.{p_end}
+Eijk, C. van der, Brug, W. van der, Kroh, M. and Franklin, M. (2006) "Rethinking the dependent variable in voting behavior: On the measurement and analysis of electoral utilities", {it:Electoral Studies} 25(3): 424-447.{p_end}
