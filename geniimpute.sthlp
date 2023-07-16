@@ -200,7 +200,7 @@ unchanged, as was used to create the data being replicated.{p_end}
 
 {phang}
 {opt roundedvalues} if specified, round each final value (after inflation, if any) to the closest integer 
-(default is to leave values unrounded){p_end}
+(Closest 0.1 if maximum value is <= 1). Default is to leave values unrounded){p_end}
 
 {phang}
 {opth minofrange(#)} if specified, minimum value of the item range used for constraining imputed 
@@ -328,5 +328,3 @@ prefixes in the course of a command-line can slow down (if only marginally) the 
 NOTE: The user can add counts of missing/nonmissing values for any set of variables (whose missing values have or have 
 not been replaced with imputed values) by using STATA's {help rowmiss} and {help rownonmiss} functions within its egen 
 command.{p_end}
-
-
