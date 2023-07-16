@@ -26,11 +26,11 @@
 {synoptline}
 {synopt :{opth stu:bprefix(name)}}Prefix for the stubname of generated dummy variable (default is to use 
 the name of the variable from which the dummies are generated unadorned by any prefix){p_end}
-{synopt :{opth nostu:bpfrefix(varname)}}empty the stubprefix option (useful if wanting to 
+{synopt :{opth nostu:bprefix(varname)}}empty the stubprefix option (useful if wanting to 
 define the stubprefix at the start of the varlist to which it applies.{p_end}
 {synopt :{opt inc:ludemissing}}Include missing values as zeros{p_end}
 
-{p 5}None of these options are required.{p_end}
+{p 4}None of these options are required.{p_end}
 
 
 {title:Description}
@@ -40,11 +40,9 @@ define the stubprefix at the start of the varlist to which it applies.{p_end}
 using as suffixes the codes actually found in the data, with the option to code missing categories as zeros; 
 especially useful when a battery question asks about only one pole of a bipolar topic. Such batteries provide 
 a convenient mechanism for including categorical information in stacked data.{break}
-{space 3}Any variable for which a {bf:stubprefix} is not provided 
-will be named by using as stub the name of the variable whose categories are being expanded into separate dummies. A 
-{bf:stubprefix}, if optioned, simply extends the variable name that would have been used had nno stubprefix been 
-provided.{break}
-{space 3Resulting variables are labled with the original varliable's corresponding value labels, if any.{break}
+{space 3}Any variable for which a {bf:stubprefox} is not provided 
+will be named by using as stub the name of the variable whose categories are being expanded into separate dummies. 
+Resulting variables are labled with the original varliable's corresponding value labels, if any.{break}
 {space 3}{cmd:gendummies} uses the codes found in the data as suffixes for the generated 
 variables, thus permitting users to ensure consistent codes across disparate batteries of responses (e.g. behaviours, 
 attitudes, etc.) relating to the same items (e.g. political parties). This is in contrast to Stata's {cmd:tab1}, 
@@ -82,7 +80,7 @@ of the variable whose categories define the dummy variables.
 {p 4}All options have default settings.
 
 {pstd} {bf:Note that} The most effective procedure is generally 
-to use Stata's {help rename group} (see especially Rule 17) command to rename variables appropriately before invoking 
+to use Stata's {help rename group} command (see especially Rule 17) to rename variables appropriately before invoking 
 {cmd:gendummies} with the first (standard STATA) syntax. The second syntax is included for conformity with 
 {help stackme} syntax used elsewhere.
 
