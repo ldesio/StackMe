@@ -1,11 +1,21 @@
 
 use "/Users/franklin/Google Drive 2/iDisk Documents/Data & dofiles/TEV_UK_unstacked_data_mis=._'64-'05.dta", replace
 
+// generates distances between R and parties 1-7, separately by rstudyid;
+// missing values are plugged with the mean distance,
+// calculated only among respondents that placed themselves DIFFerently from the party
 gendist RLRPP1-RLRPP7, self(RLRSP) mis(diff) context(rstudyid)  
 rename d_RLRPP* LRDPARTY*               
 
+// generates batteries of dummies:
+// for RGENDER and RMARRIED without any prefix;
+// for the latter, with prefix "dummy"
 gendummies RGENDER RMARRIED || dummy:REDU RDENOM
 
+// stacks dataset (i.e. reshape long) using stubs RSYM RSYML LRDPARTY,
+// separately by rstudyid (gracefully handles different number of parties in different studies)
+// naming the stack identifier variable as STACKID
+// without checking that batteries identified by each stub has the same size
 genstacks RSYM RSYML LRDPARTY, context(rstudyid) stackid(STACKID) nocheck
 
 
@@ -40,6 +50,15 @@ for var RUNION2: replace X = 1 if X==2 \ replace X = 0 if X>2 \gen mX = 0 \repla
 
 
 rename dummy_* *																					  // Restore original names
+
+
+// generates yhats:
+// for the first set: one individual yhat for each of RDENOM1-RDENOM4 RREGION RCHURCHA
+// for the second set: a single yhat named "class" based on all RSUBCL mRSUBCL ROWNHOUS mROWNHOUS RINCOME1 mRINCOME1 REGPCL3 mREGPCL3 RUNION2 mRUNION2 as predictors 
+// with "VOTE" as dependent variable
+// separately by rstudyid
+// with stacks identified by STACKID
+// without subtracting the mean or the constant from the estimated yhat
 genyhats RDENOM1-RDENOM4 RREGION RCHURCHA || class: RSUBCL mRSUBCL ROWNHOUS mROWNHOUS RINCOME1 mRINCOME1 REGPCL3 mREGPCL3 RUNION2 mRUNION2, depvar(VOTE) context(rstudyid) stackid(STACKID) adjust(no)		
 
 geniimpute RSYM RSYM RSYML LRDPARTY VOTE, add(yi_RCHURCHA yi_RREGION class_VOTE) context(rstudyid) stackid(STACKID) limit(3)			// (43 seconds under old iimpute)
