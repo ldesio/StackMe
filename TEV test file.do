@@ -51,7 +51,7 @@ for var REGPCL3: replace X = X / 100 \gen mX = 0 \replace mX = 1 if X==. \replac
 for var RUNION2: replace X = 1 if X==2 \ replace X = 0 if X>2 \gen mX = 0 \replace mX = 1 if X==. // Runion2 has no missing data so mRUNION2 is always 0
 
 
-rename dummy_* *																				  // Restore original names
+rename dummy_* *														// Restore original names
 
 
 // generates yhats:
@@ -63,8 +63,7 @@ rename dummy_* *																				  // Restore original names
 // with stacks identified by STACKID
 // without subtracting the mean or the constant from the estimated yhat
 genyhats RDENOM1-RDENOM4 RREGION RCHURCHA || class: RSUBCL mRSUBCL ROWNHOUS mROWNHOUS RINCOME1 mRINCOME1 REGPCL3 mREGPCL3 RUNION2 mRUNION2 ///
-		, depvar(VOTE) context(rstudyid) stackid(STACKID) adjust(no)		
+		, depvar(VOTE) context(rstudyid) stackid(STACKID) adjust(no)	// 30.2 seconds (old); 2.5 sec new
 
 geniimpute RSYM RSYM RSYML LRDPARTY VOTE, add(yi_RCHURCHA yi_RREGION class_VOTE) context(rstudyid) stackid(STACKID) limit(3)			
-																								  // (43 seconds with old iimpute)
-                                                                                                  // 9.5 seconds with version 2
+																		// 43 seconds with old version; 9.5 seconds with new
