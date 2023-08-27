@@ -20,6 +20,9 @@
 {opt gendummies} [stubprefix:]{varlist} [{cmd:,} {it:options}] [ {bf:||} [stubprefix:]{varlist} [ {bf:||} ... ]
 
 
+{p 8}The second syntax permits the same options to be applied to multiple varlists.
+
+
 
 {synoptset 18 tabbed}{...}
 {synopthdr}
@@ -109,3 +112,4 @@ will produce missing values on all of the corresponding dummy variables.{p_end}
 by appending, to the original variable names (used as stubnames), suffixes identifying the values found; use of the 
 option {it:includemissing} ensures that missing values on any of these variables will coded zero on all the resulting 
 dummy variables.{p_end}
+
