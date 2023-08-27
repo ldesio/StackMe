@@ -19,20 +19,20 @@
 or
 
 {p 8 16 2}
-{opt genii:mpute} {it:unstacked}_{bf:[addvars:]{varlist}} {cmd:[if][in][weight]}}{cmd:,} {opt options} [ {cmd:||} {it:unstacked}_[addvars:]{varlist}  ... ]
+{opt genii:mpute} {it:unstacked}_{bf:[addvars:]{varlist}} {cmd:[if][in][weight]}}{cmd:,} {opt options} [ {cmd:||} {it:unstacked}_{bf:[addvars:}]{varlist}  ... ]
 
 
 {p 4 4 2}
 where a stacked {varlist} consists of {varname}s constructed from the stubs of unstacked {varname}s when 
-those were {help reshape}d by the {help StackMe} command {help genstacks}. Syntax 2 permits a list of 
-additional variables (see option {opt add:vars}), followed by a colon, to optionally preceed the (required) 
-{varlist}.  See {bf:Description}, below, for details.
+those were {help reshape}d by the {help StackMe} command {help genstacks}. Syntax 2 applies the same 
+options to multiple varlists and permits a list of additional variables (see option {opt add:vars}), 
+followed by a colon, to optionally precede each {varlist}.  See {bf:Description}, below, for details.
 	
 {p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. 
 Each can be used with either stacked or unstacked data. {bf:Speed of execution} can be much increased by grouping 
 together varlists that employ the same options.
 
-{p 4 4 2}Names for imputed versions of {varlist} are constructed by prefixing (by "i_" or another prefix set 
+{p 4 4 2}Names for imputed versions of {varlist} are constructed by prefixing (by "i_" or some other prefix set 
 by option {opt ipr:efix}) the name of the variable for which missing values are imputed.
 
 
@@ -42,7 +42,7 @@ by option {opt ipr:efix}) the name of the variable for which missing values are 
 
 {p 2}{ul:Imputation options}
 
-{p2colset 4 21 22 2}{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model (can 
+{p2colset 4 21 23 2}{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model (can 
 alternatively preceed the initial colon of a syntax 2 varlist){p_end}
 {synopt :{opt sel:ected}}selects variables from the {opt additional} list only if they have no more 
 missing values than the {bf:{varlist}} variable with most missing data{p_end}
@@ -76,8 +76,8 @@ of a variable (default is "m_"){p_end}
 
 {syntab:{ul:Diagnostics options}}
 
-{synopt :{opt lim:itdiag(#)}}number of contexts for which to display diagnostics (these can 
-be quite voluminous) as imputation progresses (default is to display diagnostics for all contexts){p_end}
+{synopt :{opt lim:itdiag(#)}}number of contexts for which to display diagnostics as imputation progresses 
+(default is to display diagnostics for all contexts){p_end}
 {synopt :{opt nod:iag}}equivalent to {opt lim:itdiag}(0){p_end}
 {synopt :{opt ext:radiag}}extend any displayed diagnostics with extra detail{p_end}
 
@@ -263,12 +263,14 @@ SUBSEQUENT IMPUTATION GOVERNED BY A SEPARATE VARLIST! Doing so will produce a "{
 {p 2}{ul:Diagnostic options}{p_end}
 
 {phang}
-{opth limitdiag(#)} if specified, limits the number of contexts for which diagnostics are 
-displayed to # (default is to display diagnostics, which can be quite voluminous, for all 
-contexts){p_end}
+{opth limitdiag(#)} if specified, limits the number of contexts for which diagnostics are displayed 
+to # (default is to display diagnostics, which can be quite voluminous, for all contexts).{p_end}
 
 {phang}
-{opt extradiag} if specified, extends the detail of the diagnostics, when displayed{p_end}
+{opt noadiag} equivalent to {cmd:limitdiag(0)}.{p_end}
+
+{phang}
+{opt extradiag} if specified, extends the detail of the diagnostics, when displayed.{p_end}
 
 
 
@@ -328,3 +330,5 @@ prefixes in the course of a command-line can slow down (if only marginally) the 
 NOTE: The user can add counts of missing/nonmissing values for any set of variables (whose missing values have or have 
 not been replaced with imputed values) by using STATA's {help rowmiss} and {help rownonmiss} functions within its egen 
 command.{p_end}
+
+
