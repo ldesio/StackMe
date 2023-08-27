@@ -2,7 +2,7 @@ capture program drop gendistP
 
 program define gendistP
 
-	version 9.0												// gendist version 2.0, June 2022, updated July 2023
+	version 9.0												// gendist version 2.0, June 2022, updated Aug 2023
 	
 *!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
 *!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
@@ -38,18 +38,8 @@ program define gendistP
 	if "`stackid'"==""  local nostacks = "nostacks"
 
 												
-	if "`stacks'"!=""  {									// Could be turning on use of 'stackid' in later optlist
-		capture confirm variable `stackid'					// (in which case, need var in `stackid' (reason for NOSTAcks')
-		if _rc>0  {
-			display as error "Need variable name in option stackid(varname){txt}"
-			error 999										// Cluge corrects disjunction between new and old syntax conventns
-		}
-	}
-
-	local count = 0											// Count of variables processed, as basis for limitdiag
+	local count = 0											// Count of contexts processed, as basis for limitdiag
 	
-*	if "$noisily"==""  {									// If this is first entry into gendistP (or newoptionlist)
-															// (commented out because should happen for each varlist)
 	local missPrefx = "m_"
 	if ("`mprefix'"!="") {
 		local missPrefx = "`mprefix'"
@@ -372,3 +362,6 @@ program isnewvar
 	}
 	
 end //isnewvar
+
+
+
