@@ -148,13 +148,11 @@ program define geniimputeP
 		
 		foreach var of local thePTVs  {							// Faster than using (now redundant) varlist
 		
-*		  if `c'==1  {											// Do not overwrite existing vars for later contexts
-
 			capture drop `imputeprefix'`var'
 			capture drop `missingflagprefix'`var'
 	
 			quietly clonevar `imputeprefix'`var' = `var' 		// Initialize imputed version of 'var' with original values
-			local imputedvars `imputedvars' `imputeprefix'`var'	// Stata will exit with error if this is not a variable
+			local imputedvars `imputedvars' `imputeprefix'`var'	// (stata will exit with error if this is not a variable)
 			local varlab : variable label `var'
 			local newlab = "IMPUTD " + "`varlab'"				// (and label it)
 			quietly label variable `imputeprefix'`var' "`newlab'"
@@ -395,7 +393,6 @@ program define geniimputeP_body
 		
 		
 		
-*set trace on	
 					
 												// Impute each member of `thesePTVs' in turn, moving it from `thesePTVs' to `imputedPTVs"'
 
@@ -433,14 +430,16 @@ program define geniimputeP_body
 
 		
 					
-					
-*set trace on
-		local lenN = length(string(`numobs'))	// Allow space for longest N (ie context N) in displayed diagnostics per variable
+
+												// Display diagnostics for vars in original varlist
+*if `nvl'>1 & `c'<4 set trace on	
+
+		local lenN = length(string(`numobs'))							// Allow space for longest N with most characters 
 		local ndiag = 0													// Cluge to stop multiple inflate diagnostics		
-		local npty: list sizeof usedPTVs								// Re-using a now redundant local
+		local npty: list sizeof varlist									// Re-using a now redundant local
 
 		
-		foreach var in `usedPTVs' {
+		foreach var in `varlist' {
 			
 			local gap = 12 - length("`var'")							// Get len of gap before varname while `var' is not yet a varname
 			quietly summarize `imputeprefix'`var' if `missingflagprefix'`var'==0 
@@ -462,11 +461,12 @@ program define geniimputeP_body
 				if `gap'<1   display _newline "`var': original N `blnk'`oN' SD " %5.2f `oSD' ",{space `gapi'} imputed N `iN' SD " %5.2f `iSD' "," _continue
 				if `gapo'==1 display _newline "`var': {space `gap'} original N `blnk'`oN' SD " %5.2f `oSD' ",{space `gapi'} imputed N `iN' SD " %5.2f `iSD' "," _continue
 				if `gapo'>1  display _newline "`var': {space `gap'} original N {space `gapo'} `oN' SD" %5.2f `oSD' ",{space `gapi'} imputed N `iN' SD " %5.2f `iSD' "," _continue
-
+				local ndiag = `ndiag' + 1
 			  }															// For some unfathomable reason {space `gapo'(=1)} prints as "   "
 
 
-			  if (`inflate' == 1)  {									// From option `noinflate' during option post-processing, above
+			  if (`inflate' == 1 & `ndiag'<`npty')  {					// From option `noinflate' during option post-processing, above
+
 				quietly replace `imputeprefix'`var' =`imputeprefix'`var'+rnormal(0, `oSD') if `missingflagprefix'`var'==1 
 																		//Inflate just imputed values
 				quietly summarize `imputeprefix'`var' /*if `missingflagprefix'`var'==1*/ 
@@ -474,7 +474,6 @@ program define geniimputeP_body
 				local iSD = r(sd)
 				if (`showDiag' & `ndiag'<`npty') {
 					display " inflated SD " %5.2f `iSD' _continue
-					local ndiag = `ndiag' + 1
 				}
 
 			  } //endif `inflate'
