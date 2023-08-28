@@ -17,18 +17,20 @@ program define genyhats
 														// negative is placed last; ensure options with arguments preceed toggle 
 														// (aka flag) options; limitdiag should folloow last argument, followed
 														// by any flag options for this command. Options (apart from limitdiag) 
-														// common to all stackMe `cmd's will be added in stackmeWrapper. CHECK
-														// THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)		**
+														// common to all stackMe `cmd's will be added in stackmeWrapper.
+														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**		**
 
-	local prfxtyp = /*"var"*/"othr"						// Nature of varlist prefix – var(list) or other. (`depvarname will		**
+	local prfxtyp = /*"var"*/"othr"	/*"none"*/			// Nature of varlist prefix – var(list) or other. (`depvarname will		**
 														// be referred to as `opt1', the first word of `optMask', in codeblock 
 														// (0) of stackmeWrapper called just below). `opt1' is always the name 
 														// of an option that holds a varname or varlist (which must be referred
 														// using double-quotes). Normally the variable named in `opt1' can be 
 														// updated by the prefix to a varlist, but not in genyhats.
+		
+	local multicntxt = "multicntxt"/*""*/				// Whether `cmd'P takes advantage of multi-context processing			**
 	
 *	***********************									   
-	stackmeWrapper genyhats `0' \ prfxtyp(`prfxtyp') `optMask' // Name of stackme cmd followed by rest of cmd-line					
+	stackmeWrapper genyhats `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
 *	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
@@ -36,6 +38,7 @@ program define genyhats
 
 end genyhats			
 
-*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks ARE COMMON TO MOST STACKME COMMANDS and are introduced in
-*  stackmeWrapper. `limitdiag' is also common to other commands but is used as a marger in `optMask'
+
+*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 
