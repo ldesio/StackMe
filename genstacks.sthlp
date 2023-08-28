@@ -40,13 +40,14 @@ dataset as it stands when reshaped.
 {synoptset 22 tabbed}{...}
 {synopthdr}
 {synoptline}
+{p2colset 5 26 28 2}
 {synopt :{opth con:textvars(varlist)}}(generally required) the variables identifying different 
 contexts within which batteries will be separately reshaped (leave unspecified only for conventional 
 dataset with just one context){p_end}
 {synopt :{opth sta:ckid(name)}}(it is highly recommended that 
 the default name, SMstkid, not be changed) name to be given to a generated variable 
 recording the sequential positions of what had, before stacking, been individual battery-items{p_end}
-{synopt :{opth ite:mname(name)}}(required if identifying battery items differently than the 
+{synopt :{opth ite:mname(name)}}(required if it identifies battery items differently than the 
 {opt sta:ckid} variable) name of an existing variable identifying, for each stack, what had before 
 stacking been individualbattery-items{p_end}{synopt :{opth uni:tname(name)}}(it is highly recommended 
 that the default name, SMunit, not be changed) name to be given to a generated variable identifying 
@@ -116,9 +117,8 @@ unstacked column.{break}
 stubnames in syntax 2) are duplicated onto all stacks, filling out the stacked data matrix with these 
 duplicates (it is advisable to drop unwanted variables before stacking as the dataset can expand up to 
 K-fold, where K is the largest SMstckid value found in any battery). Because the generated variable 
-SMunit (unless changed using option {opt uni:tname}) is sequential across all contexts, reshaping is 
-effectively carried out separately for each context whether or not those contexts were explicitely  
-identified by {cmd:contextvars}.{break}
+SMunit is sequential across all contexts, reshaping is effectively carried out separately for each 
+context whether or not those contexts were explicitely identified by {cmd:contextvars}.{break}
 
 {marker Watershed}{pstd}{cmd:genstacks} constitutes something of a watershed within the {cmd:stackMe} 
 package, since it reshapes the data from having a single stack per unit (observation) to having 
@@ -159,15 +159,14 @@ given to the variable identifying different stacks, what Stata refers to as the 
 their {help reshape} command.
 
 {phang}
-{opt itemmame(name)} Names an existing variable that identifies the original battery item,
-if this is different from the sequential {it:stackid}. It must have the same set of 
-numeric suffixes as other variables to be stacked. The difference between the {it:item} and 
-{it:stackid} variables emerges when non-consecutive items are found in the original set of 
+{opt itemname(name)} Name of an existing variable that identifies the original battery item,
+if this is different from the sequential {it:{cmd:stackid}}. The difference between the {it:item} 
+and {it:stackid} variables emerges when non-consecutive items are found in the original set of 
 variables. For example, if parties in a battery have IDs 7101, 7103, 7109, stacks will be 
-numbered 1 2 3 while items will be numbered 7101 7103 7109, So, in The stacked dataset, both 
-IDs are needed in order to preserve the connection with the unstacked data. This variable 
-name is stored as a suffix to the first word in a {help genstacks}-produced {help stackMe} 
-data label so that other {help stackMe} commands can retrieve the name if needed.{p_end}
+numbered 1 2 3 while items will be numbered 7101 7103 7109. So, in the stacked dataset, both 
+IDs are needed in order to preserve the connection with the unstacked data. The {it:{opt itemname}} 
+is stored as a suffix to the first word in a {help genstacks}-produced {help stackMe} data label 
+so that other {help stackMe} commands can retrieve the name if needed.{p_end}
 
 {phang}
 {opt unitname(name)} name to be given the variable Stata calls the 'i' variable, running from 
@@ -211,6 +210,7 @@ and {opt rep:lace} is commonly employed to remove variables that are redundant a
 stacking.
 
 
+
 {title:Examples}
 
 {phang2}{cmd:. genstacks rsym1-rsym7 || rsyml1-rsyml7 || lrdpty1-lrdpty7,}
@@ -240,17 +240,12 @@ respondent number) uniquely identifying all units across stacks and contexts. Th
 will be required if ever a user wants to unstack a dataset using Stata's {help reshape} 
 {bf:wide} command. It is recommended that this variable name not be changed.{p_end}
 
-{synopt:{it:SMtotstks}}the generated variable identifying, for each context, the number of 
+{synopt:{it:SMnstks}}the generated variable identifying, for each context, the number of 
 observations (stacks) used to hold different battery-members after stacking (often less than the number 
 of different battery members before stacking if some of these are entirely missing for in some 
-contexts). This name is not kept in the datalabel as it is easily reconstructed by using the 
-stata {help egen} command {cmd: egen SMtotstks = count(SMstkid), by {it:contextvars}}.{p_end}
+contexts).{p_end}
 
 {synopt:{it:SMitemname}} The name of the variable identifying the original battery items 
 corresponding to each stack, if this is not the same as the stackid. The name if this variable 
 is kept in the first word of the stackMe data label. It is recommended that the name not be 
 changed.{p_end}
-
-{p 3 3}
-If you wish to change these names, or if you want to use a stacked dataset that was not stacked 
-by StackMe's {cmd:genstacks} command, we recomment you employ the StackMe utility command {help genid}.
