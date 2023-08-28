@@ -38,13 +38,13 @@ together varlists that employ the same {opt dep:var} and other options.
 prefixing (using "yi_" or some other prefix set by option {opt yip:refix}) the name of each independent variable 
 for which a yhat equivalent is generated. With the second syntax, the names for generated yhats are constructed 
 by prefixing (using the "ydprefix" that introduced the multivariate {varlist}) the name of the optioned dependent 
-variable for which yhat equivalents are generated.
+variable for which a yhat equivalent is generated.
 
 
 {synoptset 20 tabbed}{...}
 {synopthdr}
 {synoptline}
-{p2colset 4 25 26 2}
+{p2colset 4 25 27 2}
 {p 2}{ul:Estimation options}
 
 {synopt :{opt dep:varname(varname)}}(required) the dependent variable for which 
@@ -108,7 +108,7 @@ preceded by a prefix (identified as such by the appearance of a colon at the end
 that establishes the analysis as multivariate. Such a prefix is used in conjunction with the optioned 
 {opt dep:varnmae} to identify the resulting yhat. If there is no such prefix then each variable in the 
 {varlist} will define a separate bivariate analysis whose resulting {it:yhats} will be identified by 
-the name of the indepvar prefixed by {it:yi} or such other prefix set by {cmd:genyhats}' {opt yip:refi} 
+the name of the indepvar prefixed by {it:yi} or such other prefix set by {cmd:genyhats}' {opt yip:refix} 
 option.
 
 {pstd}
@@ -275,3 +275,4 @@ the name "vote" matches the name of the optioned dependent variable. That variab
 The first example features variables with numeric suffixes, suggesting that the resulting yi_-prefixed yhat variables 
 were created in unstacked data. The second example is more likely to be seen with stacked data, where numeric suffixes 
 are unusual.{p_end}
+
