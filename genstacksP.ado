@@ -1,13 +1,15 @@
 
+
 capture program drop genstacksP
 
 *!  This program makes calls on Stata's reshape command
 
 program define genstacksP
 
+*!	Updated Aug'23 to incorporate changes in how stackMe keeps track of system variables as described in help file
 *!	Version 2 uses the command window to build label for stacked data; unlike version 2a which uses a dialog box.
 
-*!  Stata version 16.1 (originally 9.0); gendist version 2.0, updated Jan'22 from major re-write in June'22
+*!  Stata version 16.1 (originally 9.0); gendist version 2.0, updated Jan'22 from major re-write in June '22
 *!  Search sreshape for a faster reshape command published in 2019 (possibly already incorporated into Stata 17)
 *!  However, reshape is not the slow part. A faster merge command would be good!
 
@@ -26,7 +28,7 @@ program define genstacksP
 
 	
 	
-	syntax anything [aw fw pw/], [ CONtextvars(varlist) UNItname(varname) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
+	syntax anything [aw fw pw/], [ CONtextvars(varlist) unitname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
 								 [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(string) NOCheck ] ///
 								 [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) ] 
 
@@ -67,10 +69,12 @@ program define genstacksP
 	if "`unitname'"!=""  {
 		capture confirm variable `unitname'
 		if _rc  {
-			display as error "Option {opt uni:tname} names {it:`unitname'}; not a valid varname"
-			window stopbox stop "Option 'unitname' names `unitname'; not a valid varname"
+			display as error "Option {opt uni:tname} names {it:`unitname'} – not a valid varname"
+			window stopbox stop "Option 'unitname' names `unitname' – not a valid varname"
 		}
 	}
+	else local unitname = "SMunit"
+	generate `unitname' = _n										// Enumerate all units (often respondents)
 								
 	local list = ""							
 	if strlen("`fe'") > 0  {
@@ -373,29 +377,29 @@ program define genstacksP
 	
 								// Reshape as optioned . . .
 														
-		quietly keep `SMunit' `varlist'						// Keep just the variables to be reshaped (and identifiers)
+		quietly keep `SMunit' `varlist'				// Keep just the variables to be reshaped (and identifiers)
 */								// End of wrapper codeblocks
 	
 	
 	
 	
 *				************
-		`displ' reshape long `namelist', i(SMunit) j(SMstkid)	
+		`displ' reshape long `namelist', i(`unitname') j(SMstkid)	
 *				************								// Values of 'stackMe_stkid' are supplied by 'reshape'
 														
 	
 	
-		egen SMtotstacks = max(SMstkid), by(`SMunit')
+		egen SMtotstacks = max(SMstkid), by(`wrapperUnit')
 		order SMtotstacks, after(SMstkid)
 	
 
 /*		if STATAVERSION>1600  {								// Commented out because slower than merging a tempfile
-			quietly frlink m:1 `SMunit' _ctx_temp, frame(`unstacked')
+			quietly frlink m:1 `wrapperUnit' _ctx_temp, frame(`unstacked')
 			quietly frget _all, from(`unstacked')
 			frame drop unstacked
 		}													// Merge now done in wrapper
 		else  {												// Faster than the frames code
-		   `displ' merge m:1 `SMunit' using `unstacked', nogen nolabel
+		   `displ' merge m:1 `wrapperUnit' using `unstacked', nogen nolabel
 			erase `unstacked'
 *		}
 		
@@ -464,7 +468,7 @@ program define genstacksP
 			tempvar t
 			if `w' display "`feprefix'`fevar' " _continue
 			capture drop `feprefix'`fevar'
-			quietly bysort `SMunit': egen `t' = mean(`fevar')	// Need to weight this calculation								***
+			quietly bysort `wrapperUnit': egen `t' = mean(`fevar')	// Need to weight this calculation								***
 			`displ' gen `feprefix'`fevar' = `fevar' - `t'
 			drop `t'
 			local felist = "`felist' `feprefix'`fevar'"
@@ -481,8 +485,8 @@ program define genstacksP
 		  
 		  
 									// Rename generated variables if optioned . . .
-		
-	if ("`unitname'" != "")  {
+	
+	if ("`unitname'" != "SMunit")  {
 		display as error "'SMunit', the default unitname, is used by other stackMe commands. Change anyway?"
 *                          12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		capture window stopbox rusure "SMunit, the default unitname, is used by other stackMe commands. Change it anyway?"
@@ -506,11 +510,11 @@ program define genstacksP
 	}
 	else local stackid "SMstkid"
 	
-	if "`totstackname'" != ""  {
-		display as error "'SMtotstk', default totstkname, is used by other stackMe commands. Change anyway?"
+	if "`totstackname'" != "" &  "`totstackname'"!="SMnstks" {
+		display as error "'SMnstks', default totstkname, is used by other stackMe commands. Change anyway?"
 *                          12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		capture window stopbox rusure "SMtotstk, the default totstack name, is used by other stackMe commands. Change it anyway?"
-		if _rc==0 rename SMtotstk = `totstackname'
+		capture window stopbox rusure "SMnstks, the default totstack name, is used by other stackMe commands. Change it anyway?"
+		if _rc==0 rename SMnstks `totstackname'
 		else  window stopbox note "'SMtotstk' changed to `totstackname'"
 	}
 	else local totstackname "SMtotstackname"
@@ -557,16 +561,4 @@ program define genstacksP
 	} //end else
 	
 
-	
-	
-	
 end //genstacksP
-
-
-
-
-/*
-	local dtalabel : data label 	
-	display "`dtalabel'"
-*/	
-
