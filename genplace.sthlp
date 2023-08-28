@@ -22,21 +22,26 @@ user-written programs){p_end}
 {opt genplace varlist [if][in][weight], options || varlist || ...}
 
 
+{p 4}The second syntax permits the same options to be applied to multiple varlists.
+
+
+
 {synoptset 20 tabbed}{...}
 {synopthdr}
 {synoptline}
-{p2colset 5 26 25 2}
+{p2colset 5 26 28 2}
 {synopt :{opt con:textvars(varlist)}}variables defining each context (e.g. country and year){p_end}
 {synopt :{opt noc:ontexts}}disregard context distinctions (stack distinctions cannot be disregarded){p_end}
 {synopt :{opt sta:ckid(varname)}}(required) identifies different "stacks" (often battery items) across 
 which mean placement(s) will be generated{p_end}
-{synopt :{opt ppre:fix(name)}}prefix for name(s) of generated battery-level placement variable(s) 
-(defaults to "p_"){p_end}
-{synopt :{opt two:step}}generate placements for each each stack from unit-level data before generating 
-battery-level placements (by default observations are expected to be constant across units){p_end}
-{synopt :{opt cwe:ight(varname)}}name of stack weight variable, constant across (units){p_end}
+{synopt :{opt two:step}}generate mprefixed-placements, constant across battery items, from unit-level data as 
+a basis for battery-level placements ({cmd:genplace} requires placements to be constent across across battery 
+items){p_end}
 {synopt :{opt mpr:efix(name)}}prefix for name the of stack-level placement variable(s) (default "m_"), 
 optionally generated in the first step of a two-step battery placement{p_end}
+{synopt :{opt ppre:fix(name)}}prefix for name(s) of generated battery-level placement variable(s) 
+(defaults to "p_"){p_end}
+{synopt :{opt cwe:ight(varname)}}name of (optional) stack-level weight variable{p_end}
 {synopt :{opt lim:itdiag(#)}}number of contexts for which to report on variables being generated 
 (default is to report progress for all contexts){p_end}
 {synopt :{opt nod:iag}}equivalent to {opt lim:itdiag(0)}, suppressing progress reports{p_end}
@@ -142,28 +147,28 @@ disregarded since these are the objects being placed by this command).
 {opth stackid(varname)} (required) a variable identifying each different "stack" (equivalent to 
 the {it:j} index in Stata's {bf:{help reshape:reshape long}} command) for which placements will be 
 separately generated. The default is to use the "SMstkid" variable. NOTE: there is no 
-{cmd:nostack} option because placements apply to batteries that define each stack.
+{cmd:nostack} option because placements relate to batteries that define each stack.
 
 {phang}
 {opt twostep} if present, generate the mean placement of each stack from unit-level data before generating 
-battery-level placements (by default placements are expected to be constant across units).
+battery-level placements (the extra step may be needed to produce placements that are constant across units).
+
+{phang}
+{opth mprefix(name)} if present, prefix for the name of the stack mean, generated in the (optional) 
+first step of a two-step {cmd:genplace} command and constant across units within stacks: the optionally 
+c-weighted mean of diverse battery-level placements. This prefix defaults to the "_"-suffixed 
+name of the cweight variable, if specified, or to "m_" otherwise.
 
 {phang}
 {opth pprefix(name)} if present, prefix for the {it:varlist} names of generated battery-level placement 
 variables (constant across units within contexts). Default is "p_".
 
 {phang}
-{opth cweight(varname)} if present, a weight (constant across units/respondents) used to place each 
+{opth cweight(varname)} if present, a weight (variable across battery items) used to place each 
 item/stack according to the placements provided by experts or other sources in (or pertaining to) 
 each context. The name of this variable will be used as a prefix for a generated battery placement 
 variable if the {bf:mprefix} option is not specified. If neither the {bf:cweight} nor {bf:mprefix}  
-options were specified then an "m_" prefix will be used.
-
-{phang}
-{opth mprefix(name)} if present, prefix for the name of the stack mean, generated in the first step 
-of a two-step {cmd:genplace} command and constant across units within stacks and contexts, if any): 
-the c-weighted mean of diverse battery-level placements. This prefix defaults to the "_"-suffixed 
-name of the cweight variable, if specified, or to "p_" otherwise.
+options were specified then an "c_" prefix will be used.
 
 {phang}
 {opth limitdiag(#)} only display diagnostic report for the first # contexts (by default report 
@@ -255,3 +260,4 @@ To understand the function of {opt call(iyield...)}, whose utility will likely n
 subfield of electoral studies) see:{break}
 De Sio, L., and Weber, T. (2014). "Issue Yield: A Model of Party Strategy in Multidimensional Space." 
 {it:American Political Science Review}, 108(4): 870-885.
+
