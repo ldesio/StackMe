@@ -9,7 +9,7 @@ program define stackmeWrapper	  		// Called by `cmd', the ado file & program nam
 
 
 
-	version 9.0							// Wrapper for stackMe version 2.0, June 2022, updated Apr 2023. Version 2b extracts
+	version 9.0							// Wrapper for stackMe version 2.0, June 2022, updated Apr,Aug 2023. Version 2b extracts
 										// working data, based on [if][in] and the variables required, before calling `cmd'P'
 set tracedepth 3						// repeatedly for each context and stack, saving each context in a separate file; then 
 										// merges the working data back with the original data.
@@ -22,12 +22,17 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 	gettoken anything options : rest, parse(",")			// Split rest between pre- and post-comma (varlist pre, options post)
 	if "`options'"==""  {									// If there were no options ...
 		gettoken anything mask : anything, parse("\") 		//  retrieve the options mask from the tail of `anything'
-	}
-	
+	}	
 	else gettoken options mask : options, parse("\")		// Otherwise split the options between options proper and Mask
+
 	local mask = strltrim(substr("`mask'", 2, .))			// Strip leading "\" and any space(s) from head of mask
 	gettoken prfxtyp mask : mask							// Get `prfxtyp' option+argument (all 1 word) from head of mask
-															
+															// (appended to end of opts-list in codeblock (1), line 123)
+	gettoken istopt mask : mask								// See if 1st word of remaining `mask' is `multicontxt' flag
+	local noMultiContxt = 1									// By default assume this cmd DOESN'T take advantage of multi-contxts
+	if "`istopt'"=="multicntxt"  local noMultiContxt = 0	// Reset switch if `multicntxt' option is present
+	else  local mask = "`istopt'" + "`mask'"				// Else re-assemble mask by prepending whatever was in 1st word
+
 	local endLastArg = strrpos("`mask'", ")" )				// Last option with arguments is followed by final ")"
 	local optArgs = substr("`mask'", 1, `endLastArg')		// Flags (aka toggles) need different processing than arguments, 
 	local firstFlag = wordcount("`optArgs'") + 1			//  so record word # in option-mask where flag options start
@@ -71,7 +76,7 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 		// In what follows, lines that might need tailoring to specific stackMe commands are flagged with trailing "**"
 	
 
-	
+
 	
 	
 										// (1) Preliminary pre-processing of everything up to and including the first varlist
@@ -87,14 +92,9 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 	local needopts = 1										// MOST stackMe COMMANDS REQUIRE AN OPTIONS-LIST						
 	if "`cmd'"=="gendummies"  local needopts = 0 			// ADD ANY OTHER EXCEPTIONS, AS DISCOVERED								**
 	
-
-	local noMultiContxt = "`cmd'"!="genyhats" & "`cmd'"!="geniimpute" // These are the only stackMe cmds yet using multi-contexts	**
-															// (equally, the user could select/option just one context)	**
-															// "THIS LEAVES A '1' IF `cmd'P DOESN'T GENERATE NEWVAR(S) BY CONTEXT
-
-	local istoptlst = 1										// Switch set =0 when the first optionlist has been processed
+	local istoptlst = 1										// Switch will be set =0 when the first optionlist has been processed
 	
-	local lastvarlst = 0									// Switch set =1 if varlist to be passed to `cmdP' is last (in set)
+	local lastvarlst = 0									// Switch  will be set =1 if varlist passed to `cmdP' is last (in set)
 	
 	local globalprfx = substr("`cmd'",4,.)					// Used to customize name of global stkname used by `cmd'P
 	global `globalprfx'_stkvars = ""						// Just in case `cmd'P aborted with error sometime previously
@@ -112,8 +112,8 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 		}													// 'No varlist' error handld after ` if "`opts'"!="" ' of codeblock 2)
 	}
 	
-	gettoken opts postpipes : postcomma, parse("||")		// First options cmd extends from first "," to "||" or end of command
-	local opts = "`opts' `prfxtyp'"							// Append word containing `prfxtyp' option (incl argument) to opt-list
+	gettoken opts postpipes : postcomma, parse("||")		// First options-list extends from first "," to "||" or end of command
+	local opts = "`opts' `prfxtyp'"							// Append word containing `prfxtyp' option (incl argument) to opts-list
 
 	local restOfCmd = "`precomma'`postpipes'"				// All that remains of first `options' is the "||" that terminated it
 															// (next comma now preceeds what was originally any 2nd options-list)
@@ -123,11 +123,11 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 	
 
 	gettoken anything postpipes : restOfCmd, parse("||")	// Get 1st "`varlist'[if][in][weight]" (all up to "||" or end of `cmd')
-															// (it is now in `anything'; its's options are already in "`opts'") 
+															// (it is now in `anything'; its' options are already in "`opts'") 
 															// (`anything' comes back into play after 1st `options' are processed)
 	if "`postpipes'"==""  local lastvarlst = 1				// If there are no more pipes then this must be final varlist of cmd
 	
-	if "`anything'"!="" local more = 1						// We have at least one varlist
+	if "`anything'"!="" local more = 1						// We have at least one (more) varlist
 	else  {
 		display as error "Need varlist. Exiting `cmd'{txt}"
 		window stopbox stop "Need varlist. Exiting `cmd'"
@@ -188,11 +188,10 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 		  local 0 = ",`opts' "  							// lower list are common opts
 															// put them into `0' where syntax cmd expects to find them
 
-
 		  syntax, [`mask' NODIAg EXTradiag REPlace NEWoptions MODoptions NEWexpressions MODexpressions NOCONtexts NOSTAcks ///
 						  prfxtyp(string) * ]				// `mask' was establishd in calling `cmd' and preprocssd in codeblk (0)
-															// `new'
-						  
+															// `new' set by either NEWoptions or NEWexpressions; `mod' is default
+
 															// `prfxtyp' was set in `cmd' (the adofile that called this one)
 															// `prfxtyp' now is `string'; NODiag is abberviation for limitdiag(0)
 															// "*" at end of syntax gets unmatched options placed in local `options'
@@ -245,12 +244,14 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 		  if ("``noopt1s''"!="") local save`opt1'="" 		// For conformity with nostacks (note double-``'')
 		  if ("`nodiag'"!="") local limitdiag = 0		  	// To handle non-standard (legacy) syntax 		
 
+		  local optNames="`optNames' `extradiag' `replace'"	// `extradiag' & `replace' were added to `cmd' optionlist just above
+															// (other such additions are self-executing)
 		  
 		  local i = 0										// Type of argument depends on value of `i' relative to `j'	**
 
 		  local j = `firstFlag'	
 
-		  foreach opt of local optNames	{					// Cycle thru optNames for this command (set in stackmeCaller)
+		  foreach opt of local optNames	{					// Cycle thru optNames for this command (set in `cmd' program)
 		
 			 local i = `i' + 1								// Distinguishes options w string args (<j) from toggle opts (>8)
 			
@@ -280,23 +281,50 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 															// Still some additional special cases to go 
 															// (after dealing with stacking options)
 															
-		  local dtalabel : data label
 		  if "`cmd'"!="gendummies'" &"`cmd'"!="genstacks" { // For these `cmd's, stacking is not relevant/required
-			 local word1 = word("`dtalabel'",1)
-			 tokenize "`word1'", parse("_")	  				// Unpack stackMe's data label
-			 if substr("`1'",1,7)=="stackMe"  {				// Words of label have "stackMe[_SMitem]" 
-				if `limitdiag'!=0  {						// stacks are irrelevant to gendummies
-					display as error  "NOTE: This dataset appears to be stacked (has SMstkid){txt}"
-					window stopbox note "This dataset appears to be stacked (has SMstkid)"
-				}
-				else  {										// stacks are irrelevant to gendummies
-					display as error  "NOTE: This dataset appears not to be stacked (no SMstkid){txt}"
-					window stopbox note "This dataset appears not to be stacked"
-				}
-			 } //endif substr							 	// (unless deliberately ignoring stack differences)
 
-		  } //end if`cmd'		  
-		 
+		    local dtalabel : data label
+			if "`dtalabel'"!=""  {
+			  local word1 = word("`dtalabel'",1)
+			  tokenize "`word1'", parse("_")	  			  // Unpack stackMe's data label
+			  if substr("`1'",1,7)=="stackMe"  {			  // Words of label have "stackMe[_SMitem]" 
+				if `limitdiag'!=0  {						  // stacks are irrelevant to gendummies
+					display as error  "NOTE: This dataset appears to be stacked (has stackMe-prefixed data label{txt}"
+									// 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+					window stopbox note "This dataset appears to be stacked (has stackMe-prefixed data label)"
+				}
+			  }
+			  else  {	
+				if `limitdiag'!=0  {
+					display as error  "NOTE: This dataset appears not to be stacked (no stackMe-prefix to data label){txt}"
+					window stopbox note "This dataset appears not to be stacked (no stackMe-prefix to data label)"
+					if "`cmd'"=="genplace"  {
+					   capture window stopbox rusure "Command {bf:genplace} requires stacked data; continue anyway?"
+					   if _rc!=0  error 999
+					}
+				}
+			  } //end else							 		// (unless deliberately ignoring stack differences)
+			}
+			else  {											// No data label
+			  display as error  "NOTE: This dataset appears not to be stacked (no data label){txt}"
+			  window stopbox note "This dataset appears not to be stacked (no data label)"
+			  if "`cmd'"=="genplace" capture window stopbox rusure "Command {bf:genplace} requires stacked data; continue anyway?"
+			  if _rc!=0  error 999
+			}
+			
+			if "`cmd'"=="genplace" {
+			  if "`stackid'"==""  {
+			    capture confirm numeric variable SMstkid
+			    if _rc>0  {
+				  display as error "Command {bf:genplace} requires SMstkid variable or option {bf:stackid}"
+				  window stopbox stop "Command {bf:genplace} requires SMstkid variable or option {bf:stackid}"
+				}
+			  } 
+															// HERE NEED TO ENSURE STACKID IS TRANSMITTED TO genplaceP. ****
+			} //end if`cmd'==
+
+		  } //end if`cmd'!=		  
+		  
 		  local optionsP =" `ifinw',"+stritrim("`optionsP'") // `ifinw' no longer prefixes `optionsP' as selectn now done by wrapper
 		  
 		  local istoptlst = 0								 // Flag indicates if first optionlist has been processed (was =1)
@@ -309,9 +337,7 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 	   }
 
 	   
-	   
-								
-
+ 
 		
 		
 										// (3) Pre-process latest varlist (there may be multiple varlists per optionlist)
@@ -350,7 +376,7 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 					if "`cmd'"=="gendummies"  {
 						window stopbox stop "Prefix symbol (':') needs preceeding stubname" 									**
 					}	
-					else if "`cmd'"=="genyhats"    window stopbox stop "Prefix symbol (':') needs preceeding yhat prefix"		**
+					else if "`cmd'"=="genyhats" window stopbox stop "Prefix symbol (':') needs preceeding yhat prefix"		**
 				 } //endif `thisInd'
 			  } //end else
 				
@@ -378,8 +404,9 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 																
 	   } //endif `postcolon'!=""
 
-	
-	   if ("`cmd'"!="gendummies" & "`cmd'"!="genstacks")  {	// This error check not needed for gendummies or genstacks
+
+	   if ("`prfxtyp'" != "none" & "`cmd'"!="gendummies") {	// This error check only needed where varlist prefixes are allowed 
+															// (gendummies allows but does not require prefix/option)
 		  if "`thisInd'"=="" & "``opt1''"==""  { 			// Neither indicator variable nor depvar option?
 			 display as error "Need initial `opt1': or varname in corresponding option{txt}"
 			 window stopbox stop "Need initial `opt1': or varname in corresponding option" 									//	**
@@ -443,10 +470,13 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 			
 										// (5) Before calling `cmd'P, finalize variables/cases to be kept in the working dataset
 
-			if "`contextvars'"!="" sort `contextvars' `stackid'		// Put dataset in context order before enmerating overall _n
+			if "`contextvars'"!=""  {
+				if "`cmd'"=="genstacks"  sort `contextvars'
+				else  sort `contextvars' `stackid'					// Put dataset in context order before enmerating overall _n
+			}
 			capture drop `wrapperUnit'								// (`stackid' is empty if data are not stacked)
 			tempvar wrapperUnit
-			gen `wrapperUnit' = _n									// unit ID that will govern merge of imputed vars with origdta
+			gen `wrapperUnit' = _n									// unit ID that will govern merge of new vars with origdta
 																	// (not to be confused with SMunit created by genstacks)
 	
 			tempfile origdta										// Equivalent to 'default' frame for versions supporting frames	
@@ -507,48 +537,47 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 	
 	
 
-*pause (6)	
 										// (6) Cycle thru each context in turn, repeatedly calling `cmd'P while appending
 										//     relevant options (plus count of # of varlists)		
 			
-			
+					
+			if ("`if'"!=""  | "`in'"!="")  keep `if' `in'			// Keep in working dataset only cases to be processed
+
 										
+			tempvar _ctx_temp
+			
 			if ("`contextvars'" == "") {							// Now see what contexts should be cycled thru (dropping rest)
-				if ("`stackid'" == "") {
-					tempvar _stk_temp
-					gen `_stk_temp' = 1
-					local stackvars = "`_stk_temp'"
+				if ("`stackid'" == "")  {
+					gen `_ctx_temp' = 1								// If no contexts or stackid then there is just one context
+					local ctxvars = "`_ctx_temp'"					// (don't confuse with `_temp_ctx', generated by _mkcross below)
 				}
-				else  {
-					local stackvars = "`stackid'"
-				}
+				else  {												// If there is a stackid option but no contextvars opt,
+					if "`cmd'"!="genplace" local ctxvars = "`stackid'" // Unless cmd is genplace, ctxvars contain just a stackid
+					else {											// If `cmd' IS genplace then
+						gen `_ctx_temp' = 1							// No contextvars means there is just one context
+						local ctxvars = "`_ctx_temp'"				// For `genplace' only a stackid means just one context
+					}
+				}													//  & if command != `genplace', again, is just one context
 			} //endif `contextvars'
 			
-			else {
-				local stackvars = "`contextvars' `stackid'"
-			}		
+			else {													// else contextvars have been optioned
+				if "`cmd'"!="genplace" local ctxvars = "`contextvars' `stackid'" // Unless genplace, supply whatever was optiond
+				else  local ctxvars = "`contextvars'"				// For cmd `genplace', stackid must not be defined 
+			}														// (even if present or optioned)
 		
-			tempvar _temp_ctx
-			if ("`stackvars'" == "") {
-				gen `_temp_ctx' = 0
-				quietly replace `_temp_ctx' = 1 `if' `in'
-				local ctxvar = "`_temp_ctx'"
-			}
-			
-			else {
-				quietly _mkcross `stackvars' `if' `in', generate(`_temp_ctx') missing length(20) label ()
-				local ctxvar = "`_temp_ctx'"						 // _mkcross includes only selected, producing sequential IDs
-			}
-	
+			tempvar _temp_ctx										// Don't confuse with `_ctx_temp' used as arg for _mkcross
+			quietly _mkcross `ctxvars', generate(`_temp_ctx') missing length(20) label ()
+			local ctxvar = "`_temp_ctx'"						 	// _mkcross includes only selected, producing sequential IDs
+																	// (not to be confused with `ctxvars' used as arg for _mkcross)
 	
 			quietly sum `ctxvar'
 			local nc = r(max)										 // This is the number of contexts, used below and in `cmd'P
 		
-		
-			if ("`if'"!=""  | "`in'"!="")  keep `if' `in'			 // Keep in working dataset only cases to be processed
-			
-			keep `wrapperUnit' `keepvars' `ctxvar'					 // Keep only vars involved in generating desired results
-																	 // (`keepvars' is `keep' with dups removed at end of (6))
+			if "`cmd'"=="genplace"  {
+				keep `wrapperUnit' `keepvars' `ctxvar' `stackid'
+			}
+			else  keep `wrapperUnit' `keepvars' `ctxvar'			// Keep only vars involved in generating desired results
+																	 // (`keepvars' is `keep' with dups removed at end of (5))
 			
 			if `nc'==1  local noMultiContxt = 1						 // If only 1 context after ifin, make like this was intended
 			
@@ -560,10 +589,9 @@ set tracedepth 3						// repeatedly for each context and stack, saving each cont
 				preserve
 				 
 				   if !`noMultiContxt' quietly keep if `c'==`ctxvar' // If there ARE multiple contexts, keep only this one
-
 set tracedepth 4
 *				   ******
-				   `cmd'P `multivarlst' `wetyp'`weexp' `optionsP' ctxvar(`ctxvar') nc(`nc') c(`c') nvarlst(`nvarlst') 
+				   `cmd'P `multivarlst' `wetyp'`weexp' `optionsP' ctxvar(`ctxvar') nc(`nc') c(`c') nvarlst(`nvarlst')
 *				   ******
 set tracedepth 3							
 
@@ -589,8 +617,6 @@ set tracedepth 3
 		
 	
 	
-*pause (7)	
-
 										// (7) Look ahead for next varlst beyond pipes ("||") that maybe ended previous varlst/optns
 		
 																// `postpipes' was stripped of leading "|| ", if any, in codeblk (4)
@@ -669,19 +695,24 @@ set tracedepth 3
 										
 										// (10) Execute next lines only following final call on `cmd'P
 	
-	if "`cmd'"=="genstacks"  {										// Move this code to genstacks, the caller program
+	if "`cmd'"=="genstacks"  {									// Move this code to genstacks, the caller program?
 	   label data "$dtalabel"
 	   noi display as error  _newline"Data label length is limited to 80 chars. Accept suggested label by typing 'q'. "
 	   noi display as error 		 "Otherwise paste the pause-string into command window, edit, return, then type q{txt}" _newline
 *                		  		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	   window stopbox note "Accept suggested label by typing 'q'; or else paste the pause-string displayed after 'OK' into cmd window, edit, return, then type q"
 	
+	   pause on
+	   
 	   pause label data "$dtalabel"
+	   
+	   pause off
 	   
 	   local report = "Not saved"
 	   
 	   noi display as error _newline "Save stacked data under a new name to avoid overwriting the unstacked file?{txt}"															// Save dataset to avoid overwriting
 	   capture window stopbox rusure "Save stacked data under a new name to avoid overwriting the unstacked file?"
+
 	   if _rc==0  {
 	   	  capture window fsave filename "File in which to save the stacked dataset" "Stata Data (*.dta)" dta
 	   	  if _rc==0  {
@@ -703,7 +734,6 @@ set tracedepth 3
 	if "$globalprfx_stkvars"!="" global `globalprfx'stkvars = "" // SO FAR USED ONLY ONLY IN genyhatsP)							**
 
 	global dtalabel = ""
-	
 	
 	
 end //stackMeWrapper
