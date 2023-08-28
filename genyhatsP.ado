@@ -1,11 +1,12 @@
 
-capture program drop genyhatsP					// Originally `genyhats', in Version 2 is called by `stackmeWrapper'
+capture program drop genyhatsP				// Originally `genyhats', in Version 2 is called by `stackmeWrapper'
 
 program define genyhatsP				
-												// Version 2b extracts working data before calling `cmd'P, afterwards 
-												// merging the results back into the origial dataset
-*set trace off
-  
+											// Version 2b extracts working data before calling `cmd'P, afterwards 
+											// merging the results back into the origial dataset
+
+calls program predcent, included in this ado file
+
 *! gendyhatsP version 2 for Stata version 9.0 (2/23/23 by Mark) has options cumulating as extra varlists are processed 
 
 	// This is the version 1.5 genyhats (the version that processed multiple varlists, using byable code), renamed 
@@ -15,6 +16,7 @@ program define genyhatsP
 	// `extradiag' is now a standard stackMe option determining the verbosity of the output. Option `quietly' replaces 
 	// the previous `outmode' local governing the verbosity of the output. Option `prefix' tells genyhatsP whether the 
 	// `depvarname' processed by the wrapper was supplied as a prefix to the indepvarlist rather than as an option.
+
 	//    CRITICALLY, the presence or absence of a prefix to the indepvarlist determines whether yhats that are produced
 	// by bivariate or multivariate analyses (multivariate if the depvar is identified by the prefix).
 	
@@ -95,7 +97,7 @@ program define genyhatsP
 			quietly count 	
 			local numobs = r(N)									// N of observations in this context
 			
-pause `contextlabel'		
+
 		
 											// (3) Cycle thru all varlists included in this call on `cmd'P
 
@@ -192,9 +194,10 @@ set tracedepth 3
 				} //endif `effects'
 	
 	
-
-
-											// (6) Break out of `nvl' loop if `postpipes' is empty (common terminal codeblock)
+				  
+				************************* TERMINAL CODEBLOCK COMMON ACROSS ALL `cmd'P *******************
+			
+											// (6) Break out of `nvl' loop if `postpipes' is empty
 											// 	   (or pre-process syntax for next varlist)
 
 				if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `anything' is empty (redndnt?)
@@ -217,11 +220,11 @@ end	genyhatsP
 
 
 
---------------------------------------------------------End genyhatsP----------------------------------------------------------------
+*--------------------------------------------------------End genyhatsP----------------------------------------------------------------
 
 
 
---------------------------------------------------------Begin predcent---------------------------------------------------------------
+*--------------------------------------------------------Begin predcent---------------------------------------------------------------
 
 
 
@@ -367,5 +370,6 @@ program define predcent   					// Program to predict and center variable(s) on t
 	} //end else bivariate
 
 	
-	
 end predcent
+
+
