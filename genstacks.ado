@@ -1,10 +1,9 @@
 
-
 capture program drop genstacks
 
 program define genstacks
 
-*!  Stata version 9.0; genyhats version 2, updated Feb-May'23 b MNF from major re-write in June'22
+*!  Stata version 9.0; genyhats version 2, updated May'23 from major re-write in June'22
 
 	version 9.0
 										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
@@ -26,18 +25,19 @@ program define genstacks
 															// updated by the prefix to a varlist. In geniimpute the prefix can 
 															// itself be a varlist.
 		
+		
+	local multicntxt = ""/*"multicntxt"*/					// Whether `cmd'P takes advantage of multi-context processing			**
 	
 *	************************
-	stackmeWrapper genstacks `0' \ prfxtyp(`prfxtyp') `optMask' // Name of stackme cmd followed by rest of cmd-line				
-*	************************								  	// (`0' is what user typed; `prfxtyp' & `optMask' were set above)	
-																// (`prfxtyp' placed for convenience; will be moved to follow optns)
-																// () that happens on fifth line of stackmeCaller's codeblock 0)
+	stackmeWrapper genstacks `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line				
+*	************************								  	 // (`0' is what user typed; `prfxtyp' & `optMask' were set above)	
+																 // (`prfxtyp' placed for convenience; will be moved to follow optns)
+																 // () that happens on fifth line of stackmeCaller's codeblock 0)
 	
 
-end //genstacks			
-
-*  EXTradiag REPlace NEWoptions MODoptions NEWexpression MODexpression NODIAg NOCONtexts NOSTAcks  ARE COMMON TO MOST STACKME COMMANDS
-*  and are introduced in stackmeWrapper. `limitdiag' is also common to other stackme commands but serves as a marker in `optMask'
+end // geniimpute			
 
 
 
+*  EXTradiag REPlace NEWoptions MODoptions NEWexpression MODexpression NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*															// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
