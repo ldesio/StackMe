@@ -37,8 +37,8 @@ in the space (e.g. the issue space) in which {varlist} battery reference items (
 (by default all observations are treated as part of the same context).{p_end}
 {synopt :{opt nocon:texts}}override the default behavior that generates distances within each context (if 
 specified) separately.{p_end}
-{synopt :{opth sta:ckid(varname)}}a variable identifying different "stacks", for which distances will be 
-separately generated if {cmd:gendist} is issued after stacking.{p_end}
+{synopt :{opth ite:mname(varname)}}a variable identifying different "stacks" (overriding the {cmdab:genst:acks}-generated 
+{it:{cmd:SMstkid}} variable) for which distances will be separately generated if {cmd:gendist} is issued after stacking.{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context.{p_end}
 {synopt :{opt mis:sing(all|same|diff)}}basis for plugging missing values on battery placements.{p_end}
 {synopt :{opt rou:nd}}rounds calculated distances to the nearest integer.{p_end}
@@ -119,17 +119,17 @@ some other external source. Alternatively, respondents might themselves be perfo
 to the locations of the reference items in specific contexts. In that case it might be appropriate to use 
 the {opt plu:gall} option to produce a constant value across all respondents in each context, based on the 
 expertise of respondents deemed particularly expert. {opt mis:sing(mean)} plugging values are calculated 
-across all (non-missing) responses (the same mean as produced by {help genstats} or {help genplace}); 
+across all (non-missing) responses (the same mean as produced by {help gensummarize} or {help genplace}); 
 but {opt mis:sing(same)} and {opt mis:sing(diff)} plugging values are each calculated across the subset of 
 respondents defined by the option concerned. So {opt plu:gall}-processed reference values (held in generated 
 {bf:p_}-prefixed variables by default) might in some circumstances be preferred to reference values generated 
-by {help genstats} or {help genplace}.
+by {help gensummarize} or {help genplace}.
 
 
 {title:Options}
 
 {phang}
-{opth selfplace(varname)} (required unless this {varname} already prefixes the relevant {varlist}) the variable 
+{opth sel:fplace(varname)} (required unless this {varname} already prefixes the relevant {varlist}) the variable 
 containing the respondent's self-placement on the scale used for the corresponding battery of reference items.
 
 {phang}
@@ -137,20 +137,26 @@ containing the respondent's self-placement on the scale used for the correspondi
 (by default all observations are assumed to belong to the same context).
 
 {phang}
-{opt nocontexts} if present, overrides the default behavior of gendrating distances within each context (if 
+{opt noc:ontexts} if present, overrides the default behavior of gendrating distances within each context (if 
 specified) separately.
 
 {phang}
-{opth stackid(varname)} if specified, a variable identifying different "stacks", for which distances will be 
-separately generated in the absence of the {cmd:nostack} option. The default is to use the "genstacks_stack" 
-variable if the {cmd:gendist} command is issued after stacking.
+{opt ite:mname(name)} Name of an existing variable that identifies the original battery item,
+if this is different from the sequential {it:{cmd:SMstkid}}. The difference between the {it:{cmd:item}} 
+and {it:{cmd:SMstkid}} variables emerges when non-consecutive items are found in the original set of 
+variables. For example, if parties in a battery have IDs 7101, 7103, 7109, stacks will be 
+numbered 1 2 3 while items will be numbered 7101 7103 7109. So, in the stacked dataset, both IDs 
+would be needed in order to preserve the connection with the unstacked data. It is up to the user to 
+determine, in each relevant situation, whether to use this option to everride default treatment 
+of different stacks. The option is particularly relevant when processing doubly-stacked data, 
+to define the stack-structure of the data being processed.{p_end}
 
 {phang}
-{opt nostacks} if present, overrides the default behavior of treating each stack as a separate context (has 
+{opt nos:tacks} if present, overrides the default behavior of treating each stack as a separate context (has 
 no effect if data are not stacked).
 
 {phang}
-{opth missing(all|same|diff)} if present, determines treatment of missing values for object placement variables
+{opth mis:sing(all|same|diff)} if present, determines treatment of missing values for object placement variables
 (by default they remain missing).{break}
   {space 3}If {bf:all} is specified, missing values are replaced with the overall mean placement of that object,
 calculated on the whole sample for each context and/or stack.{break}
@@ -166,44 +172,44 @@ NOTE: Consider using option {bf:plugall} to treat (e.g.) party locations as cons
 (see SPECIAL NOTE ON REFERENCE VALUES under {bf:Description}, above).
 
 {phang}
-{opt round} if present, causes rounding of all calculated distances to the closest integer (nearest single-digit 
+{opt rou:nd} if present, causes rounding of all calculated distances to the closest integer (nearest single-digit 
 decimal if maximum value of item position is no greater than 1).
 
 {phang}
-{opt plugall} if present, causes ALL values of each reference variable to be replaced with plugging 
+{opt plu:gall} if present, causes ALL values of each reference variable to be replaced with plugging 
 values calculated according to option {bf:missing}, thus yielding values that are constant across 
 respondents. (see SPECIAL NOTE ON REFERENCE VALUES under {bf Description}, above).
 
 {phang}
-{opth dprefix(name)} if present, provides a prefix for generated distance variables (default is "d_").
+{opth dpr:efix(name)} if present, provides a prefix for generated distance variables (default is "d_").
 
 {phang}
-{opth pprefix(name)} if present, provides a prefix for generated mean-plugged placements (default is "p_").
+{opth ppr:efix(name)} if present, provides a prefix for generated mean-plugged placements (default is "p_").
 
 {phang}
-{opth mprefix(name)} if present, provides a prefix for generated variables indicating for each 
+{opth mpr:efix(name)} if present, provides a prefix for generated variables indicating for each 
 observation whether, before mean-plugging of an item in the battery, the item placement was missing 
 for that observation (default is "m_").
 
 {phang}
-{opth mcountname(name)} if specified, name for a generated variable reporting original number of
+{opth mco:untname(name)} if specified, name for a generated variable reporting original number of
 missing items (default is to generate a variable named SMmisCount){p_end}
 
 {phang}
-{opth mpluggedcountname(name)} if specified, name for a generated variable reporting number of
+{opth mpl:uggedcountname(name)} if specified, name for a generated variable reporting number of
 missing items after mean-plugging, which could still be non-zero (even after all missing values 
 on item positions have been plugged) if the respondent's own self-placement is missing (default is 
 to generate a variable named SMmisPlugCount){p_end}
 
 {phang}
-{opt replace} if specified, drops original party placement variables after the generation of distance 
+{opt rep:lace} if specified, drops original party placement variables after the generation of distance 
 measures. Also all missing indicators and mean-plugged placement variables{p_end}
 
 {phang}
-{opt limitdiag(#)} limit progress reports to first # contexts for which distances are being calculated{p_end}
+{opt lim:itdiag(#)} limit progress reports to first # contexts for which distances are being calculated{p_end}
 
 {phang}
-{opt nodiag} if specified, suppresses progress reports {p_end}
+{opt nod:iag} if specified, suppresses progress reports {p_end}
 
 {p 4}Specific options all have default settings unless described as "required"
 
@@ -211,21 +217,19 @@ measures. Also all missing indicators and mean-plugged placement variables{p_end
 
 {title:Examples:}
 
-{pstd}The following command generates distances on a left-right dimension, where party placements
-are in variables lrp1-lrp10, and R's self-placement is in lrresp; missing placements are replaced
-by simple mean-plugging, and then rounded to the nearest integer.{p_end}
+{pstd}The following command generates distances on a left-right dimension for unstacked data, where 
+party placements are in variables lrp1-lrp9, and R's self-placement is in lrresp; missing placements 
+are replaced by simple mean-plugging and then rounded to the nearest integer.{p_end}
 
-{phang2}{cmd:. gendist lrp1-lrp10, selfplace(lrresp) missing(all) round}{p_end}
+{phang2}{cmd:. gendist lrp1-lrp9, selfplace(lrresp) missing(all) round}{p_end}
 
-{*NEED ANOTHER, POST-STACKED WITHOUT THE CONTRASTING MISSING TREATMENTS}
+{pstd}The following command generates distances on a two different policy dimensions, taxes and 
+foreign aid. Resulting distance measures will be distinguished by different stub names, depending 
+on the stub names used in each {varliest}. Both sets of distances are use missing data plugging 
+where plugging values are derived from the positions of respondents who placed themselves at a 
+different position than they placed each party.{p_end}
 
-{pstd}The following command generates distances on a tax dimension, where party-respondent
-distances are computed under two different missing data treatments. Resulting y-hats are 
-distinguished by having different prefixes according to missing treatment. Both sets of 
-y-hats are rounded since that option was not changed for the second varlist.{p_end}
-
-{phang2}{cmd:. gendist taxself: taxp1-taxp10, missing(all) dprefix(d1_) round || taxself: taxp1-taxp10,} 
-{cmd:missing(diff) dpr(d2_)}{p_end}
+{phang2}{cmd:. gendist taxself: taxp1-taxp9, missing(dif) round || aidself: aidp1-aidp9}{p_end}
 
 
 {title:Generated variables}
