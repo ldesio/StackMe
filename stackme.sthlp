@@ -74,8 +74,9 @@ changed. This variable, the `j' variable in the above description of stacked dat
 generally identifies the battery item that corresponds to each stack but, if it does not, then a 
 variable must be created (if it does not already exist) that links stacks to batteries (for example, 
 party identification number). It is recommended that such links between stack IDs and battery items 
-be named by the {opt ite:mname} option. That name is stored as a (constant across observations) string 
-variable {cmd:{it:SMitem}}, where the text of the string names the variable concerned. For a more detailed 
+be named by the {opt ite:mname} option. The variable concerned will be added to the list of variables to 
+be reshaped by {cmdab:genst:acks} so that the stacked counterpart can be used to define relevant 
+linkages (for example when merging the stacked data with data from relevant archives). For a more detailed 
 account of these linkage mechanisms see the Special Names section of this help text, below, and the help 
 text for {help genstacks:{ul:genst}acks}.{p_end} 
 {pstd}
