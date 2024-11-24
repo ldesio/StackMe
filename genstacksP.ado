@@ -5,7 +5,7 @@ capture program drop genstacksP
 
 program define genstacksP
 
-*!	Version 2 uses the command window to build label for stacked data; unlike version 2a which uses a dialog box.
+*!	This version does variable and file-naming in the calling program, genstacks - updated Nov'24.
 
 *!  Stata version 16.1 (originally 9.0); genstacks version 2.0, updated Jan'23 & May'24 from major re-write in June'22.
 *!  Search sreshape for a faster reshape command published in 2019 (possibly already incorporated into Stata 17)
@@ -238,14 +238,10 @@ program define genstacksP
 
 	else local totstackname "SMnstks"							// Otherwise store default totstack name in optionname
 	
-
-	
 	if !`w' noisily display "." _newline						// No 'continue' for final busy dot
-	
 	
   } //endif `c'==`nc'
   
-
 *	drop `anymiss'												// `anymis', accessed in obs[1], would indicate any all-missing stks
 																// (a trick that might come in useful, but not in this application)
 
