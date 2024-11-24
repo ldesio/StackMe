@@ -6,6 +6,7 @@ capture program drop geniimputeP
 program define geniimputeP
 
 *! geniimputeP (was geniimpute) version 2 is called by geniimpute version 2 to run under Stata versions 9/16, updated Feb,Apr'23 by MNF
+*! Minor tweaks in Nov 2024
 
 	// This program is called by geniimpute once for each varlist, if user employs piped syntax. It, in turn, calls geniimpute_body, 
 	// which impliments the multi-varlist technology to process on one pass all varlists grouped by the wrapper on the basis that
@@ -22,16 +23,12 @@ program define geniimputeP
 
 	
 	syntax anything [aw fw pw/],   ///		
-		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) MINofrange(string) MAXofrange(string) IPRefix(name) MPRefix(name)] ///	**
+		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) MINofrange(integer 0) MAXofrange(integer 0) IPRefix(name) MPRefix(name)] ///	**
 		[ ROUndedvalues BOUndedvalues LIMitdiag(integer -1) EXTradiag KEEpmissing NOInflate SELected EXTradiag REPlace NEWoptions ]	///	**
-		[ MODoptions NODIAg NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) ] 									//	**
+		[ MODoptions NODIAg NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) ] 									//	**
 
-												// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
+										// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
 	local cmd = "geniimpute" 
-
-	if "`weight'"!="" local wetyp = " [`weight'"				// As in wrapper, two items to store: the weight type
-	if "`exp'"!="" local weexp = "=`exp']"						// (types are aw fw pw iw); expression also must be stored
-	
 
 	
 	mata: st_numscalar("VERSION", statasetversion())			// Get stata verion # (*100) from Mata (PUT SCALAR IN ALL CAPS)
@@ -41,7 +38,7 @@ program define geniimputeP
 		
 												// Establish original default options (or revised defaults if using piped syntax)
 
-
+	if "`weight'"!="" local weight = "[`weight'`exp']"
 	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
 	local missingflagprefix = "m_"
 	  
@@ -55,9 +52,9 @@ program define geniimputeP
 	else local boundvalues = ""							  		// Empty the flag for conformity with version 1
 
 	if ("`roundedvalues'"!="") {
-		local round = "round" 									// Shorten option-name, as implemented below
+		local roundvalues = "roundvalues" 						// Shorten option-name, as implemented below
 	}
-	else local round = ""
+	else local roundvalues = ""
 	
 	local inflate = 1											// Translate into positive dummy var
 	if "`noinflate'"!=""  local inflate = 0
@@ -209,16 +206,16 @@ program define geniimputeP
 												// HERE DO ACTUAL PROCESSING OF CURRENT CONTEXT ...	
 
 	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
-			
+	
+*			global varlist = "`vl`nvl'' `weight'"
 *			***************
-*		if "`vl`nvl''"!=""  {
-			geniimputeP_body `vl`nvl'' `wetyp'`weexp', added(`al`nvl'') c(`c') ctxvar(`ctxvar') nc(`nc') ///
-			ip(`imputeprefix') mfp(`missingflagprefix') mcn(`missingCntName') mic(`missingImpCntName') ///
+			geniiP_body `vl`nvl'' `weight', added(`al`nvl'') c(`c') ctxvar(`ctxvar') nc(`nc') ///
+			ip(`imputeprefix') mfp(`missingflagprefix') mcn(`missingCntName') mic(`missingImpCntName')  ///
 			nvl(`nvl') inflate(`inflate') minofrange(`minofrange') maxofrange(`maxofrange') limitdiag(`limitdiag') ///
-			`selected' `round' `replace' `extradiag' `dropmissing' `boundvalues' 
-*		}
-*			***************											// 'round' set by option 'roundedvalues'; 'boundvalues' by 'boundedvalues'
-*set trace on
+			`selected' `roundvalues' `replace' `extradiag' `dropmissing' `boundvalues' 
+*			***************										// 'roundvalues' set by option 'roundedvalues';
+																// 'boundvalues' by 'boundedvalues'
+
 	} //next `nvl' 												// (next list of vars having same options)
 
 	
@@ -229,32 +226,35 @@ end //geniimputeP
 
 
 
-*------------------------------------------------------Begin geniimputeP_body----------------------------------------------------------
+*------------------------------------------------------Begin geniiP_body----------------------------------------------------------
 
 
 
-capture program drop geniimputeP_body
+capture program drop geniiP_body
 
-program define geniimputeP_body
+program define geniiP_body
 
 *! geniimpute_body version 2 is called from geniimputeP version 2 (above) to run under Stata version 9, updated Feb'23 by Mark Franklin
+*! geniimpute_body calls the superseded Stata 'impute' command
 
 	version 16.1												// geniimputeP_body version 2.0
 
-	// This program is called by geniimputeP (below) once for each context for which imputed variables are to be 
+	// This program is called by geniimputeP (above) once for each context for which imputed variables are to be 
 	// calculated. It is changed from previous versions by having all reference to contexts removed, since it is 
 	// called by geniimputeP once per context per (multi-)varlist instead of once per varlist.
 
 
 	syntax varlist [aw fw pw/] ///
-				 , added(varlist) c(integer) ctxvar(varname) nc(integer) ip(string) mfp(string) mcn(varname) mic(varname) ///
-				   nvl(integer) inflate(integer) [ MINofrange(string) MAXofrange(string) LIMitdiag(string) ] ///
-				   [ SELected ROUnd REPlace EXTradiag DROpmissing BOUndvalues ] 
+				 , [ added(varlist) c(integer 0) /*ctxvar(varname)*/ nc(integer) ip(string) mfp(string) mcn(varname) mic(varname) ] ///
+				   [ nvl(integer 0) inflate(integer 0) MINofrange(integer 0) MAXofrange(integer 0) LIMitdiag(integer -1) ] ///
+				   [ SELected ROUndvalues REPlace EXTradiag DROpmissing BOUndvalues * ] 
 
-*display "body `round' `minofrange' `maxofrange'"
+*display "body `roundvalues' `minofrange' `maxofrange'"
 	
 	// Some unprocessed flag options included in this list
 																// limitdiag(string) presumably allows that string to sometimes be "."
+
+	if "`weight'"!="" local weight = "`weight'=`exp'"			// Update `weight' expression for call on 'impute'
 
 	local ncontexts = `nc'										// Transfer local parameters set in iimputeP 
 	local imputeprefix = "`ip'"
@@ -387,7 +387,7 @@ program define geniimputeP_body
 		
 
 		local wt = ""
-		if "`weight'" != ""  local wt = "[`weight'=`exp']"				// Needed for call on cmd impute below
+		if "`weight'" != ""  local weight = "[`weight'=`exp']"				// Needed for call on cmd impute below
 		
 		
 		
@@ -411,7 +411,7 @@ program define geniimputeP_body
 				
 				
 *				**************				
-				quietly impute `thisPTV' `remainingPTVs' `imputedPTVs' `added' `wt', generate(`tmp')
+				quietly impute `thisPTV' `remainingPTVs' `imputedPTVs' `added' [`weight'], generate(`tmp')
 *				**************	
 
 				quietly replace `imputeprefix'`thisPTV' = `tmp'			  // Replace it with imputed version
@@ -438,7 +438,9 @@ program define geniimputeP_body
 		local ndiag = 0													// Cluge to stop multiple inflate diagnostics		
 		local npty: list sizeof varlist									// Re-using a now redundant local
 
-		
+	
+	
+	
 		foreach var in `varlist' {
 			
 			local gap = 12 - length("`var'")							// Get len of gap before varname while `var' is not yet a varname
@@ -465,6 +467,8 @@ program define geniimputeP_body
 			  }															// For some unfathomable reason {space `gapo'(=1)} prints as "   "
 
 
+			  
+			  
 			  if (`inflate' == 1 & `ndiag'<`npty')  {					// From option `noinflate' during option post-processing, above
 
 				quietly replace `imputeprefix'`var' =`imputeprefix'`var'+rnormal(0, `oSD') if `missingflagprefix'`var'==1 
@@ -489,9 +493,11 @@ program define geniimputeP_body
 			
 		} //next `var'
 
-set trace off		
-pause 												// If optioned, round constrain and/or enforce bounds of (plugged) values
-		if ("`round'"=="round") {
+	
+	
+	
+													// If optioned, round constrain and/or enforce bounds of (plugged) values
+		if ("`roundvalues'"=="roundvalues") {
 		
 			if (`showDiag') {											// Report that this is done, per context, if optioned
 				display " rounded" _continue
@@ -504,10 +510,12 @@ pause 												// If optioned, round constrain and/or enforce bounds of (plug
 				else quietly replace `imputeprefix'`var' = round(`imputeprefix'`var') if `missingflagprefix'`var'==1 
 			}	
 
-		} //endif `round'
+		} //endif `roundvalues'
 
 				
-*set trace on	
+				
+				
+
 		if ("`minofrange'" != "") | ("`maxofrange'" != "")  {
 
 			local nconstr = 0
@@ -530,7 +538,7 @@ pause 												// If optioned, round constrain and/or enforce bounds of (plug
 
 					quietly replace `imputeprefix'`var' = `rangemax' if `imputeprefix'`var'>`rangemax' & ///
 														  `imputeprefix'`var'<. & `missingflagprefix'`var'==1 
-*pause after
+
 				} //endif 'maxofrange'
 				
 			}	
@@ -563,7 +571,6 @@ pause 												// If optioned, round constrain and/or enforce bounds of (plug
 		if (`showDiag'==0)  display "." _continue	
 
 	} //if `countUsedPTVs'
-*set trace off	
+	
 		
-end //geniimpute_body
-
+end //geniiP_body
