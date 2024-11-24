@@ -15,12 +15,12 @@ program define geniimpute
 								// Ensure prefix option for this stackMe command is placed first
 								// and its negative is placed last; ensure options w args preceed 
 								// (aka flag) options and that last option w arg is limitdiag
-								// CHECK THAT NO OTHER OPTIONS, BEYOND FIRST 3, NAME ANY VARIABLE(S)					**
+								// CHECK THAT NO OTHER OPTIONS, BEYOND FIRST 3, NAME ANY VARIABLE(S)	**
 
 																				
 																
-	local prfxtyp = "var"/*"othr" "none"*/			// Nature of varlist prefix – var(list) or other. (`stubname'    ?/	**
-								// will be referred to as `opt1', the first word of `optMask', in codeblock 
+	local prfxtyp = "var"/*"othr" "none"*/			// Nature of varlist prefix – var(list) or other. (`stubname' will   ?/	**
+								// be referred to as `opt1', the first word of `optMask', in codeblock 
 								// (0) of stackmeWrapper called just below). `opt1' is always the name 
 								// of an option that holds a varname or varlist (which must be referred
 								// using double-quotes). Normally the variable named in `opt1' can be 
@@ -42,4 +42,22 @@ end // geniimpute
 
 
 *  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
+*
+
+
+
+
+************************************************** PROGRAM genii *********************************************************
+
+
+capture program drop genii
+
+program define genii
+
+geniimpute `0'
+
+emd genii
+
+
+*************************************************** END PROGRAM **********************************************************
+
