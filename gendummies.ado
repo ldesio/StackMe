@@ -37,6 +37,7 @@ program define gendummies
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
 
+	if $exit  exit 1									// Don't post-process if error was flagged in wrapper or 'cmd'P
 
 														
 										// On return from stackmeWrapper 
@@ -45,17 +46,18 @@ program define gendummies
 	
 	
 	local istpipes = strpos("`temp'","||")  			// Find location of first "||", if any, and remove them
-	if `istpipes'>0 local temp = substr("`temp'",1,`istpipes'-3) // (syntax command does not like to see them)
-
+	if `istpipes'>0 local temp = substr("`temp'",1,`istpipes'-1) // (syntax command does not like to see them)
 	local 0 = "`temp', `opts'"							// Look for 'ifinw' exprssns in 'anything', filled in codeblk 0.2 line 70 
 
 	
 	******
-	syntax anything [if] [in] [aw fw iw pw/], [ LIMitdiag(integer -1) NODiag *  ]
+	syntax anything [if] [in] [aw fw iw pw/], [ STUbprefix LIMitdiag(integer -1) NODiag *  ]
 	******
 	
 		
 	if "`nodiag'"!=""  local limitdiag = 0
+	
+*	if "`stubprefix'"!="" 								// Done in gendummiesP
 	
 	if `limitdiag'!=0  noisily display _newline "done." _newline
 
@@ -70,10 +72,7 @@ end gendummies
 
 
 
-
-
-
-******************************************************** PROGRAM gendu ************************************************************
+*********************************************** PROGRAM GENDU *******************************************************************
 
 
 capture program drop gendu
@@ -84,8 +83,6 @@ gendist `0'
 
 end gendu
 
-********************************************************* END gendu ***************************************************************
-
-
+************************************************* END GENDU *******************************************************************
 
 
