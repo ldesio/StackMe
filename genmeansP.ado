@@ -4,7 +4,7 @@ program define genmeansP
 
 	version 9.0												// genstatsP version 2.0, June 2022, updated May 2023
 
-*!  Stata version 9.0; genstatsP (new in version 2), August '23.  Minor tweaks for new weighting stratgy Nov`24'
+*!  Stata version 9.0; genstatsP (new in version 2), August '23'.  Minor tweaks for new weighting stratgy Nov`24'
 
     syntax varlist [aw fw pw/] , [ CONtextvars(varlist) STAckid(varname) ] STAts(string)		   ///
 	[ MNPrefix(name) SDPrefix(name) MIPrefix(name) MAPrefix(name) SKPrefix(name) KUPrefix(name) ]  ///
@@ -71,6 +71,8 @@ program define genmeansP
 	} //endif `count'==1
 	
 	
+															
+	
 	
 											// Calculate all optioned stats
 											
@@ -101,6 +103,12 @@ program define genmeansP
 		global detail = ""
 	}
 	
-set trace off
+
 
 end genmeansP
+
+
+************************************************** END OF PROGRAM *********************************************************
+
+
+
