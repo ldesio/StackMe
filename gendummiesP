@@ -32,7 +32,7 @@ program define gendummiesP
 	
 	forvalues nvl = 1/`nvarlst'  {						 	// Cycle thru set of varlists with same options
 	
-		local stubPrefix = ""								// (any prefix comes from `stubprefix' (small p) or `precolon')	
+		local stubPrefix = ""								// Any prefix comes from `stubprefix' (small p) or `precolon'	
 		
 		gettoken prepipes postpipes : anything, parse("||") //`postpipes' now starts with "||" or is empty at end of cmd
 		if "`postpipes'"=="" local prepipes = "`anything'"	// (if empty make like imaginary pipes follow at end of cmd)
@@ -49,9 +49,10 @@ program define gendummiesP
  		
 		else  {												// Else `postcolon' is empty
 			local vars = "`prepipes'"						// If there was no colon then varlist is in `prepipes'
-			local stubPrefix = "`stubprefix'"				// (and we get our prefix from option 'stubprefix')
-			if substr("`stubPrefix'",-1,1)!="_" local stubPrefix = "`stubprefix'_"
-		}
+			local stubPrefix = "`stubprefix'"				// (and we get stubPrefix, if any, from option 'stubprefix')
+			if substr("`stubprefix'",-1,1)!="_" local stubPrefix = "`stubprefix'"+"_" // (note latter has lower case 'p')
+		}													
+	   
 	   
 		unab varlist : `vars'
 				   
@@ -61,38 +62,51 @@ program define gendummiesP
 			capture confirm numeric variable `var'			
 			if _rc!=0  {
 				display as error "Variable `var' is not a numeric variable{txt}"
+				window stopbox note "Variable `var' is not a numeric variable. Click 'OK' to exit"
 				global exit = 1
-				continue, break								// Break out of `var' loop
+				exit 1											// Break out of `var' loop
 			}
 			
-			quietly levelsof `var', local(values)			// Enumerate the category values for this variable
+			quietly levelsof `var', local(values)				// Enumerate the category values for this variable
 
 			
 			
 			
  
+ 
+ 
 												// (5) For each var, cycle thru all values
+												
 		
-			foreach val of local values  {					  
-				if strpos("`val'",".")>0  {
-					display as error "For variable `var', found non-integer value `val'{txt}"
-					global exit = 1
-					continue, break
+			foreach val of local values  {
+				
+				confirm number `val'							// If real conversion of value is missing
+				if _rc  {
+					display as error "For variable `var', found non-integer value `val'. Ignore that value?{txt}"
+*                		  		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
+					window stopbox note "For displayed variable, found non-integer value `val'. Ignore that value?{txt}"
+					if _rc  {
+						global exit = 1
+						exit 1
+					}
 				}
-				if $exit continue, break
+				
 				
 				capture confirm variable `stubPrefix'`var'`val'
 				if _rc==0  {
-					if `nvl'==`nvarlst'  continue, break
+*					if `nvl'==`nvarlst'  continue, break		// Not sure why suffix matching N of varlsts is ok
 					display as error "variable `stubPrefix'`var'`val' already exists{txt}"
+					window stopbox note "variable `stubPrefix'`var'`val' already exists. Click OK to exit"
 					global exit = 1
-					continue, break
-*					window stopbox stop "variable `stubPrefix'`var'`val' already exists"
+					exit 1
 				}
-				if $exit continue, break
-			
+
+				
+*				**************************
 				gen `stubPrefix'`var'`val' = (`var'==`val') 	// This is the money command that creates a new var for each value
-		
+*				**************************
+
+	
 				local label : label (`var') `val'				// Value label for each category of `var' 
 				local len = strlen("`label'")					// ('var' may also have a variable label referenced in genstacks)
 				capture confirm number `label'					// If `label' is all numeric then it was found unlabeled by numlabel
@@ -112,6 +126,7 @@ program define gendummiesP
 					label variable `stubPrefix'`var'`val' "`var'==`val' `label'"
 				} //endif 'len'>1								// (even twice, as happened with version 0.9, is arguably overkill)
 		
+
 				if ("`includemissing'"!="") {					// See if user optioned values of 0 for missing data
 					foreach newvar of varlist `stubPrefix'`var'*  {
 						if ("`newvar'"!="`var'") {				// Exclude the stub itself
@@ -128,11 +143,11 @@ program define gendummiesP
 				
 			} //next val
 
-			if $exit continue, break
+*			if $exit continue, break
 
 		} //next `var'
 		
-		if $exit continue, break
+		if $exit continue, break								// Should not get here as earlier errors all have own exit cmd
 		
 		
 		
@@ -150,10 +165,19 @@ program define gendummiesP
 				   
 	} //next `nvl' 												  // (next list of vars having same options)
 	
-	if !$exit & `warn' & `limitdiag' display as error "NOTE: Prefix to varlist cancels any prior stubprefix option"
+	if `warn' & `limitdiag' noisily display _newline "NOTE: Prefix to varlist overrides, for that varlist, any stubprefix option{txt}"
+	
+	
+	if `limitdiag'  noisily display _newline "Done." _newline
 
-
+ 
+	
+	if $exit  exit 1											  // Should not get here as earlier error now itself has exit cmd
 	
 
    
 end //gendummiesP
+
+
+
+************************************************* END GENDUMMIES ******************************************************************
