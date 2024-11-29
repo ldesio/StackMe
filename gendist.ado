@@ -14,7 +14,8 @@ program define gendist
 	local optMask = "SELfplace(varname) CONtextvars(varlist) ITEmname(varname) MISsing(string) DPRefix(string) PPRefix(string)" ///	**
 				  + " MPRefix(string) APRefix(string) MCOuntname(name) MPLuggedcountname(name) LIMitdiag(integer -1)" 			///	**
 				  + " RESpondent(varname) PLUgall ROUnd REPlace NOSELfplace" // `respondent' not valid in version 2 but permits /// **
-															//  helpful error message. REPLACE ANY stackid WITH itemname.			**
+															//  a helpful error message. REPLACE ANY stackid WITH itemname.			**
+
 
 															// Ensure prefix option for this stackMe command is placed first
 															// and its negative is placed last; ensure options w args preceed 
@@ -26,11 +27,13 @@ program define gendist
 															// (0) of stackmeWrapper called just below). `opt1' is always the name 
 															// of an option that holds a varname or varlist (must be referenced
 															// using double-quotes). Normally the variable named in `opt1' can be 
-															// updated by the prefix to a varlist, as in gendummies.
+															// updated by the prefix to a varlist, as in gendummies, gendist,
+															// geniimpute and genyhats.
 		
 	local multicntxt = "multicntxt"							// Whether `cmd'P takes advantage of multi-context processing			**
 	
 	local save0 = "`0'"										// Seems necessary, perhaps because called from gendi
+	
 	
 *	**********************
 	stackmeWrapper gendist `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line				
@@ -43,12 +46,17 @@ program define gendist
 *  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
 *															// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 
+	if $exit  exit 1										// Exit may have been occasioned by wrapper or by 'cmd'P
 
 
+	
+	
+											// On return from stackmeWrapper
 
 
+	local 0 = "`save0'"										// On return from stackmeWrapper estore what user typed
 
-	local 0 = "`save0'"										// After cmd'P exits, retrieve '0' (what the user typed) 
+	
 	
 											// (7) Post-process active variables (after returning from stackmeWrapper)
 											
@@ -156,8 +164,8 @@ program define gendist
 																
 	if "`skipvars'" != "" {
 	   if `limitdiag'!=0  {									 // skipvars was cumulated across all varlists
-	      display as error _newline "NOTE: Some vars are all-missing for all contexts and will be dropped: 
-		  display as error "`skipvars'{txt}"
+	      noisily display _newline "NOTE: Some vars are all-missing for all contexts and will be dropped: 
+		  noisily display "`skipvars'{txt}"
  					              // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	   }
 	   foreach var of local skipvars {
@@ -281,6 +289,8 @@ end gendist
 
 **************************************************** SUBROUTINE gendi **********************************************************
 
+
+
 capture program drop gendi
 
 program define gendi
@@ -291,4 +301,4 @@ end gendist
 
 
 
-************************************************** END SUBROUTINES **********************************************************
+**************************************************** END SUBROUTINES **********************************************************
