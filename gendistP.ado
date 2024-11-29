@@ -19,10 +19,10 @@ program define gendistP
 	
 	
 
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) ] 			 ///
-		[ PPRefix(string) MPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) ] 			 ///
-		[ MCOuntname(name) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace ]		 ///
-		[ NOCONtexts nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] 	
+    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string)PPRefix(string)  ] 	 ///
+		[ XMPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) MCOuntname(name) nc(integer 0) ] 	 ///
+		[ c(integer 0) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace nvarlst(integer 1)] ///
+		[ NOCONtexts wtexplst(string) ] 	
 															// now using label lname in lieu of ctxvar
 													
 								
