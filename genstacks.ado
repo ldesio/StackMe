@@ -3,8 +3,7 @@ capture program drop genstacks			// Alias 'genst' which exists as a separate pro
 
 program define genstacks
 
-*!  Stata version 9.0; stackMe version 2, updated May'23 from major re-write in June'22; again in May'24 to include post-wrapper code
-*!  Minor tweaks in Nov '24 to add the genst alias code
+*!  Stata version 9.0; stackMe version 2, updated May'23 from major re-write in June'22; again in May'04 to include post-wrapper code
 
 	version 9.0
 										// Here set stackMe command-specific options and call the stackMe wrapper program  
@@ -18,18 +17,6 @@ program define genstacks
 															// NOTE that, for this `cmd', first option is not also a prefix			**
 															// and does not have a negative counterpart
 															
-	if (strpos("`0'", "rep"))>0 local replace = "replace"	// 'replace' is standard stackMe option so will be there if invoked 	**
-															// (parsed here ONLY IN genstacks to be available on return from wrappe)**
-	if strpos("`0'", "lim")>0  {							// Ditto for 'limitdiag', again ONLY IN genstacks
-	  local l = strpos("`0'", "lim")						// Start of 'limitdiag(' option
-	  local l = strpos(substr("`0'",`l', .), "(") + `l'		// Update `l' to start of `0's parenthesized arg following "lim...(" 
-	  local rest = substr("`0'", `l', .)					// Save remainder of `0' (following ' "lim...(" ) in `rest'
-	  gettoken limitdiag rest : rest, parse(")")			// `limitdiag' now holds the text ending before ")"
-	}	
-	
-	if strpos("`0'", "`nod'")>0  local limitdiag = 0		// Ditto for `nodiag' (no argument), again ONLY IN genstacks
-	local w = 0
-	if `limitdiag'  local w = 1
 	
 	local prfxtyp = /*"var" "othr"*/"none"					// Nature of varlist prefix – var(list) or other. (`stubname' will		**
 															// be referred to as `opt1', the first word of `optMask', in codeblock 
@@ -57,21 +44,32 @@ program define genstacks
 *  EXTradiag REPlace NEWoptions MODoptions NEWexpression MODexpression NODIAg NOCONtexts NOSTAcks  
 *  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS. All of these except limitdiag are added in stackmeWrapper, codeblk(2)
 
-												
+	
+	if $exit  exit 1										// Any error return overrides following codeblocks
+	
 
-												
-												
-	local 0 = "`save0'"									// Restore what user typed after return from wrapper
+
+								// On return from wrapper ...
+								
+	
+								
+	local 0 = "`save0'"										// Restore what the user typed
+	
+
+*	************
+	syntax anything ,  [ LIMitdiag(integer -1) NODiag REPlace ] *									
+*	************	
 	
 	
-												
+										
 										// Next code blocks post-process new variables created in genstacksP
-										// call on 'stackmeWrapper (only other cmd with labeling is 'gendummies –  
-										// and IT does not do multi-contexts)
+										
 	
 		
-	if !`w' noisily display " "							// No 'continue' for final busy dot
+	if `limitdiag'==0 noisily display " "					// No 'continue' for final busy dot
 
+	
+	
 	
 	
 										// (2) Make labels for reshaped vars, based on first var in each battery ...
@@ -204,15 +202,15 @@ program define genstacks
 	  	  
 	  if `limitdiag' {										// If diagnostics are being displayed . . .
 		local msg = substr("NOTE: Option itemname puts battery ID's varname '`itemname'' in _dta note `S_'",1,80)
-		display as error  "`msg'"							// Display 1st 80 chars of warning message
-*                           12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		display as error   "      as an alternative to `M_' for identifying battery items in each stack"
+		noisily display  "`msg'"							// Display 1st 80 chars of warning message
+*                          12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		noisily display   "      as an alternative to `M_' for identifying battery items in each stack"
 	  }
 	} //endif 'itemname'
 	  
 	else  {													// Else `itemname' was not optioned ...	
 	  if `limitdiag' {
-		if "`SMitem'"=="" display as error "NOTE: With no 'itemname' option, battery items are identfied only by var `M_{txt}"
+		if "`SMitem'"=="" noisily display "NOTE: With no 'itemname' option, battery items are identfied only by var `M_{txt}"
 	  }
 	} //endelse
 	
@@ -248,6 +246,8 @@ program define genstacks
 	   noi display as error _newline "Save stacked data under a new name to avoid overwriting the unstacked file?{txt}"															
 	   capture window stopbox rusure "Save stacked data under a new name to avoid over-writing the unstacked file?"
 *              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	   if _rc  exit 1
+	   else "Execution continues..."
 	}														 // return code is consulted below
 	
 	else  {													 // Data were doubly-stacked
