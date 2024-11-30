@@ -49,7 +49,7 @@ program define genstacks
 	
 
 
-								// On return from wrapper ...
+										// On return from wrapper ...
 								
 	
 								
@@ -66,7 +66,7 @@ program define genstacks
 										
 	
 		
-	if `limitdiag'==0 noisily display " "					// No 'continue' for final busy dot
+	if `limitdiag'==0 noisily display " "				// No 'continue' for final busy dot
 
 	
 	
@@ -311,10 +311,10 @@ program define genstacks
 	
 end //genstacks	
 
+************************************************ END PROGRAM genstacks ************************************************
 
 
-
-************************************************** program genst ********************************************
+************************************************** PROGRAM genst ******************************************************
 
 
 capture program drop genst										// Short command name for 'genstacks'
@@ -326,4 +326,5 @@ genstacks `0'
 end genst
 
 
-************************************************** END SUBROUTINES **********************************************************
+*************************************************** END genst **********************************************************
+
