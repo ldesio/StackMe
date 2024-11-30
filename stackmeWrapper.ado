@@ -1215,7 +1215,7 @@ pause (8)
 										// (8) After processing last contxt (codeblk 6), post-procss generatd data for merging with 
 										//	   original (saved) data
 	
-*	if `more' {															// REDUNDANT OPENING AND CLOSING LINES for this codeblk		***
+*	if `more' {															// REDUNDANT OPENING AND CLOSING LINES						 ***
 										
 	  if "`multiCntxt'"!= ""  {											// If there ARE multi-contexts (local is not empty) ...
 																		// Collect up & append files saved for each contxt in codeblk (7)
@@ -1240,7 +1240,7 @@ pause (8)
 	  
 	  else  quietly use `temp', clear									// Happens for 'cmd's that treat all contexts as one
 	
-*  } //endif more														//REDUNDANT OPENING AND CLOSING LINES for this codeblk
+*  } //endif more														//REDUNDANT OPENING AND CLOSING LINES
 	
 	
 
@@ -1270,8 +1270,8 @@ pause (9)
 	}
 	
 	if "`cmd'"=="genyhats"   {
-		capture confirm variable yi_`var1'	  					
-	    if _rc==0  capture rename (yi_*) (YI_*)					
+		capture confirm variable yi_`var1'	  					// MUST RENAME VARS WITH CAPITALZED PREFIXES IN `cmd' CALLER   		***
+	    if _rc==0  capture rename (yi_*) (YI_*)					// (after any processing needed for newly prefixed vars)
 		capture confirm variable yd_`var1'
 		if _rc==0  capture rename (yd_*) (YD_*)
 	}
@@ -1296,9 +1296,11 @@ end //stackmeWrapper
 
 
 
+***************************************************** END stackmeWrapper ****************************************************
 
 
-**************************************************** SUBROUTINES **********************************************************
+
+**************************************************** SUBROUTINES ************************************************************
 
 
 
@@ -1386,7 +1388,8 @@ end //stubsImpliedByVars
 
 
 
-capture program drop isnewvar									// Now called from wrapper (NO LONGER CALLED FROM gendist in VERSION 2)
+
+capture program drop isnewvar								// Now called from wrapper (NO LONGER CALLED FROM gendist in VERSION 2)
 
 program isnewvar
 	version 9.0
@@ -1410,6 +1413,8 @@ end //isnewvar
 
 
 
+
+
 capture program drop createactiveCopy						// APPARENTLY NO LONGER CALLED FROM gendist VERSION 2
 
 program define createactiveCopy
@@ -1422,6 +1427,10 @@ program define createactiveCopy
 	quietly label variable `plugPrefx'`varlist' "`newlab'" // In practice, syntax changes `plugPrefx' to `plugPrefx'
 
 end //createActive copy
+
+
+
+
 
 
 
@@ -1482,6 +1491,17 @@ end errmsg
 
 
 
+/*
+local msg = "`cmd' cannot have multiple 'prefix:' strings"		// Lines for debugging program msg (never finished)
+
+errmsg `msg'
+
+window stopbox stop, `msg'
+
+*/
+
+
 ************************************************ END SUBROUTINES *****************************************************
+
 
 
