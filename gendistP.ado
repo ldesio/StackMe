@@ -2,7 +2,7 @@ capture program drop gendistP
 
 program define gendistP
 
-	version 9.0						// gendist version 2.0, June 2022, updated May 2023, June & Nov 2024
+	version 9.0												// gendist version 2.0, June 2022, updated May 2023
 	
 *!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
 *!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
@@ -19,12 +19,15 @@ program define gendistP
 	
 	
 
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string)PPRefix(string)  ] 	 ///
-		[ XMPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) MCOuntname(name) nc(integer 0) ] 	 ///
-		[ c(integer 0) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace nvarlst(integer 1)] ///
-		[ NOCONtexts wtexplst(string) ] 	
+    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) ] 			 ///
+		[ PPRefix(string) MPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) ] 			 ///
+		[ MCOuntname(name) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace ]		 ///
+		[ NOCONtexts nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] 	
 															// now using label lname in lieu of ctxvar
-													
+															// `filist' is disguised `iflist'
+						
+
+								
 								
 								
 								
@@ -32,9 +35,9 @@ program define gendistP
 			
 
 	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!	** 
-
+/*
 	local count = `c'										// Count of contexts processed, as basis for progress dots
-	
+*/	
 	if ("`missing'"=="") local missing = "all"				// Default if 'missing' option was not used
 	if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
 	if "`missing'"!="dif2"  local missing = substr("`missing'",1,3)	// Keep 4 chars if those are "dif2", else just 3 chars
@@ -44,6 +47,7 @@ program define gendistP
 	if _rc == 0  local stkd = 1								// This versn makes no distinctn between stacked and unstkd dta
 	if "`nostacks'"!="" local stkd = 0						// Indiucates whether context includes stack #
 
+	
 	
 
 	
@@ -105,8 +109,8 @@ program define gendistP
 
 		gettoken precolon postcolon : anything, parse(":")	// See if varlist contained prefix var & remove it if so
 		if "`postcolon'"!="" local anything = substr("`postcolon'",2,.)
-	    if `limitdiag' !=0 & `count'<`limitdiag'  {			// If diagnostics were not silenced, display 1st diagnostic
-		  noisily display "{pstd}{text}Computing distances between R's position ({result:`selfplace'}) " _continue
+	    if `limitdiag' !=0 & `c'<`limitdiag'  {				// If diagnostics were not silenced, display 1st diagnostic
+		  noisily display _newline "{p}Computing distances between R's position ({result:`selfplace'}) " _continue
 		  noisily display "and their placement of objects: ({result:`varlist'}) {p_end}{txt}"
 		}
 
@@ -140,10 +144,10 @@ program define gendistP
 			 scalar skip`i' = 1								// Flag used in next codeblock to skip this var
 			 continue										// Skip any vars with no obs by continuing w next var
 		   }
-		   local rN = r(N)
+/*		   local rN = r(N)
 		   if `rN'<`minN'  local minN = `rN'
 		   if `rN'>`maxN'  local maxN = `rN'
-															// Get means for this context, selectively if optioned
+*/															// Get means for this context, selectively if optioned
 		   capture {
 			 if "`missing'"=="all"  qui mean `var' `weight'	// Use all obs to derive mean only for option missing(all)			
 			 if "`missing'"=="sam"  qui mean `var' `weight'  if `selfplace'==`var'
@@ -151,7 +155,7 @@ program define gendistP
 			 if "`missing'"=="dif2" qui mean `var' `weight'  if `selfplace'!=`var' // (distinction from dif is made below)
 		   }
 
-		   if _rc!=0  {										// If there was an error in any 'mean' command
+/*		   if _rc!=0  {										// If there was an error in any 'mean' command
 		   	 local lbl : label lname `c'					// Get the context id
 		   	 local re = _rc									// Put the error # into local 're'
 		   	 if _rc==2000  {							
@@ -163,16 +167,16 @@ error `re'
 		     }
 			 
 			 global exit = 1								// Amnd tell wrapper to exit after restoring origdata
-		     continue, break								// Break out of 'var' loop
+		     exit 1											// Return to calling program
+			 
 		   }
-		   
+*/		   
 		   matrix b = e(b)									// Retrieve mean for this context from 'ereturn'
 		   scalar mean`i' = b[1,1]
 		   gen p_`var' = mean`i'							// Store that mean as plugging value to replace miss val
 
 		} //next var	
 		 
-		if $exit  continue, break							// Break out of nvl loop so wrapper can restore origdta
 
 
 
@@ -197,31 +201,29 @@ error `re'
 		     qui gen d_`var' = abs(`selfplace' - `var')		// Default distance, missng when either component is missng
 															// These vars will be renamed before merging in case already
 															//  exist, in which case gendist caller will adjudicate
-			 if "`missing'"=="all"  replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="sam"  replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif"  replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif2" replace d_`var' = abs(`selfplace' - p_`var') if m_`var' | `selfplace'==`var'
+			 if "`missing'"=="all"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
+			 if "`missing'"=="sam"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
+			 if "`missing'"=="dif"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
+			 if "`missing'"=="dif2" qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var' | `selfplace'==`var'
 															// dif2 treats `selfplace'==`var' as equivalent to missing
 		  } //endelse										// (requires `plugall'!="" 'cos otherwise variance is truncated)
 		
 	    } //next var
 
 
-	    if `limitdiag'>=`c' /*"`smstkid'"*/ {				// `c' is updated for each different stack
+/*	    if `limitdiag'>=`c' /*"`smstkid'"*/ {				// `c' is updated for each different stack
 	  	  local lbl : label lname `c'
 	  	  noisily display "Vars in context `lbl' have at least `minN' and at most `maxN' valid obs"
 	    }
-	  			 
+*/		 
 				 
 				 
 				 
 	  } //end quietly
 	
 
+	
 
-
-
-pause (6)
 
 			
 											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
@@ -248,6 +250,8 @@ pause (6)
 	
 end gendistP
 
+
+*************************************************** END gendistP **********************************************************
 
 
 
@@ -293,8 +297,6 @@ program isnewvar
 	}
 	
 end //isnewvar
-
-
 
 
 
