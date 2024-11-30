@@ -1,3 +1,4 @@
+
 capture program drop genmeansP
 
 program define genmeansP
@@ -48,6 +49,10 @@ program define genmeansP
 
 		local s1 = strltrim(stritrim(strrtrim("`n' `mean' `sd' `min' `max' `skewness' `kurtosis' `sum' `sw' `median' `mode'")))
 															// Put list of stats actually optioned into `s1', trimmed of blanks
+
+
+
+
 		foreach s of local s1  {							// Cycle thru list of expandd optiond stats, make `s' = each in turn
 			local i = strpos("`s0'","`s'")					// Record char # of start of `s' in option-list'
 
@@ -72,8 +77,6 @@ program define genmeansP
 	
 	
 															
-	
-	
 											// Calculate all optioned stats
 											
 
@@ -92,7 +95,8 @@ program define genmeansP
 			if "`s'"=="mode"  quietly egen `prfx'`var' = mode(`var')
 		}
 	}
-	
+
+
 	
 											// Empty globals after final context has been processed
 										
@@ -104,11 +108,8 @@ program define genmeansP
 	}
 	
 
-
 end genmeansP
 
 
-************************************************** END OF PROGRAM *********************************************************
-
-
+************************************************** END PROGRAM genmeans ****************************************************
 
