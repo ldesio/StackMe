@@ -27,6 +27,9 @@ program define genplace
 														// updated by the prefix to a varlist, but not in genyhats.
 		
 	local multicntxt = "multicntxt"/*""*/				// Whether `cmd'P takes advantage of multi-context processing			**
+	
+	
+	local save0 = "`0'"
 
 	
 *	***********************									   
@@ -34,9 +37,33 @@ program define genplace
 *	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
+														
+	if $exit  exit 1									// On error return go no further
 	
+	local 0 = "`save0'"
+	
+	:													// Incomplete
+	:
 
 end //gensplace			
 
 *  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
 *														// All of these except limitdiag are added in stackmeWrapper
+
+
+
+
+********************************************** PROGRAM genlp *********************************************************************
+
+
+capture program drop genpl
+
+program define genpl
+
+genplace `0'
+
+end genpl
+
+
+************************************************* END PROGRAM genpl ***************************************************************
+
