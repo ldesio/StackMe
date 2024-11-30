@@ -145,8 +145,9 @@ program define genyhatsP
 		local wt = word("`wtexplst'",`nvl')						// relevant wt is in word nvl of wtexplst						***
 		if "`wt'"=="null"  local wt = ""
 
-	
-	
+		
+		
+		
 		
 
 											// (4) Heavy lifting is done in program predcent (below)
@@ -168,6 +169,7 @@ set tracedepth 3
 		 }	
 
 
+		 
 			   
 			   
 			   
@@ -211,6 +213,8 @@ set tracedepth 3
 		 } //endif `effects'
 	
 	
+	
+	
 			
 											// (6) Break out of `nvl' loop if `postpipes' is empty
 											// 	   (or pre-process syntax for next varlist)
@@ -238,12 +242,13 @@ end	genyhatsP
 
 
 
-*--------------------------------------------------------End genyhatsP----------------------------------------------------------------
+******************************************************** END genyhatsP ********************************************************
 
 
 
 
-*--------------------------------------------------------Begin predcent---------------------------------------------------------------
+
+***************************************************** SUBROUTINE predcent *****************************************************
 
 
 
@@ -400,7 +405,11 @@ program define predcent   					// Program to predict and center variable(s) on t
 	} //end else bivariate
 
 	
+	
 end predcent
 
-*************************************************** END OF SUBROUTINES **************************************************
+
+
+***************************************************** END SUBROUTING predcent **************************************************
+
 
