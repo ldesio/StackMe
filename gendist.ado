@@ -1,304 +1,305 @@
-capture program drop gendistP
 
-program define gendistP
+capture program drop gendist
 
-	version 9.0												// gendist version 2.0, June 2022, updated May 2023
-	
-*!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
-*!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
-*!  Stata version 9.0; gemdistP version 2a updated July'24 to implement unstacked capabilities
-	
-	//    Version 2 removes recently introduced code to plug plr==rlr with diff-means, as though the plr 
-	// value had been missing. (This treatment turns out to be only appropriate when distances are from 
-	// constant-valued party positions, else varying plrs will have their variance arbitrarily truncated). 
-	// It introduces a new "plugall" option that plugs all plr values with the same (mean) plugging value, 
-	// producing the constant values suited to plugging plr==rlr as though they were missing. Full [if][in] 
-	// processing now done in wrapper. [weight] processing still done in gendistP. Previous use of 'egen, by'
-	// was unable to handle new weighting requirements.
-	
-	
-	
+program define gendist
 
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) ] 			 ///
-		[ PPRefix(string) MPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) ] 			 ///
-		[ MCOuntname(name) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace ]		 ///
-		[ NOCONtexts nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] 	
-															// now using label lname in lieu of ctxvar
-															// `filist' is disguised `iflist'
-						
+*!  Stata version 9.0; genyhats version 2, updated May'23 from major re-write in June'22
 
-								
-								
-								
-								
-											// (1) Pre-process gendist-specific options not preprocessed in wrapper
+	version 9.0
+										// Here set stackMe command-specific options and call the stackMe wrapper program;  
+										// lines ending with "**" need to be tailored to specific stackMe commands
+									
+															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'
+															// Ensure prefixvar (SELfplace) is first and its nevative is last		**
+	local optMask = "SELfplace(varname) CONtextvars(varlist) ITEmname(varname) MISsing(string) DPRefix(string) PPRefix(string)" ///	**
+				  + " MPRefix(string) APRefix(string) MCOuntname(name) MPLuggedcountname(name) LIMitdiag(integer -1)" 			///	**
+				  + " RESpondent(varname) PLUgall ROUnd REPlace NOSELfplace" // `respondent' not valid in version 2 but permits /// **
+															//  helpful error message. REPLACE ANY stackid WITH itemname.			**
+
+															// Ensure prefix option for this stackMe command is placed first
+															// and its negative is placed last; ensure options w args preceed 
+															// toggle (aka flag) options.	
+																				
+																
+	local prfxtyp = "var"/*"othr" "none"*/					// Nature of varlist prefix – var(list) or other. (`stubname' will		**
+															// be referred to as `opt1', the first word of `optMask', in codeblock 
+															// (0) of stackmeWrapper called just below). `opt1' is always the name 
+															// of an option that holds a varname or varlist (must be referenced
+															// using double-quotes). Normally the variable named in `opt1' can be 
+															// updated by the prefix to a varlist, as in gendummies.
+		
+	local multicntxt = "multicntxt"							// Whether `cmd'P takes advantage of multi-context processing			**
+	
+	local save0 = "`0'"										// Seems necessary, perhaps because called from gendi
+	
+	
+*	**********************
+	stackmeWrapper gendist `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line				
+*	**********************									 // (`0' is what user typed; `prfxtyp' `multicntxt' `optMask' set above)	
+															 // (`prfxtyp' placed for convenience; will be moved to follow optns
+ 															 // – that happens on fifth line of stackmeCaller's codeblock 0) 
+															 // (`multicntxt', if not blank, sets stackMeWrapper switch noMultiContxt)
 			
 
-	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!	** 
-/*
-	local count = `c'										// Count of contexts processed, as basis for progress dots
-*/	
-	if ("`missing'"=="") local missing = "all"				// Default if 'missing' option was not used
-	if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
-	if "`missing'"!="dif2"  local missing = substr("`missing'",1,3)	// Keep 4 chars if those are "dif2", else just 3 chars
-	
-	local stkd = 0
-	capture confirm variable SMstkid
-	if _rc == 0  local stkd = 1								// This versn makes no distinctn between stacked and unstkd dta
-	if "`nostacks'"!="" local stkd = 0						// Indiucates whether context includes stack #
+*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*															// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
+
+	if $exit  exit 1										// Exit may have been occasioned by wrapper or by 'cmd'P
+
 
 	
 	
+											// On return from stackmeWrapper
+
+
+	local 0 = "`save0'"										// On return from stackmeWrapper estore what user typed
 
 	
 	
-	
-											// (2) HERE STARTS PROCESSING OF CURRENT CONTEXT . . .
+											// (7) Post-process active variables (after returning from stackmeWrapper)
 											
-	local minN = .											// Make initial minN really big
-	local maxN = 0											// Make initial maxN really small
-	local nvl = 0											// Count of n of varlists processed
+	syntax anything [if] [in] [aw fw iw pw/], [ CONtextvars MPRefix(string) PPRefix(string) DPRefix(string) APRefix(string) ] 	   ///
+	                                          [ MISsing(string) LIMitdiag(integer -1) ROUnd REPlace NODiag *    ]
 	
-	while `nvl'<`nvarlst'  {					 			// Cycle thru set of varlists with same options
-	  local nvl = `nvl'+1									// (any prefix is in `selfplace' or `precolon')											
-	  gettoken prepipes postpipes : anything, parse("||") 	//`postpipes' then starts with "||" or is empty at end of cmd
-	  if "`postpipes'"=="" local prepipes = "`anything'"	// (if empty make like imaginary pipes follow at end of cmd)
+	if "`nodiag'"!=""  local limitdiag = 0
+	
 		
-	  gettoken precolon postcolon : prepipes, parse(":") 	// See if varlist has prefixing indicator 
-															// `precolon' gets all of varlist up to ":" or to end of string
-	  if "`postcolon'"!=""  {							 	// If `postcolon' is not empty we have a prefix string
-		local selfplace = "`precolon'"						// Replace with `precolon' whatever was optioned for selfplace	**
-		local isprfx = "isprfx"								// And set `isprfx' flag (not used in gendist), then ...	
-		local vars = strltrim(substr("`postcolon'",2,.)) 	// strip off the leading "`prefix:'" and any following blanks
-	  } //endif 											// (start with pre-colon prefix)
 
-	  else local vars = "`prepipes'"						// If there was no colon then varlist was in `prepipes'
+	
+											// Get varlist from original call (this 20-line codeblock required on return to
+											//  each 'cmd' calling program except for genstacks)
+
+	local multivarlst = "$multivarlst"						// get multivarlst from global saved in block (6) of stackmeWrapper
+
+	local var1 = word("`multivarlst'", 1)					// Restore original prefix strings, if present	
+	capture confirm variable D_`var1'						// Capitalized in stackmeWrapper to avoid glitch mentioned below
+
+	if _rc==0  {											// If it was capitalized, M_* and P_* will be dealt with later
+		capture rename (D_*) (d_*)							// (allows for possibility that option replace will be used,
+	}														//  affecting m_* and p_*)
+
+/*															// 3 LINES COMMENTED OUT 'COS SEEMINGLY REDUNDANT
+	local frstwrd = word("`multivarlst'",1)					// `multivarlst' was filled with varnames or stubs in block (4)
+	local test = real(substr("`frstwrd'",-1,1))				// See if final char of first word is numeric suffix
+	local isStub = `test'==.								//`isStub is true if result of conversion is missing
+*/		
+	local non2missng = ""									// List of vars present across all varlists
+	local skipvars = ""										// List of vars missing for all contexts, cumulates across varlists
+
+	local more = 1											// Flag governs exit from the 'while' loop when =0
+	
+	while `more'  {											// While any varlists remain in multivarlst
+		
+	  gettoken vars postpipes : multivarlst, parse("||")	// Extract first varlist if more than one
+	  if "`postpipes'"!=""  {								// If there is another varlist
+	    local multivarlst = substr("`postpipes'", 3, .)		// Strip leading "||" from postpipes in preparation for next loop
+	  }
+	  else  {												// Else this is final (or only) varlist
+	  	local vars = "`multivarlst'"
+		local more = 0										// (and last time through the while loop)
+	  }
+	  
+	  
+	  
+									// Proceed with post-proccessing this varlist
+									
+	  gettoken temp rest : vars, parse(":")					// Any prefix is now in `temp' if `rest' starts with ":"
+	  if "`rest'"!=""  {									// If there was a prefix ...
+		local selfplace = "`temp'"							// Otherwise leave 'selfplace' unchanged
+	  	local rest = substr("`rest'", 2, .) 				// Strip ":" from front of varlist
+	  }	
+	  else local rest = "`vars'"							// Otherwise varlist was not prefixed and rest gets `vars'
+	  
+	  unab varlist : `rest'									// The varlist that was processed in gendistP
+	  
+	  local nonmissng = ""									// Will hold list of vars present for at least 1 contxt
+
+	  foreach var of local varlist  {
+
+	     qui count if !missing(`var')						// These counts are for the entire dataset
+		 if r(N)==0  {										// (unlike the counts by context made in gendistP)
+			local skipvars = "`skipvars' `var' "
+			continue										// Skip to next var if all-missing
+		 }
+		 else  local nonmissng "`nonmissng' `var'"			// Else there are non-missing observations in this varlist
+			
+	  } //next var
+	  
+
+	  local non2missng = "`non2missng' `nonmissng'"			// Append nonmissing list to multivarlst's non2missng list
+	 
+			
+    } //next while more										// Repeat for next varlist, if any
+
+	
+
+	
+										
+	
+	if ("`round'"!="")  {									  // If `round' was optioned ...
+	
+	    foreach var of local non2missng  {					  // non2missing contains vars from all varlists
+			
+		   if strpos("`skipvars'","`var'")>0  continue		  // Skip any that are all missing in all contexts
+		   
+		   qui egen mx`var' = max(`var'), by("`contextvars'") // If max value of var is <=1, round to nearest 0.1
+		   capture confirm variable "`var'"
+		   if _rc==0  {										  // If variable does not exist
+		      qui replace d_`var' = round(d_`var', .1) if mx`var'<=1
+		      qui replace d_`var' = round(d_`var') if mx`var'>1 & `var'<.
+		   }
+		   
+		} //next `var'										  // If max value of var is >1, round to nearest integer
+
+		capture drop mx*
 	   
-	  unab varlist : `vars'
-	  local nvars : list sizeof varlist
-	  tokenize `varlist'
-	  local first `1'
-	  local last ``nvars''
-	  
-	  local weight = word("`wtexplst'",`nvl')
-	  if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper program	***
+	} //endif `round'
 
 
-	  
-	  
-	  
-
-	  
-											// (3) Diagnostics are displayed only for first context 
-	  
-	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
- 	
-	    if ("`pprefix'"!="" & "`missing'"=="") {			// Redundant 'cos already substituted "all" for empty
-	      display as error "Option {bf:pprefix} requires option {bf:missing} – exiting gendist"
-		  window stopbox note "Option pprefix requires option missing"
-		  global exit = 1									// Tells wrapper to exit after restoring origdata
-		  continue, break									// Break out of 'nvl' loop
-	    }
-
-		if ("`missing'"=="dif2" & "`plugall'"=="")  {
-	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – exiting gendist"
-		  window stopbox note "Option missing(dif2) requires option plughall – exiting gendist"
-		  global exit = 1									// Tells wrapper to exit after restoring origdata
-		  continue, break									// Break out of 'nvl' loop
-		}
-
-		gettoken precolon postcolon : anything, parse(":")	// See if varlist contained prefix var & remove it if so
-		if "`postcolon'"!="" local anything = substr("`postcolon'",2,.)
-	    if `limitdiag' !=0 & `c'<`limitdiag'  {				// If diagnostics were not silenced, display 1st diagnostic
-		  noisily display _newline "{p}Computing distances between R's position ({result:`selfplace'}) " _continue
-		  noisily display "and their placement of objects: ({result:`varlist'}) {p_end}{txt}"
-		}
-
-		capture drop SMmisCount
-		capture drop SMplugMisCount
 		
-		
-	  } //endif`c'==1
-	  
-	  if `limitdiag'<`c' noisily display "." _continue
-	  
-	 
-	  quietly {
-
-	 
-	 
-	 
-	 
-											// (4) Get plugging values separately for different 'missing' options
-		
-	 	local i = 0
-		while `i'<`nvars'  {
-		   local i = `i' + 1
-		   local var = word("`varlist'",`i')
-*		   isnewvar `var' 									// Commented out 'cos working data wouldn't permit dup diag
-
-		   qui gen m_`var' = missing(`var')					// Code m_var =0, or =1 if missing
-		   scalar skip`i' = 0
-		   qui count if ! m_`var'							// Yields r(N)==0 if var does not exist
-		   if r(N)==0  {									// If there are no observations for this var in this context
-			 scalar skip`i' = 1								// Flag used in next codeblock to skip this var
-			 continue										// Skip any vars with no obs by continuing w next var
-		   }
-/*		   local rN = r(N)
-		   if `rN'<`minN'  local minN = `rN'
-		   if `rN'>`maxN'  local maxN = `rN'
-*/															// Get means for this context, selectively if optioned
-		   capture {
-			 if "`missing'"=="all"  qui mean `var' `weight'	// Use all obs to derive mean only for option missing(all)			
-			 if "`missing'"=="sam"  qui mean `var' `weight'  if `selfplace'==`var'
-			 if "`missing'"=="dif"  qui mean `var' `weight'  if `selfplace'!=`var'										//	***
-			 if "`missing'"=="dif2" qui mean `var' `weight'  if `selfplace'!=`var' // (distinction from dif is made below)
-		   }
-
-/*		   if _rc!=0  {										// If there was an error in any 'mean' command
-		   	 local lbl : label lname `c'					// Get the context id
-		   	 local re = _rc									// Put the error # into local 're'
-		   	 if _rc==2000  {							
-			 	display as error "Stata reports 'no observations' error in contxt `lbl'"
-			 }
-			 else  {										// Issue appropriate error message
-		   	   display as error "Stata has flagged error `re' in context `lbl'" _continue
-error `re'
-		     }
-			 
-			 global exit = 1								// Amnd tell wrapper to exit after restoring origdata
-		     exit 1											// Return to calling program
-			 
-		   }
-*/		   
-		   matrix b = e(b)									// Retrieve mean for this context from 'ereturn'
-		   scalar mean`i' = b[1,1]
-		   gen p_`var' = mean`i'							// Store that mean as plugging value to replace miss val
-
-		} //next var	
-		 
-
-
-
-
-	 
-											// (5) Get distances and replace with plugging values as required
-	
-	    local i = 0
-		while `i'<`nvars'  {								// Process each var separately
-		  local i = `i' + 1
-		  local var = word("`varlist'",`i')
-		  if skip`i'  {										// scalar skip`i' was set in previous codeblock
-		    qui gen p_`var' = .								// Put relevant mean into p_`var' for all obs on each var
-			qui gen d_`var' = .
-		  	continue										// If var was skipped above, skip it here as well
-		  }													// (continue with next var)
-
-		  if "`plugall'"!="" qui gen d_`var' =abs(`selfplace'-p_`var') // Subtract same mean value for all obs if plugall
-		
-		  else  {											// Else plug only missing values (more if mis=="dif" optned)
-		
-		     qui gen d_`var' = abs(`selfplace' - `var')		// Default distance, missng when either component is missng
-															// These vars will be renamed before merging in case already
-															//  exist, in which case gendist caller will adjudicate
-			 if "`missing'"=="all"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="sam"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif2" qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var' | `selfplace'==`var'
-															// dif2 treats `selfplace'==`var' as equivalent to missing
-		  } //endelse										// (requires `plugall'!="" 'cos otherwise variance is truncated)
-		
-	    } //next var
-
-
-/*	    if `limitdiag'>=`c' /*"`smstkid'"*/ {				// `c' is updated for each different stack
-	  	  local lbl : label lname `c'
-	  	  noisily display "Vars in context `lbl' have at least `minN' and at most `maxN' valid obs"
-	    }
-*/		 
-				 
-				 
-				 
-	  } //end quietly
 	
 
-	
+																
+	if "`skipvars'" != "" {
+	   if `limitdiag'!=0  {									 // skipvars was cumulated across all varlists
+	      noisily display _newline "NOTE: Some vars are all-missing for all contexts and will be dropped: 
+		  noisily display "`skipvars'{txt}"
+ 					              // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	   }
+	   foreach var of local skipvars {
+	      local dskip = "`dskip' d_`var'"
+		  local pskip = "`pskip' p_`var'"
+		  local mskip = "`mskip' m_`var'"
+	   }
+	   capture drop `dskip' `pskip' `mskip'
+	}
 
 
-			
-											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
-											// 	   (or pre-process syntax for next varlist)
-											
-
-	  if "`postpipes'"==""  {
-	  	local nvl = `nvarlst'+1
-*	  	continue, break										// Break out of `nvl' loop if `postpipes' is empty (redndnt?)
-	  }
-	  else {
-	    local anything =strltrim(substr("`postpipes'",3,.)) // Strip leading "||" and any blanks from head of `postpipes'
-															// (`anything' now contains next varlist and any later ones)
-	    local isprfx = ""									// Switch off the prefix flag if it was on
-	  }
-*	  if `nvl'>`nvarlst' continue, break
-				   
-	} //next `nvl' 											// (next varlist having same options)
-	
-	local temp = ""											// Dummy command needed as target for ,break option
-
+	local nvars : list sizeof non2missng					// `non2missing' relates to vars across all varlists
+	local first = word("`non2missng'",1)
+	local last = word("`non2missng'",`nvars')
 	
 	
-	
-end gendistP
+	capture drop SMmisCount
+	quietly egen SMmisCount = rowmiss(`non2missng')			// Count of vars not all-missing for any varlist
 
-*************************************************** END gendistP ***********************************************************
-
-
-
-
-
-**************************************************** SUBROUTINES **********************************************************
-
-
-capture program drop createactiveCopy						// APPARENTLY NO LONGER CALLED IN VERSION 2
-
-program define createactiveCopy
-	version 9.0
-	syntax varlist, type(string) plugPrefx(name)
-	capture drop `plugPrefx'`varlist'				       // Presumably `varlist' is actually `varname'
-	quietly clonevar `plugPrefx'`varlist' = `varlist' 	   // Plugged copy initially includes valid + missing data
-	local varlab : variable label `varlist'	
-	local newlab = "`type'-MEAN-PLUGD " + "`varlab'" 	   // `type' is type of missing treatment
-	quietly label variable `plugPrefx'`varlist' "`newlab'" // In practice, syntax changes `plugPrefx' to `plugPrefx'
-
-end //createActive copy
-
-
-
-
-
-
-capture program drop isnewvar								// APPARENTLY NO LONGER CALLED IN VERSION 2
-
-program isnewvar
-	version 9.0
-	syntax varlist, prefix(name)
-	
-	capture confirm variable `prefix'`varlist' 
-	if _rc==0  {
-		display as error _newline "`prefix'-prefixd vars already exist; replace?{txt}"
-		capture window stopbox rusure "`prefix'-prefixed variables already exist; replace?"
-		global 
-		if _rc != 0  {
-			global exit = 1
-			exit 1
-		}
+	if "`first'"=="`last'" capture label var SMmisCount "N of missing values for original var (`first')"
+	else {
+		capture label var SMmisCount "N of missing values for original vars (`first'...`last')"
 	}
 	
-end //isnewvar
+	local newlist = ""
+	
+	foreach var of local non2missng  {	
+		local newlist = "`newlist' d_`var' "				// List of non-missing d_ vars used below
+	} //next var
+
+	
+	capture drop SMplugMisCount
+	quietly egen SMplugMisCount = rowmiss(`newlist') 		// Count is for same vars as SMmisCount
+	
+	if "`first'"=="`last'" capture label var SMplugMisCount "N of missing values for original var (d_`first')"
+	else  {
+		capture label var SMplugMisCount "N of missing values in `nvars' mean-plugged vars (d_`first'...d_`last'"
+	}
+	
+
+	if "`aprefix'"!="" {
+	   if `limitdiag'  noisily display "Altering variable prefix strings as optioned"
+	}														// Other prefix options will have flagged error in wrapper
+ 
+	
+	if "`mprefix'"!="" & substr("`mprefix'",-1,1)!="_" local mprefix = "`mprefix'_"
+	if "`pprefix'"!="" & substr("`pprefix'",-1,1)!="_" local pprefix = "`pprefix'_"
+	if "`dprefix'"!="" & substr("`dprefix'",-1,1)!="_" local dprefix = "`dprefix'_"
+
+	if "`missing'"=="dif" local missing = "diff"			// Lengthen `missing'=="dif" for display purposes
+	if "`missing'"=="sam" local missing = "same"			// Ditto for "sam"	
+  
+
+	foreach var of local non2missng  {						//`non2missing' relates to vars across all varlists
+
+	   local miss = "`missing'-assessed"					// Text string to insert into distance measure's (variable) label
+ 	   capture local lbl : variable label `var'				// Get existing var label, if any
+	   if "`lbl'"!=""  local lbl = ": `lbl'"
+	   local lbl = "Distance from `selfplace' to `miss'-assessed `var'`lbl'"
+	   if strlen("`lbl'")>78  {
+	   	  local lbl = substr("`lbl'",1,78) + ".."
+	   }
+	   
+	   label var m_`var' "Whether variable `var' was originally missing" // Label default-prefixed versions
+	   label var p_`var' "`miss' plugging values to replace missing values for variable `var'"
+	   label var d_`var' "`lbl'"
+ 					   // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+					   // Distance from RLRSP to all-judged RLRPP1: Respondent-assessed position of party 1
+	   if "`replace'"==""  {								// Only need to rename vars not being replaced
+		  if "`aprefix'"!=""  {								// (applies to p_ vars and m_vars)
+		  	 rename p_`var' p`aprefix'`var'
+			 rename m_`var' m`aprefix'`var'
+		  }
+		  else {											// Else no aprefix so look for p-prefix & m-prefix if any
+			 if "`pprefix'"!=""  ren p_`var' `pprefix'`var' // Rename according to p-prefix, if optioned
+			 if "`mprefix'"!=""  ren m_`var' `mprefix'`var' // Rename according to m-prefix, if optioned
+		  }
+	   } //endif 'replace'==""
+	   
+	   if "`aprefix'"!=""  {								// Applies to d_ vars whether or not replacing originals
+		  rename d_`var' d`aprefix'`var'
+	   } 
+	   else {												// Else no aprefix so label default-prefixed version
+		  if "`dprefix'"!="" rename d_`var' d`dprefix'`var' // (and rename according to d-prefix, if optioned)
+	   } //endelse
+	   
+	   if "`replace'"!=""  {								// If optioned, drop original versions of vars to be dropped
+	   	  drop m_`var'										// These prefixed vars were not renamed 
+		  drop p_`var'										// ('cos we knew they would be dropped)
+	      drop `var'
+	   }
+  
+	} //next var
+	
+
+							
+															// Delete original, missing and plugging vars if 'replace'
+	if ("`replace'" != "") {								//  was optioned
+	
+	    capture drop `varlist'								// These are just the newly created prefix-vars
+		capture drop m_*
+		capture drop p_*
+
+		capture rename (M_* P_*) (m_* p_*)					// Maybe rename before merging with origdta in stackmeWrapper? 			***
+
+	}
+	
+	
+	
+    
+	if `limitdiag'!=0  noisily display _newline "done." _newline
+	
+	
+
+	
+end gendist
 
 
 
 
 
-************************************************** END SUBROUTINES **********************************************************
+**************************************************** SUBROUTINE gendi **********************************************************
+
+
+
+capture program drop gendi
+
+program define gendi
+
+gendist `0'
+
+end gendist
+
+
+
+**************************************************** END SUBROUTINES **********************************************************
+
+
 
