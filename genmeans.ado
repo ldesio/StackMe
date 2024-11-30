@@ -39,7 +39,15 @@ program define genmeans
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
 	
-	local 0 = "`save0'"									// Retrieve what user typed after return from wrapper
+	
+	
+								// On return from wrapper ...
+								
+	if $exit  exit 1									// No post-processing if return from wrapper was an error return
+	
+								
+	local 0 = "`save0'"									// Restore what the user typed
+	
 	
 	syntax anything, [ LIMitdiag(integer -1) NODiag *  ]
 	
@@ -57,7 +65,7 @@ end //genmeans
 
 
 
-************************************************** END PROGRAM genme ****************************************************************
+*************************************************** PROGRAM genme ***************************************************************
 
 
 capture program drop genme
@@ -70,6 +78,6 @@ genmeans `0'
 end genme
 
 
-**************************************************** END genme ****************************************************************
+****************************************************** END genme ****************************************************************
 
 
