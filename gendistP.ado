@@ -22,7 +22,7 @@ program define gendistP
     syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) ] 			 ///
 		[ PPRefix(string) MPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) ] 			 ///
 		[ MCOuntname(name) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace ]		 ///
-		[ NOCONtexts nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] 	
+		[ NOCONtexts /*PROximities*/nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) * ] 	
 															// now using label lname in lieu of ctxvar
 															// `filist' is disguised `iflist'
 						
@@ -49,11 +49,8 @@ program define gendistP
 
 	
 	
-
 	
-	
-	
-											// (2) HERE STARTS PROCESSING OF CURRENT CONTEXT . . .
+											// (2) HERE STARTS PROCESSING OF CURRENT CONTEXT (BUT HAVE `c'==1 BELOW)		***
 											
 	local minN = .											// Make initial minN really big
 	local maxN = 0											// Make initial maxN really small
@@ -89,7 +86,7 @@ program define gendistP
 	  
 
 	  
-											// (3) Diagnostics are displayed only for first context 
+											// (3) Diagnostics are displayed only for first context SHOULD BE 'gendistO'	***
 	  
 	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
  	
@@ -119,19 +116,18 @@ program define gendistP
 		
 		
 	  } //endif`c'==1
+
 	  
-	  if `limitdiag'<`c' noisily display "." _continue
+	  
+	  if `limitdiag'>`c' noisily display "." _continue
 	  
 	 
 	  quietly {
-
-	 
-	 
 	 
 	 
 											// (4) Get plugging values separately for different 'missing' options
 		
-	 	local i = 0
+	 	local i = 0											// THIS CODEBLK SHOULD BE CONDUCTED ON WHOLE DATASET
 		while `i'<`nvars'  {
 		   local i = `i' + 1
 		   local var = word("`varlist'",`i')
@@ -166,7 +162,7 @@ program define gendistP
 error `re'
 		     }
 			 
-			 global exit = 1								// Amnd tell wrapper to exit after restoring origdata
+			 global exit = 1								// And tell wrapper to exit after restoring origdata
 		     exit 1											// Return to calling program
 			 
 		   }
@@ -175,7 +171,8 @@ error `re'
 		   scalar mean`i' = b[1,1]
 		   gen p_`var' = mean`i'							// Store that mean as plugging value to replace miss val
 
-		} //next var	
+		} //next var
+		
 		 
 
 
@@ -300,6 +297,10 @@ end //isnewvar
 
 
 
+
+
 ************************************************** END SUBROUTINES **********************************************************
+
+
 
 
