@@ -11,9 +11,9 @@ program define gendummies
 										// that end with "**" need to be tailored to specific stackMe commands
 										
 														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		
-	local optMask = "STUbprefix(name) CONtextvars(varlist) LIMitdiag(integer -1) INCludemissing NOSTUbprefix"					    	 //	**
+	local optMask = "STUbname(name) /*DUPrefix(string) */LIMitdiag(integer -1) INCludemissing REPlace /*NODUPrefix */NOSTUbname"					    	 //	**
 
-														// Ensure stubprefix for this stackMe command is placed first and its 
+														// Ensure stubname for this stackMe command is placed first and its 
 														// negative is placed last; ensure options with arguments preceed toggle 														// (aka flag) options; limitdiag should folloow last argument, followed
 														// (aka flag) options for this command. Options (apart from limitdiag) 
 														// common to all stackMe `cmd's will be added in stackmeWrapper.
@@ -37,34 +37,38 @@ program define gendummies
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
 
-	if $exit  exit 1									// Don't post-process if error was flagged in wrapper or 'cmd'P
-
 														
-										// On return from stackmeWrapper 
-										
-	local temp = "`0'"									// Create tempvar to hold just first varlist in `anything'
+														
+														
 	
-	
-	local istpipes = strpos("`temp'","||")  			// Find location of first "||", if any, and remove them
-	if `istpipes'>0 local temp = substr("`temp'",1,`istpipes'-1) // (syntax command does not like to see them)
-	local 0 = "`temp', `opts'"							// Look for 'ifinw' exprssns in 'anything', filled in codeblk 0.2 line 70 
+											// On return from stackmeWrapper
 
-	
-	******
-	syntax anything [if] [in] [aw fw iw pw/], [ STUbprefix LIMitdiag(integer -1) NODiag *  ]
-	******
+	if $exit  exit 1									// Exit may have been occasioned by wrapper or by 'cmd'P
+
+
+	local 0 = "`save0'"									// On return from stackmeWrapper estore what user typed
+
+*	***************	
+	syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) NODiag *  ]
+*	***************
 	
 		
 	if "`nodiag'"!=""  local limitdiag = 0
 	
-*	if "`stubprefix'"!="" 								// Done in gendummiesP
+*	if "`stubprefix'"!="" 								// SEEMINGLY NO POST-PROCESSING FOR THIS 'cmd'							***
+
+	local vars = stritrim(subinstr("$multivarlst","||"," ",.)) // Replace any "||" with blanks then trim any multi-blanks
+														// $multivarlst was stored i wrapper codeblk (6)
+														// (gendummies handles multi-varlists in this summary fashion!)
 	
+
 	if `limitdiag'!=0  noisily display _newline "done." _newline
-
-
+	
 	
 	
 end gendummies			
+
+
 
 
 *  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
@@ -77,7 +81,7 @@ end gendummies
 
 capture program drop gendu
 
-program define gendU
+program define gendu
 
 gendist `0'
 
