@@ -402,44 +402,6 @@ Initially we are distributing a beta version of {cmd:StackMe} 2.0, which may sti
 Any comments and/or suggestions for improvements should be emailed to mark.franklin@trincoll.edu (if no response 
 within a week, email the first author named below).{break}
 
-{marker Hiddengems}
-{title:Hidden gems: StackMe data manipulation through the backdoor}
-
-{pstd}
-Two quasi-options, not documented elsewhere in the {cmd:StackMe} help texts, serve in fact as directives for the 
-{cmd:stackMe} command-processor not to flag an error when an additional "{cmd:[if][in][weight], options}" string 
-is used with any StackMe command that allows multiple {bf:{varlist}}s. The  directive {opt new} can signal the 
-presence of expression(s) and/or option(s) that cancel and replace whatever expressions/options were previously in 
-effect for the current command; alternatively, directive {opt mod} can signal the presence of option(s) that add to 
-those in effect for the current command and/or modify whatever options were previously in effect for the current 
-command. The {opt mod} directive is the default assumed if a second or subsequent options-list is encountered and 
-{opt mod} (whether implicit or explicitely invoked) applies ONLY to options lists. To avoid possibile ambiguities, 
-{cmd:[if][in]weight} expression(s) can only be changed if replaced in their entirety by new expression(s) that are 
-followed by the {opt , new} directive. To be absolutely clear, replacing expressions and options requires BOTH the 
-presence of the {opt , new} directive AND the presence of the new expression(s) and/or option(s) that are to be 
-the replacement(s). It is thus possible for previously active expressions or options to remain en effect even in 
-the presence of a {opt , new} directive if either a replacement expression or a replacement option are 
-absent. {p_end}{pstd}{space 3}We should stress that these unusual directives must be  
-placed at the start of any list of options – a list that may be otherwise empty if only an expression (e.g. the 
-{cmd:weight} expression) is being replaced.{p_end}{pstd}{space 3}These backdoor {cmd:stackMe} conventions are not 
-otherwise documented because they fly in the face of a fundamental feature of the Stata command language: that 
-only a single (set of) "{cmd:[if][in][weight]}" expression(s) can be associated with a Stata command. The idea of 
-modified or replaced options/expressions could be very confusing to Stata users and likely constitute a poor 
-precedent. So the availability of this facility is mentioned only for the benefit of users who are already 
-well-acquainted with the Stata command language and without any specific guidance as to suggested usage.{p_end}
-{pstd}{space 3} We believe that experienced Stata users with large numbers of variable batteries to pre-process 
-will seize on the opportunities offered by these otherwise undocumented directives for simplifying the required 
-commands, thus improving the documentation offered by Stata's {bf:History} file, without any need for specific 
-guidance from us. (StackMe already introduces what might be considered the heretical innovation of commands 
-that seemingly process the data multiple times using different variable lists, even though the true purpose 
-of {cmd:StackMe}'s multiple {varlist}s is to perform multiple analyses on a single pass through the data).{p_end}
-{pstd}{space 3}{bf:Note} that employing the directives {opt new} and/or {opt mod} negates that purpose. The 
-appearance of an "{cmd:[if][in][weight], options}" string beyond the first does somewhat slow execution of 
-the {cmd:stackMe} command to which the additional expressions/options are added. But this slow-down could be 
-barely perceptible with the sort of dataset (deriving from a newly-fielded survey, for example) where these 
-backdoor procedures might prove most useful.{p_end}
-
-
 {marker stackmespecialnames}
 {title:stackMe special names}
 
