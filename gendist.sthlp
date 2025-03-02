@@ -59,26 +59,28 @@ by command {cmdab:SMcon:textvars}, is to be overriden){p_end}
 specified) separately.{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context (has 
 no effect if data are not stacked).{p_end}
-{synopt :{opt mis:sing(all|diff|dif2|dif3))}}basis for plugging missing values on battery placements (see 
+{synopt :{opt mis:sing(all|diff|dif2}}basis for plugging missing values on battery placements (see 
 {help gendist##missing:missing} for details).{p_end}
 {synopt :{opt plugall}}replace all values of each reference variable with plugging values calculated according to option 
 {opt mis:sing}, thus yielding values that are constant across respondents. See the SPECIAL NOTE ON 
 {help gendist##referencevalues:REFERENCE VALUES}.{p_end}
 {synopt :{opt pro:ximities}}generate proximity measures instead of distances (includes a check on missing data handling).{p_end}
-{synopt :{opt rou:nd}}rounds calculated distances to the nearest integer (to nearest 0.1 if data are proportions).{p_end}
-{synopt :{opt mpr:efix(name)}}prefix for generated variables indicating original missing status of 
-an item placement measure (default is "dm_").{p_end}
-{synopt :{opt ppr:efix(name)}}prefix for generated (optionally mean-plugged) placement variables (default is "dp_").{p_end}
-{synopt :{opt dpr:efix(name)}}prefix for generated distance measures (default is "dd_").{p_end}
-{synopt :{opt xpr:efix(name)}}prefix for generated proximity measures (default is "dx_").{p_end}
+{synopt :{opt rou:nd}}rounds calculated distances/proximities to the nearest integer (to nearest 0.1 if data are proportions).{p_end}
+{synopt :{opt mpr:efix(name)}}replacement for 2nd char of prefix identifying generated variables indicating original missing 
+status of an item placement measure (default is "dm_").{p_end}
+{synopt :{opt ppr:efix(name)}}replacement for 2nd char of prefix identifying generated (optionally mean-plugged) placement variables 
+(default is "dp_").{p_end}
+{synopt :{opt dpr:efix(name)}}replacement for 2nd char of prefix identifying generated distance measures (default is "dd_").{p_end}
+{synopt :{opt xpr:efix(name)}}replacement for 2nd char or prefix identifying generated proximity measures (default is "dx_").{p_end}
 {synopt :{opt apr:efix(name)}}one or more text characters to replace the "_" character following the (dm, dp, dd or dx) 
-initial characters in ALL of the default prefixes mentioned above (may include or end with a "_" character).{p_end}
+initial characters in ALL of the default prefixes mentioned above (should end with a "_" character).{p_end}
 {synopt :{opt mcountname(name)}}if specified, name for a generated variable reporting original number of missing 
-items (default is to generate a variable named SMmisCount).{p_end}
+items (default is to generate a variable named SMdmisCount).{p_end}
 {synopt :{opt mpluggedcountname(name)}}if specified, name for a generated variable reportingg the number of missing 
-items after mean-plugging.{p_end}
-{synopt :{opt rep:lace}}drops original party location variables, missing indicators and party placements 
-after the generation of distances.{p_end}
+items after mean-plugging (default is to generate a variable named SMdmplugcound.{p_end}
+{synopt :{opt kee:pmissing}}keep missing indicators even if {opt rep:lace} is optioned (see below).{p_end}
+{synopt :{opt rep:lace}}drop original party location variables, party placements and missing indicators (unless {opt keep:missing} 
+– see above – was also optioned).{p_end}
 {synopt :{opt lim:itdiag(#)}}limit progress reports to first # contexts for which distances are being calculated.{p_end}
 {synopt :{opt nod:iag}}suppress progress reports; equivalent to 'limitdiag(0)'.{p_end}
 
@@ -179,7 +181,7 @@ specified) separately.
 no effect if data are not stacked).
 
 {phang}
-{opth mis:sing(all|diff|dif2|dif3)} if present, determines treatment of missing values for object placement variables
+{opth mis:sing(all|diff|dif2} if present, determines treatment of missing values for object placement variables
 (by default they remain missing).{break}
   {space 3}If {bf:all} is specified, missing values are replaced by the overall mean placement of each object,
 each of them calculated over the whole set of observations for each context and/or stack.{break}
@@ -188,12 +190,9 @@ over just those respondents who placed themselves at a different position than t
 discussion under {bf:Description}, above, regarding this choice).{break}
   {space 3}If {bf:dif2} is specified, then not only missing values are plugged but also the positions of respondents 
 ignored in the calculation of any specific plugging value – those respondents who placed themselves where they 
-placed the object concerned. But this option should be used with care because it truncates the variance in 
-respondent positions for those respondents treated as though actual responses were missing.{break}
-  {space 3}If {bf:dif3} is specified, it addresses the truncate variance, mentioned just above, for those respondents 
-with non-missing responses who would be treated as though responses were missing. It randomly inflates the variance 
-of plugged values of the additional respondents treated as per option {opt dif3}. see {help gendist##missing:Missing} 
-for details.{break}
+placed the object concerned. But this option requires option {opt plu:gall} (below) because it truncates the variance in 
+respondent positions for those respondents treated as though actual responses were missing and so only makes sense when 
+generating a mean that is constant across respondents.{break}
    {bf:NOTE} that these missing treatments only makes sense where placements are obtained from the same respondents 
 whose self-placements are used in the calculation of distances. See also the SPECIAL NOTE ON 
 {help gendist##referencevalues:REFERENCE VALUES} under {bf:Description}, above).
@@ -208,43 +207,53 @@ respondents. See the SPECIAL NOTE ON REFERENCE VALUES under {bf:Description}, ab
 but essential diagnostic check for correct missing data handling).{p_end}
 
 {phang}
-{opt rou:nd} if present, causes rounding of all calculated distances to the closest integer (nearest single-digit 
-decimal if maximum value of item position is no greater than 1).
+{opt rou:nd} if present, produces rounding of all calculated distances to the closest integer (nearest single-digit 
+decimal if the maximum value of the item position is no greater than 1).{p_end}
 
 {phang}
-{opth mpr:efix(name)} if present, provides a prefix for generated variables indicating for each 
-observation whether, before mean-plugging of an item in the battery, the item placement was missing 
-for that observation (default is "dm_").
+{opth mpr:efix(name)} if present, provides one or more text characters that replace(s) the second (and any subsequent) 
+character(s) preceeding the end-of-prefix symbol ("_") of a prefix identifying a generated missing value indicator 
+variable (default is "dm_").{p_end}
 
 {phang}
-{opth ppr:efix(name)} if present, provides a prefix for generated mean-plugged placements (default is "dp_").
+{opth ppr:efix(name)} if present, provides one or more text characters that replace(s) the second (and any subsequent) 
+character(s) preceeding the end-of-prefix symbol ("_") of a prefix identifying a generated variable that holds plugging 
+values to replace missing values of an item placement (default is "dp_").{p_end}
 
 {phang}
-{opth dpr:efix(name)} if present, provides a prefix for generated distance variables (default is "dd_").
+{opth dpr:efix(name)} if present, provides one or more text characters that replace(s) the second (and any subsequent) 
+character(s) preceeding the end-of-prefix symbol ("_") of a prefix identifying a generated distance measure (default is 
+"dd_").{p_end}
 
 {phang}
-{opth xpr:efix(name)} if present, provides a prefix for generated distance variables (default is "dx_").
+{opth xpr:efix(name)} if present, provides one or more text characters that replace(s) the second character (and any 
+subsequent) character(s) preceeding the end-of-prefix symbol ("_") of a prefix identifying a generated proximity measure 
+(default is "dx_").{p_end}
 
 {phang}
-{opth apr:efix(text)} if present, one or more text characters to replace the "_" character following the 
-(dm, dp, dd or dx) initial characters in ALL of the default prefixes mentioned above (may include or end with a 
-"_" character). Provides a simple means of ALTERING these prefixes in an identical fashion across ALL (hence 
-the choice of prefix initial) three prefixes, perhaps to distinguish different treatments in terms of 
-mean-plugging, weighting, subsetting, or the like.
+{opth apr:efix(text)} if present, provides one or more text characters that replace(s) the end-of-prefix symbol ("_") 
+following the (dm, dp, dd or dx) initial characters (or their replacements) in ALL of the default prefixes mentioned 
+above (should end with a "_" character). Provides a simple means of ALTERING these prefixes in an identical fashion 
+across ALL (hence the choice of prefix initial) four prefixes mentioned above, perhaps to distinguish different 
+treatments in terms of mean-plugging, weighting, subsetting, or the like.{p_end}
 
 {phang}
-{opth mco:untname(name)} if specified, name for a generated variable reporting original number of
-missing items (default is to generate a variable named SMmisCount).{p_end}
+{opth mco:untname(name)} if specified, name for a generated variable reporting original number of missing items (default 
+is to generate a variable named SMdmisCount).{p_end}
 
 {phang}
-{opth mpl:uggedcountname(name)} if specified, name for a generated variable reporting the number of
-missing items after mean-plugging, which could still be non-zero (even after all missing values 
-on item positions have been plugged) if, as is usual, there are respondents whose own self-placement 
-is missing (default is to generate a variable named SMplugMisCount).{p_end}
+{opth mpl:uggedcountname(name)} if specified, name for a generated variable reporting the number of missing items after 
+mean-plugging, which could still be non-zero (even after all possible missing values on item positions have been plugged) 
+if, as is common, there are respondents whose own self-placement is missing (default is to generate a variable named 
+SMdplugMisCount). NOTE that missing respondent self-placements can by plugged by using {cmd:stackMe}'s {help {ul:genii}mpute} 
+command.{p_end}
 
 {phang}
-{opt rep:lace} if specified, drops original party placement variables after the generation of distance 
-measures. Also all missing indicators and mean-plugged placement variables.{p_end}
+{opt kee:pmissing} if specified, keeps mean-plugged placement variables even if {opt rep:lace} (see below) is optioned.{p_end}
+
+{phang}
+{opt rep:lace} if specified, drops original party placement variables after the generation of distance measures. Also drops 
+mean-plugged placement variables and missing indicators (unless {opt kee:pmissing} – see above – is also optioned).{p_end}
 
 {phang}
 {opt lim:itdiag(#)} limit progress reports to first # contexts for which distances are being calculated 
@@ -299,15 +308,17 @@ a set of proximities between an optioned self-placement variable and each (mean-
 placement variable. The new proximity measures are named dx_var1, dx_var2, etc., where the names var1, var2, 
 etc. match the original variable names of battery placement items. Those measures are left unchanged unless 
 'replace' is optioned.{p_end}
-{synopt:SMmisCount} a variable showing the original count of missing items for each observation.{p_end}
-{synopt:SMplugMisCount} a variable showing the count of remaining missing items for each observation after 
+{synopt:SMdmisCount} a variable showing the original count of missing items for each observation.{p_end}
+{synopt:SMdplugMisCount} a variable showing the count of remaining missing items for each observation after 
 mean-plugging.{p_end}
 
 {phang}
 The final two groups of prefixed variables (dd_ and dx_ in the example) are alternative outcome variables. 
 Which group is generated in practice depends on whether option {opt pro:ximities} is specified. The first  
 two groups of prefixed variables (dp_ and dm_ in the example) are dropped along with the original variables 
-if {it:replace} is optioned.
+if {it:replace} is optioned (unless {opt kee:pmissing} is also optioned, overriding the {opt rep:lace} 
+option for "dm_"-prefixed variables).{p_end} 
+.
 
 {phang}
 A subsequent invocation of {cmd:gendist} will replace {it:SMmisCount} and {it:SMplugMisCount} with 
