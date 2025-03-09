@@ -1,0 +1,198 @@
+
+capture program drop geniimputeO
+
+*! this ado file contains programs geniimputeP and geniimputeP_body
+
+program define geniimputeO
+
+*! geniimputeO (was geniimpute) version 2 is called by stackmeWrapper version 2 to run under Stata versions 9/16, updated Feb,Apr'23 by MNF
+*! Minor tweaks in Nov 2024; major reorganization March 2025 where this program becomes geniimputeO, accessing entire working data prior
+*! to call on geniimputeP (was geniiP) so that preparatory steps can be taken using all contexts.
+
+	//    Lines terminating in "**" should be inspected if this code is adapted for use in a different `cmd'							**
+	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								**
+	 
+
+
+
+	version 11													// iimputeO version 2.0
+
+	
+	syntax anything  ,   ///		
+		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) IPRefix(name) MPRefix(name) ROUndedvalues BOUndedvalues SELected ] ///	**
+		[ LIMitdiag(integer -1) NODIAg EXTradiag KEEpmissing REPlace NOInflate FASt MINofrange(integer 0) MAXofrange(integer 0) ]	///	**
+		[ RANgeofvalues NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) ] *		//	**
+		
+		// contextvars, nocontexts, stackid, nostacks handled in wrapper; rounded, bounded, range, keep & replace in caller; 
+		// addvars, selected, noinflate, fast, nvarlst, ctxvar nc, c, & wtexplst are only optiones handled here
+		
+																// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
+	local cmd = "geniimpute" 
+
+	
+	mata: st_numscalar("VERSION", statasetversion())			// Get stata verion # (*100) from Mata (PUT SCALAR IN ALL CAPS)
+
+
+	
+	
+												// Convert original default options (or revised defaults) for piped syntax)
+
+	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
+	local missingflagprefix = "m_"	
+	
+	capture confirm variable SMimisCount						// See if SMmiscnt still has values from previous calL
+	
+	if _rc==0  {												// If the variable exists
+		quietly count SMimisCount
+		if r(N)>0  {											// And has any non-missing observations
+			display as error "Variable SMimisCount has values from previous call on geniimpute. Replace them?{txt}"
+*                		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			capture window stopbox rusure "Variable SMimisCount has values from previous call on geniimpute. Replace them?"
+			if _rc {
+				global exit = 1
+				exit 1
+			}
+		}
+		drop SMimisCount										// Default values will be provided by egen, below
+		noisily display _newline "Execution continues..." _newline
+		
+	} //endif _rc==0											// Next command involving this var generates it
+
+	
+	capture confirm variable SMimisImpCount
+	
+	if _rc==0  {
+		quietly count SMimisImpCount
+		if r(N)>0  {
+			display as error "Variable SMimisImpCount has values from previous call on geniimpute. Replace them?{txt}"
+			capture window stopbox rusure ///
+							 "Variable SMimisImpCount has values from previous call on geniimpute. Replace them?"
+			if _rc  {
+				global exit = 1									// Restore origdta and exit if not
+				exit 1
+			}
+		}
+		noisily display _newline "Execution continues..." _newline
+		drop SMimisImpCount
+	
+	} //endif _rc==0
+
+	quietly generate SMimisImpCount = .							// Next reference to this var replaces it
+
+			
+
+
+	local missingCntName = "SMmisCount"							// Legacy code references this variables
+	local missingImpCntName = "SMmisImpCount"					// Ditto
+
+	
+	
+	
+	set more off	
+	
+												// Variable processing moved here from geniimpute_body, below
+												// Pre-process multi-varlist, variables saved by iimpute, and contextvars
+
+	local postpipes = "`anything'"							// Pretend `anything' started with (already removed) pipes ("||")
+/*	local allPTVs = ""										// Will hold list of vars from which to generate imputd versns
+	√local imputedvars = ""									// Will hold list of variables to impute (in all multi-varlsts)
+	√local missingvars = ""									// Ditto list of vars  with cases where unimputd var was missng
+*/	
+	local allPTVs = ""
+	local totPTVs = 0										// Initialize count of max # of vars to be imputed
+	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
+	local totaddv = 0										// Will hold count of max # of additional vars
+	local nonmisPTVs = ""									// Will hold list of non-missing PTVs
+	
+
+	
+	
+												// HERE STARTS PRE-PROCESSING OF CURRENT CONTEXT (for current context) ...			***
+																// (preparatory to using results for actual processing)
+	forvalues nvl = 1/`nvarlst'  {						
+
+		gettoken prepipes anything : anything, parse("||") 		//`anything' then starts with "||" or is empty at end of cmd
+																 	
+		gettoken precolon postcolon : prepipes, parse(":") 		// See if varlist starts with prefixing indicator 
+																//`precolon' gets all of varlist up to ":" or to end of string		
+		if "`postcolon'"!=""  {							 		// If not empty we should have a prefix varlist before colon
+		    local prfxvars = "`precolon'"						// Local holding prefixvars
+		    local anything = strtrim(substr("`postcolon'",2,.))	// strip off the leading ":" along with any following blanks
+		} //endif `anything'									// If there was no colon then varlist was in `anything'
+		
+		unab thePTVs : `anything'								// Legacy name for vars for which missing data wil be imputed
+		local allPTVs = "`allPTVs' `thePTVs'"					// Add to list of all PTVs from all varlists
+		if "`prfxvars'"!=""  {
+			unab addvars : `prfxvars'							
+			local alladdv = "`alladdv' `addvars'"
+		}
+														
+		local nvars : list sizeof thePTVs						// # of vars in this (sub-)varlist
+		local totPTVs = `totPTVs' + `nvars'
+		local nvars : list sizeof addvars
+		local totaddv = `totaddv' + `nvars'
+		
+		tokenize `anything'
+		if `nvl'==1  local first `1'
+		if `nvl'==`nvarlst'  local last ``nvars''		
+		
+		foreach var of local thePTVs  {							// Faster than using (now redundant) varlist
+		
+			quietly clonevar i_`var' = `var' 					// Initialize imputed version of 'var' with original values
+			local imputedvars `imputedvars' i_`var'				// (stata will exit with error if this is not a variable)
+			local varlab : variable label `var'
+			local newlab = "imputd " + "`varlab'"				// (and label it)
+			quietly label variable i_`var' "`newlab'"
+
+			quietly generate m_`var' = missing(`var')
+			capture label var m_`var' "Was `var' originally missing? (1=yes)"
+			local missingvars `missingvars' m_`var'				// NOT SURE WE USE THIS
+			
+			quietly count if missing(`var') 					// THIS CHECK MOVED FROM geniimputeP							***
+			local missing = r(N)								// N of missing cases for this PTV within full dataset
+			if `missing'==0  local nonmisPTVs = "`nonmisPTVs' `var'" 
+																// Accumulate list of non-missing PTVs
+		} //next var 											// (in this varlist)
+		  	
+		local vlnvl = "vl`nvl'"
+		global `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
+		local alnvl = "al`nvl'"
+		global `alnvl' = "`alladdv'"							// Additional varlist for this `nvl' (as above)
+
+		if "`anything'"==""  continue, break					// Break out of multi-varlist loop if no more varlists				**
+		local anything = strtrim(substr("`anything'", 3, .))	// Else strip "||" & put remaining varlist(s) in `anything'			**
+		
+	} //next `nvl' (varlist) 									// (in this multi-varlist)
+	
+	if "`nonmisPTVs'" != ""  {									// Some vars in varlist had no missing values to be imputed
+		
+		display as error _newline ///
+			"Add to prfix list or optn as 'additionl' vars without {help missing:missing values}: {bf:`nonmisPTVs'}{txt}"
+*			 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox note ///									// (help link should suggest need to learn about Stata missng)
+			"Add to prefix list or option as 'additional' any vars that have no Stata missing values (>=.):`nonmisPTVs'"
+		global exit = 1											// $exit==1 means restore original data before exiting
+		exit 1 													// (evaluated by calling program on return to that program)
+	}
+		
+	quietly egen SMmisCount = rowmiss(`allPTVs')				// Var holding N of missing cases for variable to be impoted
+	capture label var SMmisCount "N of missing values in `nvars' variables to impute (`first'...`last')"
+	quietly gen SMmisImpCount = .
+	capture label var SMmisImpCount "N of missing values in `nvars' imputed variables (`first'...`last')"
+
+
+	
+*	local added = "`alladdv'"									// Need a local that can be overwritten, as `addvars' cannot
+
+	local maximpvar = `totPTVs' + `totaddv'
+	if (`maximpvar' > 30) {
+		display as error "Max of 30 vars for varlist + additional – you have specified `maximpvar'{txt}"
+		window stopbox note ("Max of 30 vars for varlist + additional – you have specified `maximpvar'")
+		global exit = 1
+	}
+
+	if $exit  exit 1	
+
+	
+			
+end //geniimputeO
