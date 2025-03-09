@@ -60,7 +60,7 @@ program define gendist
 											
 	syntax anything [if] [in] [aw fw iw pw/], [ CONtextvars MPRefix(string) PPRefix(string) DPRefix(string) APRefix(string) ] 	///
 	                                          [ MISsing(string) LIMitdiag(integer -1) ROUnd REPlace NODiag PROximities     ]	///
-											  [ XPRefix(string) * ]
+											  [ XPRefix(string) KEEpmissing * ]
 											  
 	local contexts = "`_dta[contextvars]'"
 	
@@ -70,7 +70,7 @@ program define gendist
 
 	local multivarlst = "$multivarlst"						// get multivarlst from global saved in block (6) of stackmeWrapper
 
-	if "`mprefix'"==""  local mprefix = "m_"
+	if "`mprefix'"==""  local mprefix = "m_"				// If optioned prefix does not end with "_", insert it
 	if "`pprefix'"==""  local pprefix = "p_"
 	if "`dprefix'"==""  local dprefix = "d_"
 	if "`xprefix'"==""  local xprefix = "x_"
@@ -122,7 +122,10 @@ program define gendist
 		  quietly summarize `var'
 		  local max = r(max)
 		  if `max' > `maxval' & `max'<.  {			
-		     local maxval = `max'							// SHOULD ALSO FIND A WAY TO INCLUDE prefixvar/selfplace	***
+		     local maxval = `max'
+		  }
+		  else  {
+		  	if `max'
 		  }
 	    } //next var
 
@@ -157,12 +160,12 @@ program define gendist
 	local last = word("`non2missng'",`nvars')
 	
 	
-	capture drop SMmisCount
-	quietly egen SMmisCount = rowmiss(`non2missng')			// Count of vars not all-missing for any varlist
+	capture drop SMdmisCount
+	quietly egen SMdmisCount = rowmiss(`non2missng')			// Count of vars not all-missing for any varlist
 
 	if "`first'"=="`last'" capture label var SMmisCount "N of missing values for original var (`first')"
 	else {
-		capture label var SMmisCount "N of missing values for original vars (`first'...`last')"
+		capture label var SMmisCount "N of missing values for original vars (`first'..`last')"
 	}
 	
 	local newlist = ""
@@ -172,12 +175,13 @@ program define gendist
 	} //next var
 
 	
-	capture drop SMplugMisCount
-	quietly egen SMplugMisCount = rowmiss(`newlist') 		// Count is for same vars as SMmisCount
+	capture drop SMdmisPlugCount
+	quietly egen SMdmisPlugCount = rowmiss(`newlist') 		// Count is for same vars as SMmisCount
 	
-	if "`first'"=="`last'" capture label var SMplugMisCount "N of missing values for original var (d_`first')"
+	if "`first'"=="`last'" capture label var SMdmisPlugCount "N of missing values for original var (d_`first')"
 	else  {
-		capture label var SMplugMisCount "N of missing values in `nvars' mean-plugged vars (d_`first'...d_`last')"
+*					 		             12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	  capture label var SMdmisPlugCount "N of missing values in `nvars' mean-plugged vars (d_`first'..d_`last')"
 	}
 	
 
@@ -207,8 +211,9 @@ program define gendist
 	   if "`proximities'"!="" & strlen("`lbl2'")>78  local lbl2 = substr("`lbl2'",1,78) + ".."
 	   
 	   label var m_`var' "Whether variable `var' was originally missing" // Label default-prefixed versions
-	   label var p_`var' "`miss' plugging values to replace missing values for variable `var'"
+	   label var p_`var' "`miss'-plugging values to replace missing values for variable `var'"
 	   label var d_`var' "`lbl1'"	
+	   if "`proximities'"!=""  label var x_`var' "`lbl2'"
 	   
 	   if "`proximities'"!=""  { 							// Here we create the proximities measure (if optioned)
 	   
@@ -226,7 +231,7 @@ program define gendist
 	
 	
 	
-	if ("`round'"!="")  {								// If `round' was optioned ...
+	if ("`round'"!="")  {									// If `round' was optioned ...
 	
 	
 	     if `limitdiag'  noisily display "Rounding outcome variables as optioned"
@@ -260,7 +265,7 @@ program define gendist
 	  if "`replace'"==""  {								 	 // Only need to rename vars not being replaced
 	
 		if "`aprefix'"!=""  {								 
-		  	 rename p_`var' dp`aprefix'`var'
+		  	 rename p_`var' dp`aprefix'`var'				 // Note that 'aprefix' replaces the "_", not the 'd_'
 			 rename m_`var' dm`aprefix'`var'
 		}
 		
@@ -268,41 +273,54 @@ program define gendist
 	  
 			 if "`pprefix'"!=""  ren p_`var' d`pprefix'`var' // Rename according to p-prefix, if optioned
 			 if "`mprefix'"!=""  ren m_`var' d`mprefix'`var' // Rename according to m-prefix, if optioned
+			 else local mprefix = "m_"						 // So 'mprefix' will refer to the same var either way
 		}
 		
-	  } //endif 'replace'==""								 // remaining renaming happens whether replacing or not
+	  } //endif 'replace'==""								 // Remaining renaming happens whether replacing or not
+	  
+	  else  {												 // Else we will not be replacing anything
+	  
+		if "`keepmissing'"!=""  {							 // (except for m_var which is subject to opt 'keepmissing')
+		  if "`aprefix'"!="" rename m_`var' dm`aprefix'`var'
+		  else  {
+		  	if "`mprefix'"!="" ren m_`var' d`mprefix'`var'	// Note that 'aprefix' replaces the "_", not the 'd_'
+			else local mprefix = "m_"						// So 'mprifix' will refer to the same var w either naming
+		  }													// Note that 'aprefix' overrides 'mprefix', if present
+	    }
 	   
 	   
-	  if "`aprefix'"!=""  {									// Applies to d_ & x_ vars whether or not replacing originls
-		rename d_`var' dd`aprefix'`var'
-		if "`proximities'"!=""  rename x_`var' dx`aprefix'`var'
-	  }
+	    if "`aprefix'"!=""  {								// Applies to d_ & x_ vars whether or not replacing originls
 	  
-	  else {												 // Else no aprefix so label default-prefixed version
+		  rename d_`var' dd`aprefix'`var'					// Note that 'aprefix' replaces the "_", not the 'd_'
+		  if "`proximities'"!="" ren x_`var' dx`aprefix'`var'
+	    }
 	  
-		if "`dprefix'"!="" rename d_`var' d`dprefix'`var' 	 // (and rename according to d-prefix, if optioned)
-		if "`proximities'"!=""  {
-		  if "`xprefix'"!="" rename x_`var' d`xprefix'`var'  // Ditto for x-prefix
-		}
+	    else {												// Else no aprefix so look for dprefix and xprefix, if any
+	  
+		  if "`dprefix'"!="" rename d_`var' d`dprefix'`var' // (and rename according to d-prefix, if optioned)
+		  else local dprefix = "d_"
+		  if "`proximities'"!=""  {
+		    if "`xprefix'"!="" rename x_`var' d`xprefix'`var' // Ditto for x-prefix
+		  }
 		
-	  } //endelse
+	    } //endelse
 	  
-	   
-	
-	  if "`replace'"!=""  {									// If optioned, drop original versions of vars to be dropped
 	  
-		 drop m_`var'									    // These prefixed vars were not renamed 
-	  	 drop p_`var'										// ('cos we knew they would be dropped)
+	    if "`replace'"!=""  {								// If optioned, drop droppable vars
+		 if "`keepmissing'"==""  drop d`mprefix'`var'		// Drop whichever version of mprefix`var' unless 'keepmissing'
+	  	 if "`proximities'"!=""  drop d`dprefix'`var'		// Ditto for originally d-prefixed vars if proximities were optd
 	     drop `var'
 		 
-	  } //endif
+	    } //endif
+		
+	  } //endelse
   
 	} //next 'var'
-	
 
-											// HERE RENAME VARS THAT WERE TEMPORARILY RENAMED IN origdata
-	
-	if "$prefixedvars"!=""  {
+											// HERE RENAME VARS THAT WERE TEMPORARILY RENAMED IN origdata, AVOIDING MERGE CONFLCTS
+											// (These could not be renamed until after user-optioned name changes, above)
+
+	if "$prefixedvars"!=""  {								// They were placed in this global in wrapper
 		
 	  foreach var of $prefixedvars  {						// This global was used in wrapper's codeblock (10) 
 															// (to disguise prefixed vars in ordata to avoid conflicted merging)
@@ -315,18 +333,10 @@ program define gendist
 	} //endif "$prefixedvars"		
 	
 	
-															// Delete original, missing and plugging vars if 'replace'
-	if "`replace'"!= ""  {									//  was optioned
-	
-	    capture drop `varlist'								// These match the newly created prefix-vars
-		capture drop m_*									// (any other m-prefixed vars would have double-prefix, e.g.'im_')
-		capture drop p_*									// (ditto for p-prefixed vars)
+	capture drop p_* 										// These will be vars with missing obs for all cases
+	capture drop m_*
+	capture drop d_*
 
-*		capture rename (M_* P_*) (m_* p_*)					// Maybe rename before merging with origdta in stackmeWrapper? 			***
-															// COMMENTED OUT 'COS LOOKS LIKE LEGACY CODE
-	}
-	
-	capture drop p_* m_* d_*								// These will be vars with missing obs for all cases
 	if "`proximities'"!=""  capture drop x_*
 	
     
