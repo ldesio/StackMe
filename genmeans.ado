@@ -1,6 +1,6 @@
-capture program drop genmeans
+capture program drop genmeanstats		// This program's name is 'genmeanstats' but I don't know how to rename the Github adofile
 
-program define genmeans
+program define genmeanstats
 
 
 *!  Stata version 9.0; genstats version 2, updated Aug'23 by Mark from major re-write in June'22; revised Nov'24 to add prog genme
@@ -34,7 +34,7 @@ program define genmeans
 	
 
 *	***********************									   
-	stackmeWrapper genmeans `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
+	stackmeWrapper genmeanstats `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
 *	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
@@ -57,7 +57,7 @@ program define genmeans
 
 
 
-end //genmeans			
+end //genmeanstats			
 
 
 *  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
@@ -65,7 +65,7 @@ end //genmeans
 
 
 
-*************************************************** PROGRAM genme ***************************************************************
+************************************************** PROGRAM genme ****************************************************************
 
 
 capture program drop genme
@@ -73,11 +73,11 @@ capture program drop genme
 
 program define genme
 
-genmeans `0'
+genmeanstats `0'
 
 end genme
 
 
-****************************************************** END genme ****************************************************************
+**************************************************** END genme ****************************************************************
 
 
