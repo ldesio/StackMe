@@ -31,7 +31,7 @@ recorded as a 'data characteristic' by {cmd:stackMe}'s {help stackme##SMcontextv
 is to be overriden){p_end}
 {synopt :{opt nocon:texts}}disregard context distinctions{p_end}
 {synopt :{opt nosta:cks}}disregard distinctions between stacks/battery-items{p_end}
-{synopt :{opt sta:ts(n|mean|sd|min|max|skew|kurtosis|sum|sw)}}(required) statistics to be generated, 
+{synopt :{bf:{opt sta:ts}(n|{opt mea:n}|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)}}(required) statistics to be generated, 
 where {it:{opt sd}} is standard deviation and {it:{opt sw}} is sum of weights. Any or all keywords can be 
 included, separated by spaces. Keywords may be abbreviated to first 3 chars.{p_end}
 {synopt :{opt mnp:refix(name)}}prefix for name(s) of generated mean(s) (defaults to "mn_"){p_end}
@@ -101,7 +101,7 @@ command) – and {cmdab genme:anstats} statistics will be separately generated f
 {opt nosta:cks} if present, disregard distinctions between stacks.
 
 {phang}
-{opt stats(mea:n|n|sd|min|max|ske:w|kur:tosis|sum|sw)} if present, (defaults to 'mean' if not 
+{bf:stats({opt mea:n}|n|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)} if present, (defaults to 'mean' if not 
 specified) statistic(s) to be generated, where {it:sd} is standard deviation and {it:sw} is sum 
 of weights. Any or all keywords can be included, separated by spaces, and may be abbreviated to 
 their first 3 chars. Execution is somewhat slowed if skew, kurtosis, median and/or mode are 
@@ -170,4 +170,3 @@ minimums, constants within context and/or stack, for each variable in {it:varlis
 
 {pstd}Such other variables as may be created to hold other optioned statistics (see option {opt stats} 
 and associated prefix options).{p_end}
-
