@@ -1,5 +1,4 @@
 
-
 capture program drop stackmeWrapper
 
 *!  This ado file is called from each stackMe command-specific caller program and contains program 'stackmeWrapper' that 'forwards' 
@@ -519,13 +518,36 @@ pause (1.2)
 		   }					
 	    }
 		
-
-
+		
+		
+/*														// COMMENTED OUT 'COS TWO 'IF'S ABOVE NOW COVER genplace AS WELL AS OTHRS				
+		if "`cmd'"=="genplace"  {						// If this is as a 'genplace' command varlst could have 1 of 2 names
+														// `genplace' has an additional option, tricky to identify
+		  if "`opt1'"=="indicator" & "`cweight'"!="" {	// If `cweight' is optioned as well as `indicator'
+		    local temp = "`cweight'"					// put in `temp' the varname/varlist that 'cweight' points to
+			foreach var of local temp  {				// Cycle thru all vars in 'temp'
+		      capture confirm variable `var'			// See if 'opt1' ("indicator") is a valid varname
+		      if _rc local opterr ="`opterr' `cweight'" // (and var named by 'cweight' does not exist, extend 'opterr')
+		      else local optad1 = "`optad1' `cweight'"	// Else extend varlist in 'optad1' to save it in
+		    }
+	 	  } //endif 'opt1'
+		
+		  if "`opt1'"=="cweight" & "`indicator'"!="" {	// If 'indicator' is optioned as well as 'opt1' ("cweight")
+		    local temp = `indicator'
+			foreach var of local temp  {
+		      capture confirm variable `var'			 //  and var named by 'indicator' doesn't exist, 
+		      if _rc local opterr="`opterr' `indicator'" // Extend 'opterr' with additional optioned variable
+		      else local optad2 = "`optad2' `cweight'"	 // Else extend varlist in `optad2' to save it in
+			}
+	      }
+		} //endif  'cmd'=='genplace
+*/	 		
 	      if "`opterr'"!=""  {							 // Here issue generic error msg if codeblk found any naming errors
 		     errexit "Invalid optioned varname(s): `opterr'"
 			 exit 1
 	      }
 		  
+		
 		
 		
 		if "`itemname'"!=""  {							// User has optioned an SMitem-linked variable
@@ -552,7 +574,11 @@ pause (1.2)
 		   }
 		 
 		} //endif 'opt1'
-														  	  // MOVED TO JUST AFTER SYNTAX CMD IN (1)
+/*
+		local lastwrd = word("`opts'", wordcount("`opts'"))	  // Extract lst wrd of `opts', placed there in 0.2 & parsed in 1.0
+		local optionsP = subinword("`opts'","`lastwrd'","",1) // Save 'opts' minus its last word (the added 'prfxtyp' option)
+															  // (put in 'optionsP' to be passed to 'cmd'P in codeblk 7)
+*/														  	  // MOVED TO JUST AFTER SYNTAX CMD IN (1)
 	} //endif 'options'
 
 	
@@ -700,12 +726,11 @@ pause (2)
 
 
 
-
-
-
 global errloc "wrapper(2.1)"
 pause (2.1)
+
 										// (2.1) Here check on validity of vars split into in 'inputs' and 'outcomes'
+
 
 		   
 		   gettoken precolon postcolon : anything, parse(":")		// Parse components of 'anything' based on position of ":", if any
@@ -933,8 +958,8 @@ pause (4)
 
 			
 			
-
-
+			
+			
 global errloc "wrapper(5)"			
 pause (5)
 
@@ -1145,7 +1170,7 @@ pause (5)
 			local ndups = wordcount("`dups'")
 			local msg = "`ndups' duplicate outcome varname(s)"
 			if "`stubname'"!="" & `nvarlst'>1 {				// If 'stubname' was optioned and there are >1 varlists
-				local msg = "msg' (N.B. option stubname governs all varlists)" // ('stubname' can only be optioned in gendummies)
+				local msg = "`msg' (N.B. option stubname governs all varlists)" // ('stubname' can only be optioned in gendummies)
 			}
 			if `xtra' & `ndups'>1  {						// Detailed namelist only provided if 'xtra'diag & >1 name
 				if substr("`msg'",-1,1)==")"  display as error "`msg'" // (version with parenthasized addition)
@@ -1293,16 +1318,14 @@ error `l'
 *	} //endif !$exit												  // IF-ENDIF BRACES NOW REDUNDANT 'COS WILL HAVE EXITED AFTER ERROR
 		   
 		   
-/*																	  // COMMENTED OUT 'COS PREVIOUS ERRORS NOW ALL HANDLED BY 'errexit'		   
-	if $exit  {											 	  		  // Any previous $exit==1 means restoring origdta then exit
-*		***************
-		capture restore										 		  // Not sure what can go wrong but evidently something did
-		quietly use `origdta', clear
-		exit 1
-*		***************
 
-*	} //endif !$exit
-*/
+		   
+		   
+		   
+		   
+		   
+		   
+		   
 	
 					
 global errloc "wrapper(6)"													
@@ -1380,42 +1403,42 @@ pause (6)
 					
 
 
-					
+	
+	
+	
+	
+	
+	
 					
 global errloc "wrapper(6.1)"				
 pause (6.1)	
-										// (6.1) Cycle thru each context in turn 'keep'ing, first, the variables discovered above to be
-										//	   needed in the working dataset and, later, the observations, selected by any 'if' or `in'
-										//	   expressions, before checking for context-specific errors. These checks include, for 
-										//	   'genplace', a call on 'genplaceO' (for 'genplaceOpen') that will contain code that, for 
-										//	   other commands, is included in 'cmd'P. In the next re-write other commands may be added 
-										//	   to this category, starting with 'cmd's that have been divided into two or more (one part 
-										//	   executed only for the 1st context).
+										// (6.1) Cycle thru each context in turn 'keep'ing, first, the variables discovered above to
+										//	     be needed in the working dataset and, later, the observations, selected by any 'if' 
+										//	     or `in' expressions, before checking for context-specific errors.
 
-		
 
 	if `nc'==1  local multiCntxt = ""						// If only 1 context after ifin, make like this was intended			
-															// (seemingly unused)													***
-	if "`multiCntxt'"== ""  local nc = 1					// If "`multiCntxt' is empty then there is only 1 context
-															// (set in `cmd'.ado)
+															// (seemingly unused)															***
+	if "`multiCntxt'"==""  local nc = 1						// If "`multiCntxt' is empty then there is only 1 context
+															// ('multiCntxt' was initialized in `cmd'.ado)
 																	  
-	if substr("`multivarlst'",-2,2)=="||" {			  		// See if varlist ends with "||" (dk why this happens)
-	   local len = strlen(strtrim("`multivarlst'"))
-	   local multivarlst = strtrim(substr("`multivarlst'",1,`len'-2)) 
+	if substr("`multivarlst'",-2,2)=="||" {					// See if varlist ends with "||" (dk why this happens)
+		local len = strlen(strtrim("`multivarlst'"))
+		local multivarlst = strtrim(substr("`multivarlst'",1,`len'-2)) 
 	}														// Strip those pipes if so
+
+	global multivarlst = "`multivarlst ='"					// Make it accessible to caller programs and subprograms
+															// (`multivarlst' has list of all varlists including ":" and "||")
 	
-	global multivarlst = "`multivarlst'"					// Makes 'multivarlst' available to 'cmd' caller programs
-															// (which are re-entered at end of wrapper)
-
-	if `limitdiag'<0 local limitdiag = .					// Overwrite `limitdiag' with big number if =-1
-
-	  
-	  
-*	********************
-	forvalues c = 1/`nc'  {								 			  // Cycle thru successive contexts (`c')
-*	********************
+	
+	
+*	********************									************************************
+	forvalues c = 1/`nc'  {								 	// Cycle thru successive contexts (`c')
+*	********************									************************************
 
 
+
+	
 		local lbl : label lname `c'						 	// Get label associated by _mkcross with context `c' ('cmd'P 
 															// programs can optionally have labelname 'lname' hardwired)
 
@@ -1436,8 +1459,6 @@ pause (6.2)								// (6.2) THIS IS WHERE UNWANTED OBS ARE DROPPED FROM WORKING 
 										//		 This codeblock then creates a 'noobsvarlst' of vars with no obs in this context
 
 
-
-
 *		************
 		quietly keep if `c'==`_temp_ctx' 							// `tempexp' starts either with 'if' or with 'ifexp &'
 *		************									 			// ('ifexp' now executed after saving 'origdta' in blk 4)
@@ -1454,11 +1475,12 @@ pause (6.2)								// (6.2) THIS IS WHERE UNWANTED OBS ARE DROPPED FROM WORKING 
 		} //endif `limitdiag'>=`c' & ...
 			 				 
 							 
-							 
-
-
-
-
+	
+	
+	
+	
+	
+	
 
 global errloc "wrapper(7)"		
 pause (7)
@@ -1575,7 +1597,7 @@ set tracedepth 5
 																	// (except for 'geniimpute' which does its own diagnostics)
 					local busydots = "busydots"						// Flag forces final display. ending line of busydots
 					
-					if "`multiCntxt'"!= ""  {						// If there ARE multiple contexts (ie not gendummies)
+					if "`multiCntxt'"!= "" |"`cmd'"=="gendummies" { // If there ARE multiple contexts OR 'cmd' is gendummies
 						if `nc'<38  noisily display ".." _continue	// (more if # of contexts is less)
 						else  noisily display "." _continue			// Halve the N of busy-dots if would more than fill a line
 					}
@@ -1604,16 +1626,15 @@ set tracedepth 5
 		if  !`skipsave'  {										    // If 'skipsave' was not turned on above..
 		
 
-
-
-
-
+	
+	
+	
+	
+	
+	
 		
 global errloc "wrapper(8)"										    // This codeblock is only executed if 'skipsave' is not true
-pause (8)
-
-
-				
+pause (8)				
 								// (8)	Here we save each context in a tempfile for merging once all contexts have been processed.
 								//		This means recording a filename for each context*stack in a list of filenames whose length
 								//	is limited by the maximum length of a Stata macro (on my machine 645,200 bytes.) So the first
@@ -1726,16 +1747,20 @@ pause (8)
 	} //next context (`c')											// Repeat while there are any more contexts to be processed
 *	  ********************
 		
-	
+		
 	if "`spdtst'"==""  {											// If we are NOT testing speed of simpler code ...
 	
 
+	
+	
+	
 
-
-
-
-																	// **************************************************************
-global errloc "wrapper(8.1)"										// INCLUDE (8.1) IF MINIMIZNG N OF TIMES EACH CNTXT IS SAVED/USED	***	
+	
+	
+	
+	
+																	// ****************************************************************
+global errloc "wrapper(8.1)"										// INCLUDE (8.1) IF MINIMIZNG N OF TIMES EACH CNTXT IS SAVED/USED	***
 pause (8.1)															// ****************************************************************
 
 	
@@ -1748,7 +1773,7 @@ pause (8.1)															// ***************************************************
 *	  quietly use $wraptemp, clear									// Open the file onto which, if multicntxt, more will be appended
 																	// COMMENT OUT 'COS ALREADY OPEN
 																	
-		if "`multiCntxt'"!= ""  {									// If there ARE multi-contexts (local is not empty) ...
+		if `multiCntxt'  {											// If there ARE multi-contexts (local is not empty) ...
 																	// Collect up & append files saved for each contxt in codeblk (8)
 																	// (If there was only one context then just one was saved)
 		   preserve													// Need to preserve again so as to append contexts to $wraptemp file
@@ -1806,16 +1831,23 @@ pause (9)
 	  if "$prefixedvars"!=""	{							// If there were any name conflicts for merging
 															// (diagnosed before call on 'cmd'P)
 	   foreach var of global prefixedvars  {				// This global was filled as a bi-product of codeblock (5) 
+		  mata:st_numscalar("a",ascii(substr("`var'",4,1)) 	// Get MATA to tell us the ascii value of char following "_"
+		  if a>64 & a<91  continue							// If it is an upper case character, don't drop this var
 		  local prfx = strupper(substr("`var'",1,2))		// Change prefix string to upper case (it is followd by "_")
 		  local tempvar = "`prfx'" + substr("`var'",3,.)	// All prefixes are 2 chars long and all were previously lower case
 		  capture confirm variable `tempvar' 				// If it already exists we had the same conflict earlier
 		  if _rc==0  drop `tempvar'							// (the prefix is capitalized so var can be dropped w'out harm)
 		  else rename `var' `tempvar'						// Each 'var' has a "_" in 3rd character position
-		} //next prefixedvar
+		} //next prefixedvar								// (THIS CODE WORKS ONLY FOR VARS W' NAMES ORIGINALLY LOWER CASE)
 
 	  } //endif $prefixedvars								// (skipped only for genplace commands with no 'call' option)
 
-*pause merge	  
+/*											// TEST CODE MIGHT BE USEFUL
+	mata:st_numscalar("a",ascii("A")) 		// Get MATA to tell us the ascii value of char following "_"
+	display a  /*–  upper case A is 65;  upper case Z is 90 */
+*/
+
+pause (9.1)	  
 	  
 *	  *****************	  
 	  quietly merge 1:m `origunit' using $wrapbld, nogen update replace
@@ -1841,13 +1873,10 @@ pause (9)
 
 
 
-
-
-global errloc "wrapper(10)"
+global errloc "wrapper(9)"	
 pause (10)
-pause (10)
-
-
+										// (10) Handle any non-zero return codes from above (including called programs)
+										// 		Drop all globals except those needed by caller ('multivarlst') & succeeding commands
 
 															
 if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If unreported non-zero return code (should be captured Stata error)
@@ -1892,6 +1921,7 @@ if "$SMreport"==""	{							// Drop all globals, restoring those needed by succee
 end //stackmeWrapper							// Here return to `cmd' caller for data post-processing
 
 
+
 ************************************************* end stackmeWrapper ********************************************************
 
 
@@ -1916,8 +1946,6 @@ end //stackmeWrapper							// Here return to `cmd' caller for data post-processi
 * subinoptarg			unsure if called at all			Replace argument within option string
 *
 ******************************************************************************************************************************
-
-
 
 
 
@@ -1986,7 +2014,7 @@ end checkSM
 
 
 
-
+******************************************************************************************************************************
 
 
 
@@ -2079,14 +2107,12 @@ program checkvars, rclass						// Checks for valid input/outcome vars. Partially
 																// (Stata msg produced by tryng to unab 'test3' if supplied)
 	return local checked `check'								// Return unabbreviated un-hyphenated vars in r(checked)
 	
+
 end checkvars
 
 
 
-
-
-
-
+******************************************************************************************************************************
 
 
 
@@ -2154,7 +2180,8 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 	}
 					
 	else  {										// Else `stataerror' is empty so error was diagnosed at source and reported above
-	   window stopbox stop "`msg'; will exit on 'OK'" // Sometimes exits directly; sometimes returns to program as above
+	   if "`msg'"=="" window stopbox stop "Will exit on 'OK'" // Get null 'msg' if invoked with $exit==1
+	   else  window stopbox stop "`msg'; will exit on 'OK'"   // Sometimes exits directly; sometimes returns to program as above
 	} 											// (NEED TO RESEARCH THIS)															***
 	
 	
@@ -2162,6 +2189,7 @@ end errexit
 
 
 
+******************************************************************************************************************************
 
 
 
@@ -2229,13 +2257,13 @@ end getwtvars
 
 
 
-
+******************************************************************************************************************************
 
 
 
 capture program drop isnewvar								// Now called from wrapper (NO LONGER CALLED FROM gendist in VERSION 2)
 
-program isnewvar											// New vars all have prefixes 
+program isnewvar											// New vars DO NOT ALL have prefixes, SO $prefixedvars IS MIS-NAMED
 
 global errloc "isnewvar"
 
@@ -2249,13 +2277,17 @@ global errloc "isnewvar"
 	forvalues i = 1/`ncheck'  {								// anything already has default prefix for each var
 	
 	  local var = word("`anything'",`i')
-	  if "`prefix'"!=""  local var = "`prefix'_`var'"		// If a(n additional) prefix was optioned (eg in gendummies)..
+	  if "`prefix'"!=""  local var = "`prefix'_`var'"		// If a(n additional) prefix was optioned (eg in genyhats)..
 	  capture confirm variable `var'						// These vars are default-prefixed; optional changes not yet made
 	  if _rc==0  {											
 	    global prefixedvars = "$prefixedvars `var'"			// Add to global without revising prefix to optioned prefixstring
 		global exists = "$exists `var'"						// ($prefixedvars is list of existing vars with that prefix)
-	  }
+	  }														// (but ALL new vars are included, may not have prefix – eg gendummies)
 	  else global newprfxdvars = "$newprfxdvars `var'"		// List of prefixed outcome vars
+	  
+	  mata:st_numscalar("a",ascii(substr("`var'",4,1))) 	// Get MATA to tell us the ascii value of char following "_"
+	  if a>64 & a<91  continue								// Skip any vars whose names are all upper case
+	  
 	  local prfx = strupper(substr("`var'",1,2))			// Extract prefix from head of 'var' & change to upper case
 	  local badvar = "`prfx'"+substr("`var'",3,.)			// Potential badvar has upper case prefix
 	  capture confirm variable `badvar'						// See if uppercase version is left over from previous error exit
@@ -2270,8 +2302,7 @@ end //isnewvar
 
 
 
-
-
+******************************************************************************************************************************
 
 
 
@@ -2335,8 +2366,7 @@ end showdiag1
 
 
 
-
-
+******************************************************************************************************************************
 
 
 
@@ -2442,102 +2472,222 @@ end showdiag2
 
 
 
+******************************************************************************************************************************
 
 
 
+capture program drop isnewvar								// Now called from wrapper (NO LONGER CALLED FROM gendist in VERSION 2)
 
-capture program drop showmsg
+program isnewvar											// New vars all have prefixes 
 
-program define showmsg										// Attempted way around displays that are not displayed
+global errloc "isnewvar"
 
-args msg aserr												// 'msg' will 'display as error' if option 'aserr' is not empty
-
-	while strlen("`msg'") > 80  {							// If 'msg' is longer than can fit on one line of results window
-		local lastspace = strrpos("`msg'", " ")				// Find last space in 'msg'
-		local line = substr("`msg'",1,`lastspace'-1)		// Use that to delimit end of line
-		if "`aserr'"!=""  display as error "`line'{txt}"	// Display as error if msg was accompanied by non-blank second arg
-		else  noisily display "`line'"						// Else just display it noisily
-		local msg = substr("`msg'", `lastspace'+1, .)		// Replace 'msg' with remainng msg chars, starting at 'lastspace'+1
-	}														// Exit 'while' loop when less than 80 chars are left
+	version 9.0
+	syntax anything, prefix(string)
 	
-	if "`aserr'"!=""  display as error "`msg'"				// Display (remaining) chars in 'msg', either 'as error' or noisily
-	else  noisily display "`msg'"
+	if "`prefix'"=="null"  local prefix = ""				// No prefix will be prepended to anything-var if prefix is "null"
 	
-end showmsg
-
-
-
-
-
-
-
-
-capture program drop stubsImpliedByVars
-
-program define stubsImpliedByVars, rclass		// Subprogram produces a list of stubs corresponding to multiple varlists
-
-global errloc "stubsImpliedByVars"
-
-	local stubslist = ""										// Will hold suffix-free pipes-free copy of what user typed
-				
-	local postpipes = "`0'"										// Pretend what user typed started with "||", now stripped
+	local ncheck : list sizeof anything						// 'anything' may have several varnames
 	
-	while "`postpipes'"!=""  {									// While there is anything left in what user typed
+	forvalues i = 1/`ncheck'  {								// anything already has default prefix for each var
 	
-	   gettoken prepipes postpipes : postpipes, parse("||")		// Get all up to "||", if any, or end of commandline
-	   if substr(strtrim("`postpipes'"),1,2)=="||"  {			// If (trimmed) postpipes starts with (more) pipes
-		  local postpipes = substr("`postpipes'",3,.)			// Strip them from head of postpipes
-	   }
-	   
-	   unab vars : `prepipes'									// Stata will report an error if not valid vars
-	   
-	   local 0 = "`vars'"										// Pretend user typed only one varlist; put back in '0'
+	  local var = word("`anything'",`i')
+	  if "`prefix'"!=""  local var = "`prefix'_`var'"		// If a(n additional) prefix was optioned (eg in gendummies)..
+	  capture confirm variable `var'						// These vars are default-prefixed; optional changes not yet made
+	  if _rc==0  {											
+	    global prefixedvars = "$prefixedvars `var'"			// Add to global without revising prefix to optioned prefixstring
+		global exists = "$exists `var'"						// ($prefixedvars is list of existing vars with that prefix)
+	  }
+	  else global newprfxdvars = "$newprfxdvars `var'"		// List of prefixed outcome vars
+	  local prfx = strupper(substr("`var'",1,2))			// Extract prefix from head of 'var' & change to upper case
+	  local badvar = "`prfx'"+substr("`var'",3,.)			// Potential badvar has upper case prefix
+	  capture confirm variable `badvar'						// See if uppercase version is left over from previous error exit
+	  if _rc==0  {
+	  	global badvars = "$badvars `badvar'"				// If so, add to list of such vars
+	  }
+	  
+	} //next var
+		
+	
+end //isnewvar
 
-	   syntax namelist(name=keep)								// Put names into local 'keep'
-	   
-	   local stlist = ""										// Stublist derived from this one varlist
-	
-	   while "`keep'"!=""  {
-		  gettoken s keep : keep								// 's' is each word in 'keep', one at a time
-		  while real(substr("`s'",-1,1))<.  {					// While last char is numeric
-			local s = substr("`s'",1,strlen("`s'")-1)  			// Shorten `s' by one trailing numeral
-		  }
-		  local stlist = "`stlist' `s'"							// `stlist' is copy of keep, but shorn of suffixes
-	   } //next `keep'											// (and cumulating across successive varlists)
-	  				  
+
+
+******************************************************************************************************************************
+
+
+
+capture program drop showdiag1
+
+program define showdiag1
+
+global errloc "showdiag1"
+
+args limitdiag c nc 	
+		   
+
+				   local vartest = "$keepvars"		
+
+				   local vartest = subinstr("`vartest'",".","",.)	  // Remove any missing-symbols (DK where they come from)
+				   unab vartest : `vartest'	
+
+				   local test : list uniq vartest					  // Strip any duplicates of vars in vartest; put result in 'test'
+				   local nvars = wordcount("`test'")
+				   scalar minN = .									  // (a big number)
+				   scalar maxN = -999999
+
+				   global noobsvarlst = ""							  // Local will hold list of vars with no obs in this context
+				   
+				   foreach var of local test  {					  	  // For each var in 'vartest' (now 'test')
+						
+						tempvar misvar count						  // Create temporary vars to count N of missing
+						qui gen `misvar' = missing(`var')			  // Code mis'var' =0, or =1 if missing
+						qui capture count if ! `misvar'				  // Unless error, yields r(N)==0 if var does not exist
+						local rN = r(N)
+						local rc = _rc								  // Place command in left margin because of how it prints
+if `rc' display `rc'
+					    if `rc' & `rc'!=2000  {						  // If non-zero return code which is not 'no obs'
+							global exit = 1							  // use $exit=1 'cos we must restore origdata before exit
+							continue, break							  //  origdta before exiting (NOTE $exit=1 is not 'exit 1')
+						}
+						if `rN'==0  {								  // If there are no non-miss obs for this var in this context
+						   global noobsvarlst = "$noobsvarlst `var'"  // Store any vars with no obs 
+						}
+						else {										  // Else, if vars were not flagged as all-missing
+						   if `rN'<minN  scalar minN = `rN'		  	  // Update _N min and max scalar values for max & min Ns
+						   if `rN'>maxN  scalar maxN = `rN'			  // Scalars can be accessed from showdiag2
+						}
+						quietly capture drop `misvar' 				  // Drop these two vars
+						quietly capture drop `count'
+						
+				   } //next var
 					  
-	   local stub = ""											// Will hold the unique stub from stlist
-	   local w1 = word("`stlist'",1)							// Start with first stub in 'stlist'
-	   
-	   while "`stlist'"!=""	{									// So long as there are any stubs left in stlist ...
-		  while "`w1'" == word("`stlist'",1)  {					// While next word in `stubslist' remains the same ...
-			gettoken w1 stlist : stlist							// Move successive stubs into `w1'							
-		  } 													// Exit this loop when `stlist' has no more w1 stubs
-		  local stub = "`w1'"	 								// Final copy of `w1' is the stubname for this varlist
-																// (need to save in a local that will persist ouside loop)
-		  if "`stlist'"!="" {
-			errexit "Variables in battery do not all have same stub: `stlist'"
-			exit 1
-		  }														// Error exit if next stub belongs to a different varlist						
-	   } //next while "`stlist'"								// Exit this loop when `stlist' has no more stubs
-	   
-	   local stubslist = "`stubslist' `stub'"					// Append to stub
-	   
-	} //next pipes
+				   if $exit  continue, break
+				   
+				   if !$exit  {								  		  // Only execute this codeblk if an error has not called for exit 
+				      if `rc'!=0 & `rc'!=2000 {						  // If there was a diffrnt error in any 'count' command
+						 local lbl : label lname `c'				  // Get the context id
+					     errexit "Stata has flagged error `rc' in context `lbl'"
+					     exit 1										  // Set flag for wrapper to exit after restoring origdata
+				      }
+				   
+					} //endif !$exit
+
+end showdiag1
+
+
+
+******************************************************************************************************************************
+
+
+
+capture program drop showdiag2
+
+program define showdiag2
+
+global errloc "showdiag2"
+
+args limitdiag c nc xtra
+
+			
+			if `nc'>1  local multiCntxt = 1							  // Different text for each context than whole dataset
+			else local multiCntxt = 0
 	
-	return local stubs `stubslist'								// Put accumulated stubs into r(stubs)
+			local numobs = _N										  // Here collect diagnostics for each context 
+				   					  
+			if `limitdiag'>=`c' & "$cmd'="!="geniimpute" {			  // `c' is updated for each different stack & context
+								   
+				local lbl : label lname `c'							  // Get label for this combination of contexts
+					  
+				local lbl = "Context `lbl'"							  // Below we expand what will be displayed
+					  
+				if ! `multiCntxt' {
+					local lbl = "This dataset"
+					if "cmd'"=="genstacks"  local lbl = "This dataset now" 
+				}													  // Only for 'genstacks' referring to stacked data
+					  
+				local newline = "_newline"
+				if "$cmd"=="genstacks" local newline = ""
+*				noisily display "   `lbl' has `numobs' observations{txt}" _newline
+					  
+				capture confirm variable SMstkid					 // See if data are stacked
+				if _rc==0  local stkd = 1
+				else local stkd = 0
+				
+				local displ = 0
+				if `stkd' {
+					if SMstkid == 1  {							 	 // By default, if stkd, give diagnsts only for 1st stack
+					   if `multiCntxt' & "$cmd"!="geniimpute" {		 // Geniimpute has its own diagnostics   
+					   	  local displ = 1`			
+						}
+					}
+				}
+				
+				else {												 // Else dataset is not stacked
+					if `multiCntxt' & "$cmd"!="geniimpute" {		 // Geniimpute has its own diagnostics  			
+						local displ = 1
+					}
+				}
+				
+				if `displ'  {
+				   local msg = "   `lbl' has `numobs' observations"
+				   showmsg  "`msg'" 								 // Noisily display the msg
 
-																	
-end stubsImpliedByVars
+				   if `xtra'  {									 	 // If 'extradiag' was optiond, also for other stacks
+					  local other = "Relevant vars "				 // Resulting re-labeling occurs with next display
+					  if "$noobsvarlst"!=""  {
+						local errtxt = ""
+						local nwrds = wordcount("$noobsvarlst")
+						local word1 = word("$noobsvarlst", 1)
+						local wordl = word("$noobsvarlst", -1)		 // Last word is numbered -1 ('worl' ends w lower L)
+						if `nwrds'>2  {
+							local word2 = word("$noobsvarlst", 2)
+							local errtxt = "`word2'...`wordl'"
+							if `nwrds'==2 local errtxt = "`wordl'"
+							if `xtra' noisily showmsg "NOTE: No observations for var(s) `word1' `errtxt' in `lbl'"
+							local other = "Other vars "				 // Ditto
+						}
+					  }
+					  
+					  local minN = minN							 	 // Make local copy of scalar minN (set in showdiag1)
+					  local maxN = maxN								 // Ditto for maxN
+					  local lbl : label lname `c'
+					  local newline = "_newline"
+					  if "$cmd"=="genstacks" local newline = ""
+					  
+					  if `multiCntxt'  noisily showmsg 				/// geniimpute displays its own diags
+						 "`other'in context `lbl' have between `minN' and `maxN' valid obs"
+						 
+*					  noisily display "{txt}" _continue
+
+				   } //endif 'xtra'
+				
+				} //endif 'displ'
+						 
+			} //endif 'limitdiag'
+
+			else  {													// If limitdiag IS in effect, print busy-dots
+		  
+			  if `limitdiag'<`c'  {									// Only if `c'>= number of contexts set by 'limitdiag'
+					if "`multiCntxt'"!= ""  {						// If there ARE multiple contexts (ie not gendummies)
+						if `nc'<38  showmsg ".." _continue			// (more if # of contexts is less)
+						else  showmsg "." _continue					// Halve the N of busy-dots if would more than fill a line
+					}
+			  } //endif
+				
+			} //endelse
+
+			if `c'==`nc'  capture scalar drop minN maxN				// If this is the final context, drop scalars
+			
+end showdiag2
 
 
 
-
+******************************************************************************************************************************
 
 
 	
-	
-capture program drop subinoptarg
+capture program drop subinoptarg					// PERHAPS REDUNDANT
 
 program define subinoptarg, rclass					// Program to remove supposed vars from varlist if they prove to be strings
 													// or for other reasons (MAY NOT BE CALLED)
@@ -2569,8 +2719,7 @@ end subinoptarg
 
 
 
-
-
+******************************************************************************************************************************
 
 
 
@@ -2616,8 +2765,7 @@ end varsImpliedByStubs
 
 
 
-
-************************************************ END SUBROUTINES *****************************************************
+************************************************** END SUBROUTINES *************************************************************
 
 
 
