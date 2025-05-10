@@ -23,8 +23,8 @@ capture program drop stackmeWrapper
 program define stackmeWrapper	  		// A 'wrapper' called by `cmd'.ado (the ado file named for any user-invoked stackMe cmd) 
 
 scalar save0 = "`0'"					// Save existing macros of relevance to this invocation of 'stackmeWrapper' so that 
-scalar dirpath = "$dirpath"				// we can drop all such macros using the first substantive command illustrated below.
-scalar filename = "$filename"			// (then replacing needed macros from these scalar copies).
+scalar dirpath = "$SMdirpath"			// we can drop all such macros using the first substantive command illustrated below.
+scalar filename = "$SMfilename"			// (then replacing needed macros from these scalar copies).
 scalar pauseon = "$PAUSEON"
 										// This wrapper calls `cmd'O, once each, for several commands and then repeatedly calls 
 										// `cmd'P (the program doing the heavy lifting for that command) where context-specific 
@@ -111,8 +111,8 @@ scalar pauseon = "$PAUSEON"
 *		*****************				//
 		macro drop _all					// Global flags, etc., may have remained active on earlier error exit, so this cmd is issued
 		local 0 = save0					//  here – the earliest point where all stackMe commands share the same lines of program code.
-		global dirpath = dirpath		// Then immediately restore them from scalars saved on entry to 'stackmeWrapper', above.
-		global filename = filename		//
+		global SMdirpath = dirpath		// Then immediately restore them from scalars saved on entry to 'stackmeWrapper', above.
+		global SMfilename = filename	//
 		global PAUSEON = pauseon		//
 		scalar drop save0 dirpath filename pauseon	
 *		*****************				//
@@ -137,12 +137,36 @@ pause (0)								// (0)  Preliminary codeblock establishes name of latest data f
 										//		initialization for a large numbers of locals is documented at start of codeblk (2)
 										
 
-	local fullname = c(filename)							// Path+name of datafile most recently used or saved by any Stata cmd.
-	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Position of first char following FINAL "/" or "\" of directory path
-	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath (that leads to a tempfile)..
-		global dirpath = substr("`fullname'",1,`nameloc'-1)	// `dirpath' ends w last `c(dirsep)' ("/" or "\"); i.e. 1 char before name
-		global filename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
-	}														// (needed by genstacks caller as default name for newly-stackd dtafile)
+local filename : char _dta[filename]						// Get established filename if already set as dta characteristic
+if "`filename'"==""  {
+	display as error ///
+	"This datafile has not been initialized by {help SMutilities##SMcontextvars:{ul:SMcon}textvars} for use by {bf:stackMe}"
+*    12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	window stopbox stop "This datafile has not been initialized by 'SMcontextvars' for use by 'stackMe'; see displayed message"
+}															// Need user to read help text before starting!
+
+/*															// COMMENTED OUT BECAUSE NOW DONE IN SMcontextvars			
+else  {
+
+  if "$filename"==""  {										// If filename was not recorded by previous stacmMe command...
+	local fullname = c(filename)							// Path+name of datafile most recently used or saved
+	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
+	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
+		global SMdirpath = substr("`fullname'",1,`nameloc'-1)	// $SMdirpath ends w last `c(dirsep)' (i.e. 1 char before name)
+		global SMfilename =substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
+	}														// (used by genstacks as default name for newly-stackd dtafile)
+	
+	else  {													// Else a tempfile was opened since any datafile
+		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
+		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
+*    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
+	} //endelse
+	
+  } //endif
+
+} //endelse
+*/
 
 	global multivarlst = ""									// Global will hold copy of local 'multivarlst' for use by caller progs
 															// (holds list of varlists as typed by user, with ":", separatd by "||")
@@ -161,7 +185,7 @@ pause (0)								// (0)  Preliminary codeblock establishes name of latest data f
 															// (will be replaced by local 'stackid' after checking that not optioned)
 	else  {													// Else there IS a variable named SMstkid
 	  local SMskid = "SMstkid"								// Record name of stackid in local stackid (always 'SMstkid', if any)
-	  gettoken prefix rest : (global) filename, parse("_") 	// And check for correct prefix to filename
+	  gettoken prefix rest : (global) SMfilename, parse("_") // And check for correct prefix to filename
 	  capture confirm variable S2stkid						// See if dataset is already double-stacked
 	  if _rc  {			
 		local dblystkd = ""									// if not, empty the indicator
@@ -377,7 +401,7 @@ pause (1.1)
 										//		 variables that need to be kept in the active data subset
 										
 										
-		local usercontxts = "`contextvars'"			// To avoid being confused with contextvars from data characteristic
+		local usercontxts = "`contextvars'"				// To avoid being confused with contextvars from data characteristic
 
 *		**********************							// Implementing a 'contextvars' option involves getting charactrstic
 		local contexts :  char _dta[contextvars]		// Retrieve contextvars established by SMcontextvars or prior 'cmd'
@@ -1904,13 +1928,13 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If unreported non-zero re
 
 if "$SMreport"==""	{							// Drop all globals, restoring those needed by succeeding stackMe commands
 												// (not if this was just done in errexit, if that was invoked)
-	scalar filename = "$filename"				// Save, in a scalar, global filename – relevant for later stackMe cmds
-	scalar dirpath = "$dirpath"					// Ditto for $dirpath
+	scalar filename = "$SMfilename"				// Save, in a scalar, global filename – relevant for later stackMe cmds
+	scalar dirpath = "$SMdirpath"				// Ditto for $SMdirpath
 	scalar exit = "$exit"						// Ditto for $exit
 	scalar multivarlst = "$multivarlst"			// Ditto for $multivarlst
 	macro drop _all								// Clear all macros before exit (evidently including the above four)
-	global filename = filename				    // But filename may be useful for later 'stackme' commands
-	global dirpath = dirpath					// Ditto for dirpath
+	global SMfilename = filename				// But filename may be useful for later 'stackme' commands
+	global SMdirpath = dirpath					// Ditto for dirpath
 	global exit = exit							// Ditto for $exit
 	global multivarlst = multivarlst			// Ditto fir $ultivarlst (used in most caller programs)
 	scalar drop filename dirpath exit multivarlst // But we should overtly drop the scalars used to secure those loc/globals
@@ -1921,13 +1945,16 @@ if "$SMreport"==""	{							// Drop all globals, restoring those needed by succee
 end //stackmeWrapper							// Here return to `cmd' caller for data post-processing
 
 
-
-************************************************* end stackmeWrapper ********************************************************
-
+************************************************* end stackmeWrapper ******************************************************
 
 
 
-**************************************************** SUBPROGRAMS *************************************************************
+
+
+
+
+
+**************************************************** SUBPROGRAMS **************************************************************
 *
 * Table of contents
 *
@@ -1945,7 +1972,7 @@ end //stackmeWrapper							// Here return to `cmd' caller for data post-processi
 * varsImpliedByStubs	genstacksO						Name says it
 * subinoptarg			unsure if called at all			Replace argument within option string
 *
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2014,7 +2041,7 @@ end checkSM
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2112,7 +2139,7 @@ end checkvars
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2157,15 +2184,15 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 												// Since we exit we must drop all globals, which yields a tricky problem addressed...
 	scalar SMstataerror = "`stataerror'"		// Save in a scalar the stataerror argument
 	scalar SMmsg = "`msg'"						// Save in a scalar the 'msg' argument or option
-	scalar filename = "$filename'"				// Save, in a scalar, global filename – relevant for later stackMe cmds
-	scalar dirpath = "$dirpath"					// Ditto for $dirpath
+	scalar filename = "$SMfilename'"			// Save, in a scalar, global filename – relevant for later stackMe cmds
+	scalar dirpath = "$SMdirpath"				// Ditto for $dirpath
 	scalar exit = "$exit"						// Ditto for $exit
 	scalar multivarlst = "$multivarlst"			// Ditto for $multivarlst
 	macro drop _all								// Clear all macros before exit (evidently including the above two)
 	local stataerror = SMstataerror				// A local will be dropped automatically on exit
 	local msg = SMmsg							// Ditto
-	global filename = filename				    // But filename may be useful for later 'stackme' commands
-	global dirpath = dirpath					// Ditto for dirpath
+	global SMfilename = filename				// But filename may be useful for later 'stackme' commands
+	global SMdirpath = dirpath					// Ditto for dirpath
 	global exit = exit							// Ditto for $exit
 	global multivarlst = multivarlst			// Ditto for $multivarlst
 
@@ -2189,7 +2216,7 @@ end errexit
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2257,7 +2284,7 @@ end getwtvars
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2302,7 +2329,7 @@ end //isnewvar
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2366,7 +2393,7 @@ end showdiag1
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2472,7 +2499,75 @@ end showdiag2
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
+
+
+
+capture program drop getwtvars
+
+program define getwtvars, rclass
+										// Identify and save weight variable(s), if present, to be kept in working dta
+global errloc "getwtvars"
+
+	args wtexp
+										
+		if "`wtexp'"!="" {										// If a weight variable was optioned
+			
+		  gettoken preeq posteq : wtexp, parse("=")				// First parse on the = as any wtvar must follow that
+		  if "`posteq'"!=""  {									// (it may occupy whole of `wtexp' or the start or the end)
+			local len = strlen("`posteq'") - 2					// Length of about-to-be created `wtstr', less 2 chars...
+			local wtstr = strtrim(substr("`posteq'", 2,`len'))	// Remove "= " and "]" from `posteq' yielding `wtstr'
+		  }														// (with possible trailing ")" )
+		  
+		  local wtvar1 = ""										// Define empty string into which to accumulate `wtvar' char by char
+		  local lstchr = strrpos("`wtstr'", ")" ) - 1			// (we use a global because the equivalent local gets overwritten)
+		  if `lstchr'==-1 local lstchr = strlen("`wtstr'")		// If no close paren, substitute final char in `wtstr'
+		  forvalues i = `lstchr'(-1) 1  {						// Count backwards towards the start of `wtvar'
+			local char = substr("`wtstr'",`i',1)				// Put this character in 'char'
+			if indexnot("`char'", "+-*/^()" )  {				// If this char is not an operator..				
+			  local wtvar1 = "`char'`wtvar1'"					// Prepend it to front of `wtvar'
+			}
+			else continue, break								// Else break out of the 'forvalues' loop	
+		  } //next `i'
+		  capture confirm numeric variable `wtvar1'				// Confirm that found string is a varname
+		  if !_rc  {											// If so,..
+		  	local keepv = "`wtvar1'"							// Place in list of variables to be returned
+		  }
+*		  local savekeep = "`keep'"
+
+		  local wtvar2 = ""										// Empty `wtvar2' for use in next attempt to find a 'wtvar', below
+		  local len = strlen("`wtstr'")
+		  if substr("`wtstr'",1,1)=="(" local istchr = 2		// The weight-string might start with open parenthesis...
+		  else  local istchr = 1								// If so, look for `wtvar' one char later
+		  forvalues i = `istchr'/`len'  {						// Count forwards towards the end of `wtvar'
+			local char = substr("`wtstr'",`i',1)				// Put next character in 'char'
+			if indexnot("`char'", "0123456789+-*/^()" )  {		// If this char is not an operator or numeric char...				
+			  local wtvar = "`wtvar2'`char'"					// Append it to the end of `wtvar'
+			}
+			else continue, break								// Else break out of the forvalues loop	
+		  } //next `i'	  	
+		
+		  if "`wtvar2'"!=""  {
+			capture confirm numeric variable `wtvar2'			// Confirm that found string is a varname
+			if !_rc  {											// If so,..
+				local keepv=strtrim("`keepv' `wtvar2'") 		// Add it to list of variables to be kept in working data
+			}
+		  }
+		  
+		  if "`wtvar1' `wtvar2'"==" "  {
+		  	errexit "Clarify weight expression: use (perhaps parenthesized) varname at start or end"
+			exit 1
+		  }
+		  
+		} //endif 'wtexp'
+		
+		return local wtvars `keepv'
+
+end getwtvars
+
+
+
+********************************************************************************************************************************
 
 
 
@@ -2513,7 +2608,7 @@ end //isnewvar
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2577,7 +2672,7 @@ end showdiag1
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2683,11 +2778,75 @@ end showdiag2
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
+
+
+
+capture program drop stubsImpliedByVars
+
+program define stubsImpliedByVars, rclass		// Subprogram produces a list of stubs corresponding to multiple varlists
+
+global errloc "stubsImpliedByVars"
+
+	local stubslist = ""										// Will hold suffix-free pipes-free copy of what user typed
+				
+	local postpipes = "`0'"										// Pretend what user typed started with "||", now stripped
+	
+	while "`postpipes'"!=""  {									// While there is anything left in what user typed
+	
+	   gettoken prepipes postpipes : postpipes, parse("||")		// Get all up to "||", if any, or end of commandline
+	   if substr(strtrim("`postpipes'"),1,2)=="||"  {			// If (trimmed) postpipes starts with (more) pipes
+		  local postpipes = substr("`postpipes'",3,.)			// Strip them from head of postpipes
+	   }
+	   
+	   unab vars : `prepipes'									// Stata will report an error if not valid vars
+	   
+	   local 0 = "`vars'"										// Pretend user typed only one varlist; put back in '0'
+
+	   syntax namelist(name=keep)								// Put names into local 'keep'
+	   
+	   local stlist = ""										// Stublist derived from this one varlist
+	
+	   while "`keep'"!=""  {
+		  gettoken s keep : keep								// 's' is each word in 'keep', one at a time
+		  while real(substr("`s'",-1,1))<.  {					// While last char is numeric
+			local s = substr("`s'",1,strlen("`s'")-1)  			// Shorten `s' by one trailing numeral
+		  }
+		  local stlist = "`stlist' `s'"							// `stlist' is copy of keep, but shorn of suffixes
+	   } //next `keep'											// (and cumulating across successive varlists)
+	  				  
+					  
+	   local stub = ""											// Will hold the unique stub from stlist
+	   local w1 = word("`stlist'",1)							// Start with first stub in 'stlist'
+	   
+	   while "`stlist'"!=""	{									// So long as there are any stubs left in stlist ...
+		  while "`w1'" == word("`stlist'",1)  {					// While next word in `stubslist' remains the same ...
+			gettoken w1 stlist : stlist							// Move successive stubs into `w1'							
+		  } 													// Exit this loop when `stlist' has no more w1 stubs
+		  local stub = "`w1'"	 								// Final copy of `w1' is the stubname for this varlist
+																// (need to save in a local that will persist ouside loop)
+		  if "`stlist'"!="" {
+			errexit "Variables in battery do not all have same stub: `stlist'"
+			exit 1
+		  }														// Error exit if next stub belongs to a different varlist						
+	   } //next while "`stlist'"								// Exit this loop when `stlist' has no more stubs
+	   
+	   local stubslist = "`stubslist' `stub'"					// Append to stub
+	   
+	} //next pipes
+	
+	return local stubs `stubslist'								// Put accumulated stubs into r(stubs)
+
+																	
+end stubsImpliedByVars
+
+
+
+********************************************************************************************************************************
 
 
 	
-capture program drop subinoptarg					// PERHAPS REDUNDANT
+capture program drop subinoptarg
 
 program define subinoptarg, rclass					// Program to remove supposed vars from varlist if they prove to be strings
 													// or for other reasons (MAY NOT BE CALLED)
@@ -2719,7 +2878,7 @@ end subinoptarg
 
 
 
-******************************************************************************************************************************
+********************************************************************************************************************************
 
 
 
@@ -2762,6 +2921,11 @@ global errloc "varsImpliedByStubs"
 
 	
 end varsImpliedByStubs
+
+
+
+
+************************************************ END SUBROUTINES *****************************************************
 
 
 
