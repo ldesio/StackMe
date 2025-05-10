@@ -1,6 +1,7 @@
+
 capture program drop gendummies
 
-program define gendummies
+program define gendummies				// Transforms categorical variables into dummy vars, one dummy for each level of the original
 
 
 
@@ -10,11 +11,11 @@ program define gendummies
 										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
 										// that end with "**" need to be tailored to specific stackMe commands
 										
-														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		
-	local optMask = "STUbname(name) /*DUPrefix(string) */LIMitdiag(integer -1) INCludemissing REPlace /*NODUPrefix */NOSTUbname"					    	 //	**
+														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		//	**
+	local optMask = "STUbname(name) /*DUPrefix(string) */LIMitdiag(integer -1) INCludemissing REPlace /*NODUPrefix */NOSTUbname"
 
 														// Ensure stubname for this stackMe command is placed first and its 
-														// negative is placed last; ensure options with arguments preceed toggle 														// (aka flag) options; limitdiag should folloow last argument, followed
+														// negative is placed last; ensure options with arguments preceed toggle 
 														// (aka flag) options for this command. Options (apart from limitdiag) 
 														// common to all stackMe `cmd's will be added in stackmeWrapper.
 														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**
@@ -37,46 +38,47 @@ program define gendummies
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
 
+*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
+
+
 														
 														
 														
-	
+											// *****************************
 											// On return from stackmeWrapper
+											// *****************************
+											
+   *********************														
+	if "$SMreport"==""  {								// If return does not follow an errexit report
+*	*********************								// (exit 1 exits to caller, if any, or to Stata)
 
-	if $exit  exit 1									// Exit may have been occasioned by wrapper or by 'cmd'P
+		local 0 = "`save0'"								// On return from stackmeWrapper estore what user typed
 
-
-	local 0 = "`save0'"									// On return from stackmeWrapper estore what user typed
-
-*	***************	
-	syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) NODiag *  ]
-*	***************
+*		***************	
+		syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) NODiag *  ]
+*		***************
 	
 		
-	if "`nodiag'"!=""  local limitdiag = 0
+		if "`nodiag'"!=""  local limitdiag = 0			// THE ONLY FUNCTION OF THIS CODEBLK1
 	
-*	if "`stubprefix'"!="" 								// SEEMINGLY NO POST-PROCESSING FOR THIS 'cmd'							***
+*		if "`stubprefix'"!="" 							// SEEMINGLY NO POST-PROCESSING FOR THIS 'cmd'							***
+	
+		if `limitdiag'!=0  noisily display _newline "done." _newline
 
-	local vars = stritrim(subinstr("$multivarlst","||"," ",.)) // Replace any "||" with blanks then trim any multi-blanks
-														// $multivarlst was stored i wrapper codeblk (6)
-														// (gendummies handles multi-varlists in this summary fashion!)
+*	  *****************
+	} //endif $SMreport									// Close braces that delimit code skipped on return from error exit
+*	  *****************	  
 	
-
-	if `limitdiag'!=0  noisily display _newline "done." _newline
-	
-	
+	global multivarlst									// Clear this global, unused above
+	global SMreport										// Ditto
+	global origdta										// Ditto
 	
 end gendummies			
 
 
 
-
-*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
-
-
-
-*********************************************** PROGRAM GENDU *******************************************************************
+********************************************************* PROGRAM GENDU ************************************************************
 
 
 capture program drop gendu
@@ -87,6 +89,5 @@ gendist `0'
 
 end gendu
 
-************************************************* END GENDU *******************************************************************
-
+********************************************************** END GENDU **************************************************************
 
