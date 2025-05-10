@@ -1,53 +1,103 @@
+*! This ado file contains four stackMe utility programs: SMcontextvars (should be invoked immediately after 'use'ing the 
+*! datafile that will be processed by other stackMe commands; SMitemname (displays or edits the item name generally provided 
+*! by the genstacks command); S2itemname (does the same for doubly-stacked datasets); SMfilename does the same for name and
+*! directory path to the datafile currently being pre-processed.
 
-/*  THIS CODEBLOCK IS COMMENTED OUT BECUSE IT IS NO LONGER PART OF THE stackMe DESIGN; SEE UTILITY PROGRAMS THAT FOLLOW ...
-    NOTE THAT THERE IS A stackMe HELP FILE TO ACCOMPANY THOSE UTILITY PROGRAMS, WHICH INTRODUCES THE WHOLE stacmMe PACKAGE
+The file shares its name with stackMe.sthlp which is the introductory help file for the entire stackMe package of programs. SMcontextvars.sthlp and SMitemname.sthlp have more 
+Targeted help files for these programs.
 
-capture program drop stackme
-program define stackme
+*! Written by Mark, Feb to May 2025.
 
-	local subcommands gendist gendummies genmeans genplace genstacks genyhats iimpute
-	local commandpos : list posof "`1'" in subcommands
-	
-	if (`commandpos'==0) {
-		// not a StackMe sub command
-		display as error "'`1'' is not a StackMe subcommand"
-		exit 199
-	}
-	else {
-		// runs everything after "stackme"
-		`0'
-	}
-end program
-
-*/
+************************************************** BEGIN UTILITY PROGRAMS ****************************************************
 
 
-*! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
-*! Written by Mark, Feb 2025, updated May 2025. First SMcontextvars, then SMitemvars ...
-
-
-*********************************************** UTILITY PROGRAMS *****************************************************
 
 
 capture program drop SMcontextvars
 
-program define SMcontextvars							// This program should be invoked after 'use'ing the datafile to be processed
+*! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
+*! Written by Mark, Feb 2025.
+
+program define SMcontextvars					// This program should be invoked after 'use'ing the datafile to be processed
 
 version 9.0
 
-*set trace on
+global cmd = "SMcontextvars"
+
+															// See if this is initial call on SMcontextvars for new dataset
+local filename : char _dta[filename]						// Get established filename if already set as dta characteristic
+local dirpath  : char _dta[dirpath]							// Ditto for $SMdirpath; if empty then datafile not initialized
+
+if "$SMfilename"!="" & "`filename'"!="$SMfilename"  {		// If previous SMfilename is not empty and `filename' is different
+  local oldSMfile = "$SMfilename"							// Then store the name in local 'oldSMfile'
+}
+
+local fullname = c(filename)								// Path+name of datafile most recently used or saved
+if strpos("`fullname'", c(tmpdir))>0  {						// If c(tmpdir) is contained in dirpath then this is a tempfile...
+  local fullname = ""										// And we don't have a useable new filename
+															// Check out the `filename' characteristic retrieved earlier
+  if "`filename'"==""  {									// If dataset was not yet initialized (so we need characteristics)
+	display as error "{bf:SMcontextvars} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
+*						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	window stopbox stop "'SMcontextvars' cannot access name of datafile; invoke this command closer to relevant 'use' command"
+  }
+} //endif strpos
+ 
+else  {														// Else we have a useable supposed (new) filename
+	
+  local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
+  global SMdirpath = substr("`fullname'",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+  global SMfilename = substr("`fullname'",`nameloc',.)		// Update filename with latest filename saved or used by Stata
+  
+  if "$SMfilename"!="" & "$SMfilename"!="`filename'"  {		// If most recently opened file name is not characteristic name
+  	if "`filename'"=="" {									// And if characteristic is empty
+	  char define _dta[filename] $SMfilename 				// Establish most recent filename as characteristic of dataset
+	  char define _dta[dirpath]  $SMdirpath 				// Initialization still needs contextvars, added far below
+	}
+	
+	else  {													// Else established filename is not empty
+	  if "$SMfilename"!="`filename'"  {						// If we have a conflict – existing char differnt from new name...
+		if "`oldSMname'"!=""  {								// If previous SMfilename exists...
+		  if "`oldSMname'"=="`filename'"  {					// And it matches `filename' charactarestic
+		    local msg = "Latest used file doesn't match established filename; keep filename `filename'?"
+		    display as err "`msg'"
+*					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		    capture window stopbox rusure "`msg' Else you'll get a filename list to select from"
+		    if _rc  {										// Check on return code from rusure
+		  	  global fname = "`dirpath'"					// Non-zero return from rusure; so put up a save box
+		  	  capture window fsave $fname "" dta
+			  if _rc  {										// If non-zero return code, file $fname already exists
+			    local exists = "yes"						// (as it should if it is the existing file! – so no response)
+			  }
+			  else window stopbox stop "Selected file does not exist"
+		    } //endif
+		  } //endif `oldSMname'
+		 
+		  else  {											// Else characteristic doesn't match either possible filename
+		  	local msg = "Recently used filename doesn't match filename characteristic; continue anyway?"
+*					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			capture window stopbox rusure "`msg' (Only 'ok' if you know what is happening)"
+		  }
+		} //endif `oldSMname'
+	  } //endif $SMfilename
+    } //endelse `filename'
+	
+  } //endif $SMfilename
+} //endelse strpos
+
+
+
+												// Continue with establishing contextvars
 
 	syntax [varlist(default=none)] [, NOCONtexts CLEar DELete DISplay * ]
 
-	global cmd = "SMcontextvars"
-		
 	quietly display "{smcl}" _continue
 	
 	if "`delete'"!=""  local clear = "clear"					// 'delete' is undocumented and included for user convenience
 
 	if "`varlist'"=="" & "`nocontexts'"=="" & "`clear'"=="" & "`delete'"=="" & "`display'"==""  {
 		display as error "Command SMcontextvars needs varlist or ', display' | ', nocontexts' | ', clear'"
-		errexit "Command SMcontextvars needs varlist or ', display' or ', nocontexts' or ', clear'"
+		window stopbox stop "Command SMcontextvars needs varlist or ', display' or ', nocontexts' or ', clear'"
 											
 	}
 	
@@ -75,7 +125,7 @@ version 9.0
 		  display as error "This dataset already has a SMstkid variable; cannot initialize a stacked dataset"
 *    					    12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		  display as error "Reconfigure this dataset before continuing. See {help stackMe##SMcontextvars:contextvars} help text"
-		  errexit "Cannot initialize a stacked dataset; reconfigure before continuing - type 'help SMcontextvars';"
+		  window stopbox stop "Cannot initialize a stacked dataset; reconfigure before continuing - type 'help SMcontextvars'"
 
 		}														// (genstacks would have checked this so something wierd has happened)  
 																
@@ -94,9 +144,8 @@ version 9.0
 		if _rc  window stopbox stop "You did not ok a change so `cmd' will exit on next 'OK'" // Will exit if change of mind
 
 		else  {													// Else 'ok' was returned
-			unab contextvars : `varlist'						// Stata will exit with error if variable(s) dont exist
 			char define _dta[contextvars] `contextvars'			// User answered 'ok' so establish the optioned contextvars
-			noisily display "Data characteristic now defines this dataset's contextvars as: `contextvars'"
+			noisily display "Data charactristc now has this dataset's contxtvars as: `contextvars'"
 *    					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
 *			***************
 			continue, break										// Exit this program
@@ -112,44 +161,48 @@ version 9.0
 	   display as error ///										// User needs warning of consequences for discarding the characteristc
 			"Established contextvars should not change after stacking; use {help stackme##SMcontextvars:contextvars} option"
 *    	     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	   local msg = "Contextvars should not be changed after stacking – use contextvars option on any stackMe command"
-	   errexit "`msg' to override established contexts just for that command – else start again with original data"
+	   local msg = "Contextvars characterstic should not change after stacking – use contextvars option on any stackMe command"
+	   window stopbox stop "`msg' to override established contexts just for that command – else start again with original data"
 	   
 	} //endif													// Continue if user responded 'OK'"														
 			
 
 			
-	if "`varlist'"!=""  unab vars : `varlist'					// unab will check for valid varnames
 
-	if "`vars'"!=""  {											// If varlist is not empty (it was set "" at top of program)
+	if "`varlist'"!=""  {										// If varlist is not empty (it was set "" at top of program)
+	
+		local vars = "`varlist'"
 
 		if "`contextvars'"!=""  {								// If contextvars characteristic is not empty there are estblshd contexts
 
 			local same : list contextvars === vars				// returns 1 in 'same' if 'contextvars' & 'vars' have same contents
 																// (irrespective of variable ordering)
-			if `same'  noisily display "Redundant contextvar names leaves contextvars characteristic unchanged"
+			if `same'  noisily display "Redundant contextvar name(s) leave(s) contextvars characteristic unchanged"
+*    						   			12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	
 			else  {												// Else varlist names vars different from established contextvars
 				
 			  if "`contextvars'"!="nocontexts"{					// If they do not say 'nocontexts'
 			  
-				noisily display "This dataset has established contextvars: use {help stackme##SMcontextvars:contextvars} option?"
-*    						     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				local msg = ///
-				"This dataset has established contextvars; you can override these by using the 'contextvars' option on any stackMe "
+				local msg1 = "This dataset has established contextvars: `contextvars'. "
+				local msg2 = "You can override these for a specific command by using the 'contextvars' option "
+*    						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				display as err "`msg1'" 
 				capture window stopbox rusure ///
-				"`msg'command to override established contexts just for that command – do you insist on establishing new contextvars?"
-				if _rc  errexit "You did not insist on a change so "
-																// Else do as we were told!
-				char define _dta[contextvars] `vars'			// Establish varlist as new contextvars	
+				"`msg1' `msg2'for any stackMe command (except genStacks) – continue anyway? (note that a stacked " ///
+				  dataset is normally tied to the contexts established when stacking)
+				if _rc  {
+				  window stopbox stop "Absent permission to establish new contextvars, will exit on next 'OK'"
+				}
+				else char define _dta[contextvars] `vars'		// Else re-establish varlist as new contextvars	
 				
-				noisily display "Re-initialized contextvars characteristic in unstacked data now names: `vars'"
-*    						    12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				noisily display "Re-initialized contextvars characteristic now names: `vars'"
+*    						     12345678901234567890123456789012345678901234567890123456789012345678901234567890
 				noisily display "NOTE: a stacked dataset would have been tied to contexts establishd when stackng"
 *    						 	 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				
+
 *				***************
-				continue, break
+				continue, break									// Break out of 'while' loop
 *				***************
 
 			  } //endif											// Already dealt above with characteristic saying 'nocontexts'
@@ -160,7 +213,7 @@ version 9.0
 		   	   
 		else  {													// Else there is no existing contextvars characteristic
 		   
-			noisily display "Named contextvar(s) are being established as a characteristic of this dataset"
+			noisily display "Named contextvar(s) now established as characteristic of this dataset"
 *    						 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 			char define _dta[contextvars] `vars'				// Establish new data characteristic 'contextvars'
 
@@ -182,7 +235,7 @@ version 9.0
 			  "Stacked data needs established contextvars but characteristic does not name any"
 *    		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
  			  local msg = ///
-			  "A stacked dataset is defined by the contextvars used when stacking – somehow these have become disconnected; "
+			  "A stacked dataset is characterized by the contextvars used when stacking – somehow these have become disconnected; "
 			  stopbox stop "`msg'start again with unstacked dataset"
 		    } //endif
 		   
@@ -212,10 +265,11 @@ version 9.0
 		   else {
 		   
 		      if "`contextvars'"==""  {							// Local 'contextvars' was initialized near top of program
-			     local msg = "This dataset has not been initialized for use with {cmd:stackMe} commands; use this "
+			     local msg = "This dataset has not been initialized for use with {cmd:stackMe} commands; invoke "
+*    					      12345678901234567890123456789012345678901234567890123456789012345678901234567890
 			     display as error "`msg'"
-				 display as error "command to option 'nocontexts' or to name existing contextvars'{txt}
-			     errexit "`msg'command to option 'nocontexts' or to name existing contextvars'"
+				 display as error "this command to option 'nocontexts' or to name existing contextvars"{txt}
+			     window stopbox stop "`msg'command to option 'nocontexts' or to name existing contextvars'"
 		      }
 		
 		      else noisily display "This dataset has established contextvars: `contextvars'"
@@ -226,14 +280,18 @@ version 9.0
 
 	} //endelse
 	
-	continue, break
+	continue, break												// Prevents while loop repeating indefinitely
 	
 	} //end while
+	
+	noisily display _newline "done." _newline
 	  
 	
 end SMcontextvars
 
+
 ********************************************************************************************************************************
+
 
 capture program drop SMcon
 
@@ -244,7 +302,9 @@ SMcontextvars `0'
 end SMcon
 
 
+
 ********************************************************************************************************************************
+
 
 
 capture program drop SMitemname
@@ -254,6 +314,24 @@ program define SMitemname
 version 9.0
 
 	global cmd = "SMitemname"
+	
+	if "$SMfilename"==""  {									// If filename was not recorded by previous stacmMe command...
+	local fullname = c(filename)							// Path+name of datafile most recently used or saved
+	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
+	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
+		global SMdirpath=substr("`fullname'",1,`nameloc'-1) // `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+		global SMfilename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
+	}														// (used by genstacks as default name for newly-stackd dtafile)
+	
+	else  {													// Else a tempfile was opened since any datafile
+		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
+		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
+*    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
+	} //endelse
+	
+} //endif
+
 
 	syntax [varlist(default=none)] [, DISplay CLEar DELete ] 	// 'delete' is undocumented but included for user convenience
 
@@ -360,7 +438,7 @@ version 9.0
 		if "`clear'"!="" {										// Else if 'clear' was optioned
 		
 			display as error "`msg'"
-\			capture window stopbox rusure `msg'; continue anyway?
+			capture window stopbox rusure `msg'; continue anyway?
 																// Else did not exit
 			display as error "Established SMitem characteristic linked to `SMitem' has been deleted"
 
@@ -370,10 +448,23 @@ version 9.0
 		
 	} //endelse 'varlist'
 	
+	noisily display _newline "done." _newline
+	
 		
 end SMitemname
 
+
 ********************************************************************************************************************************
+
+
+capture program drop SMitem
+
+program define SMitem
+
+SMitemname `0'
+
+end SMitem
+
 
 capture program drop SMite
 
@@ -384,7 +475,9 @@ SMitemname `0'
 end SMite
 
 
+
 ********************************************************************************************************************************
+
 
 
 capture program drop S2itemname
@@ -394,12 +487,31 @@ program define S2itemname
 varsion 9.0
 
 	global cmd = "S2itemname"
+	
+	if "$filename"==""  {										// If filename was not recorded by previous stacmMe command...
+	local fullname = c(filename)							// Path+name of datafile most recently used or saved
+	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
+	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
+		global dirpath = substr("`fullname'",1,`nameloc'-1)	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+		global filename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
+	}														// (used by genstacks as default name for newly-stackd dtafile)
+	
+	else  {													// Else a tempfile was opened since any datafile
+		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
+		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
+*    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
+	} //endelse
+	
+} //endif
+
 
 	syntax [varlist(default=none)] [, DISplay CLEar DELete ]	// 'delete' is undocumented and included for user convenience
 	
 	if "`varlist'"=="" & "`clear'"=="" & "`display'"=="" & "`delete'"==""  { 	// See if user has asked for something sensible
 
-		errexit "Command S2itemname should supply a new S2item name or ', display' or ', clear'"
+		display as error "Command S2itemname should supply a new S2item name or ', display' or ', clear'"
+		window stopbox stop "Command S2itemname should supply a new S2item name or ', display' or ', clear'"
 	
 	} //endif
 	
@@ -474,6 +586,32 @@ varsion 9.0
 																// (presumably won't cause an error if this leaves the link unchanged)
 	} //endif 'varlist'
 	
+				else  {											// Else change an existing link
+
+				   display as error "`msg'"
+				   capture window stopbox rusure `msg'; continue anyway?"
+				   
+				   if _rc  window stopbox stop "You did not click 'ok'; will exit on next 'OK'"
+
+				  char define _dta[S2item]						// This clears the characteristic; an empty string would not
+
+			      display as error "Established SMitem characteristic linked to `SMitem' has been deleted"
+
+			   } //endelse
+
+			} //endelse
+			
+		} //endif S2item
+																// Else S2item is empty (no existing link)
+			
+		else  noisily display "Newly established S2item data characteristic is linked to `vars'" 
+		
+		char define _dta[S2item] `vars'							// Put optioned varname into the _dta characteristic named 'S2Mitem'
+		label var S2item "(linked to `vars')"					// And a copy in the variable's label
+
+																// (presumably won't cause an error if this leaves the link unchanged)
+	} //endif 'varlist'
+	
 	
 		
 	else {														// Else user has provided no varlist
@@ -513,22 +651,140 @@ varsion 9.0
 		}
 
 	} //endelse 'varlist'
-
+	
+	noisily display _newline "done." _newline
 
 end S2itemname
 
+
 ********************************************************************************************************************************
+
+
+capture program drop S2item
+
+program define S2item
+
+SMitemname `0'
+
+end S2item
+
 
 capture program drop S2ite
 
 program define S2ite
 
-S2itemname `0'
+SMitemname `0'
 
 end S2ite
 
 
-******************************************************* END OF SUBPROGRAMS *****************************************************
+
+********************************************************************************************************************************
+
+
+
+capture program drop SMfilename
+
+program define SMfilename
+
+	syntax [anything] [, DIRpath CLEar DELete DISplay * ]
+
+	global cmd = "SMcontextvars"
+		
+	quietly display "{smcl}" _continue
+	
+	syntax [anything], [DIRpath CLEar DELete DISplay]
+	
+	if "`delete'"!=""  local clear = "clear"					// 'delete' is undocumented and included for user convenience
+	
+	if "`anything'"=="" & "`dirpath'"=="" & "`clear'"=="" & "`delete'"=="" & "`display'"==""  {
+	  display as error "Command SMcontextvars needs filename or ', display' | ', dirpath' | ', clear'"
+	  errexit "Command SMcontextvars needs varlist or ', display' or ', dirpath' or ', clear'"
+	}
+	
+	local name = "`_dta[filename]'"								// Get established filename & dirpath, if any
+	local path = "`_dta[dirpath]'"
+	
+	if "`dirpath'"!=""  {										// If user optioned 'dirpath'..
+	  
+	  if "`path'"==""  {
+	  	local msg = "Dataset not yet initialized by"
+	  	display as error "`msg' {help SMutilities##SMcontextvars:SMcontextvars} so it has no established dirpath"
+*                	         12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox stop "`msg 'SMcontextvars' so it has no established dirpath; will exit on next 'OK'"
+	  }
+	
+	  global fname = "`path'"+"`name'"							// Puts whatever we have into $fname
+	  capture window fopen fname "" dta
+	  if _rc  window stopbox stop "No such file; will exit on 'OK'"
+	  else  {													// Here decompose the returned $fsave into name and path
+		local nameloc = strrpos("$fsave","`c(dirsep)'") + 1		// Loc of 1st char after FINAL "/" of $fsave (NOTE "rr" in 'strr')
+		local newpath = substr("$fsave",1,`nameloc'-1)			// $fsave ends w last `c(dirsep)' (i.e. 1 char before name)
+		local newname = substr("$fsave",`nameloc',.)			// Update filename with latest name saved or used by Stata
+		char define _dta[filename] `newname'					// Put that filename into the _dta characteristic named 'SMitem'
+		char define _dta[dirpath]  `newpath'					// Same for dirpath
+	  }
+	} //endif 'dirpath'
+	
+	else  {														// 'dirpath' was not optioned
+	
+	  if "`anything'"!=""  {									// If user supplied a filename in 'anything'
+	  	global fname = "`path'" + "`anything'"					// If `path' is empty user can choose a path
+		capture window fopen fname "" dta
+		if _rc  window stopbox stop "No such file; will exit on next 'OK'"
+		else  {
+		  local nameloc = strrpos("$fsave","`c(dirsep)'") + 1	// Loc of 1st char after FINAL "/" of $fsave (NOTE "rr" in 'strr')
+		  local newpath = substr("$fsave",1,`nameloc'-1)		// $fsave ends w last `c(dirsep)' (i.e. 1 char before name)
+		  local newname = substr("$fsave",`nameloc',.)			// Update filename with latest name saved or used by Stata
+		  char define _dta[filename] `newname'					// Put that filename into the _dta characteristic named 'SMitem'
+		  char define _dta[dirpath]  `newpath'					// Same for dirpath
+		}
+	  } //endif 'anything'
+	  
+	  else  {													// 'anything' does not contain filename
+	  	if "`clear'"!=""  {										// 'clear' was optioned
+		  char define _dta[filename]							// Clear the filename characteristic
+		  char define _dta[dirpath]								// Same for dirpath	
+		  noisily display _newline "File characteristics deleted as per user request" _newline
+		}
+	  }
+	}
+
+	if "`display'"!=""  {
+	  local name = "`_dta[filename]'"							// Get (newly) established filename & dirpath
+	  local path = "`_dta[dirpath]'"
+	  noisily display "(znewly) established directory path and filename are:" _newline
+	  noisily display "`path'`name'"
+	}															
+
+	noisily display _newline "done." _newline
+
+	
+end SMfilename
+
+
+********************************************************************************************************************************
+
+
+capture program drop SMfile
+
+program define SMfile
+
+SMitemname `0'
+
+end SMfile
+
+
+capture program drop SMfil
+
+program define SMfil
+
+SMitemname `0'
+
+end SMfil
+
+
+******************************************************* END OF UTILITY SUBPROGRAMS *****************************************************
 
 
 
