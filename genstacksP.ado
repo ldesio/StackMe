@@ -1,9 +1,7 @@
 
-capture program drop genstacksP
+capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
-*!  This program makes calls on stackmeWrapper's varsImpliedByStubs subroutine (what Stata calls a 'program')
-
-program define genstacksP
+program define genstacksP								// Called from 'stackmeWrapper', makes no calls on other subprograms
 
 *!	Version 2 uses the command window to build label for stacked data; unlike version 2a which uses a dialog box.
 
@@ -18,20 +16,24 @@ program define genstacksP
 	// doesn't use Stata's code for duplicating variables that are not reshaped. Instead it saves those variables and later   
 	// merges them with the reshaped variables. It uses external files for this rather than data frames, because of limitations   
 	// on types of merges that frames support.
-	//   An important component of the stacking operation happens in `stackmeWrapper', where stubnames are identified and 
-	// checked. `genstacksP' (this ado file) reshapes and post-processes the stacked data to remove empty stacks and correct 
-	// for fixed effects, if optioned.
+	//   An important component of the stacking operation happens in `genplaceO', where stubnames are identified and 
+	// checked. `genstacksP' (this ado file) reshapes the stacked data, also removing empty stacks and correcting for 
+	// fixed effects, if optioned.
 	//   `genstacksP' calls a subroutine already called from stackmeWrapper to derive variable names implied by stubs used in
 	// conformity with genstacks syntax 2 (see help file for genstacks).
-	//   Trial versions used Stata's version # to evaluate use of frame technology where present. It used a call on Mata to 
+	//   Trial versions were used Stata's version 2b to evaluate use of frame technology where present. It used a call on Mata to 
 	// get the version # (I was unable to discover how to get the version number from Stata itself.) thus: 
-	// 'mata: st_numscalar("temp", statasetversion()', returns versn # in scalar 'temp'. Frames proved slower than tempfiles.
+	// 'mata: st_numscalar("temp", statasetversion()', returns versn # in scalar 'temp'. But frames proved slower than tempfiles.
 
 *set trace on
 
-  syntax anything [aw fw pw/], [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
-							   [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(integer -1) NOCheck ]  ///
-							   [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) wtexplst(string) ] 
+
+global errloc "genstacksP(1)"
+
+
+  syntax anything [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
+				  [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(integer -1) EXTradiag NOCheck  ] ///
+				  [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) wtexplst(string) ] 
 
 							   
 							   
@@ -60,7 +62,7 @@ program define genstacksP
 										
 										
 										
-										
+global errloc "genstacksP(2)"										
 														
 								// (2) For first context only: diagnose any errors in fe syntax
 								
@@ -81,11 +83,11 @@ program define genstacksP
 			display as error	"Not in varlist: optioned fe var(s) `list'"
 	`		window stopbox note "Optioned fe variables not among vars to be processed (see list)"
 			global exit = 1
-			exit
+			exit 1
 		}
 	
 		if "`feprefix'"==""  {
-			display as error "NOTE: No feprefix provided for optioned fixed effects; using 'fe_' as prefix"
+			if `w' noisily display "NOTE: No feprefix provided for optioned fixed effects; using 'fe_' as prefix"
 		}															// Substituted in each context separately
 						   // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		if `w' {
@@ -100,11 +102,12 @@ program define genstacksP
 	 
 
 	
+global errloc "genstacksP(3)"
 
 								// (3) For each context: reshape, process fixed effects, drop empty stacks if optioned
 
 				
-  if `w' noisily display _newline "{bf:Context `c':}{txt}"			//`w' false after limitdiag reached
+*  if `w' noisily display _newline "{bf:Context `c':}{txt}"			//`w' false after limitdiag reached
 	
   if ("`fe'"=="_all")  local fe = "`namelist'"
 
@@ -117,6 +120,7 @@ program define genstacksP
 		  quietly replace SMstkid = `SMstk'							// Replace missing obs for var ordered after SMunit
 		  drop `SMstk'
   }																	// `SMstk' & `S2stk' get succesive values from 'reshape')
+  
   else  {															
 		  tempvar S2stk												// If IS to be doubly-stacked (e.g. issues within parties)
 		  `displ' reshape long `namelist', i(S2unit) j(`S2stk')		//`displ' is "quietly" if `w' ==0
@@ -135,8 +139,6 @@ program define genstacksP
 			`displ' gen `feprefix'`fevar' = `fevar' - `mfevar' 
 		}
 	 }
-		  	 
-	 noisily display "." _continue
 
 	 if "`keepmisstacks'"==""  {									// If dropping empty stacks (default) ...
 		 tempvar stkmiss											// Flag to indicate stack all missing for this context
@@ -146,13 +148,11 @@ program define genstacksP
 	 }
 	   
   } //endif keep misstacks | fe
-		
-	
-																	// Much post-processing of stacked data is in genstacks calle
-																
+		  	 
+  noisily display "." _continue
+			
+																	// Much post-processing of stacked data is in genstacks caller																
 end //genstacksP
-
-
 
 
 ********************************************************** END OF PROGRAM *********************************************************
