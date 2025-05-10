@@ -124,9 +124,9 @@ global errloc "wrapper(0)"				// Used by subprogram 'errexit' and in the final c
 										// of any error. User errors are handled more specifically in the codeblocks where such errors 
 										// are identified. All errors (ultimately) lead to a call on subprogram 'errexit' (below) which
 										// restores the original data (if changed by the time the error is identified) before exit.
-										
+*********										
 capture {								// Here is the opening capture brace that enclose the remaining wrapper code, except for a final
-										// codeblock that processes any captured errors. (That codeblk follows the close brace that ends
+*********								// codeblock that processes any captured errors. (That codeblk follows the close brace that ends
 										// the span of code within which errors are captured).
 										
 										
@@ -145,28 +145,7 @@ if "`filename'"==""  {
 	window stopbox stop "This datafile has not been initialized by 'SMcontextvars' for use by 'stackMe'; see displayed message"
 }															// Need user to read help text before starting!
 
-/*															// COMMENTED OUT BECAUSE NOW DONE IN SMcontextvars			
-else  {
 
-  if "$filename"==""  {										// If filename was not recorded by previous stacmMe command...
-	local fullname = c(filename)							// Path+name of datafile most recently used or saved
-	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
-	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
-		global SMdirpath = substr("`fullname'",1,`nameloc'-1)	// $SMdirpath ends w last `c(dirsep)' (i.e. 1 char before name)
-		global SMfilename =substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
-	}														// (used by genstacks as default name for newly-stackd dtafile)
-	
-	else  {													// Else a tempfile was opened since any datafile
-		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
-		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
-*    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
-	} //endelse
-	
-  } //endif
-
-} //endelse
-*/
 
 	global multivarlst = ""									// Global will hold copy of local 'multivarlst' for use by caller progs
 															// (holds list of varlists as typed by user, with ":", separatd by "||")
@@ -1891,8 +1870,9 @@ pause (9.1)
 	local skipcapture = "skipcapture"						// In case there is a trailing non-zero return code
 	
 	
-} //end capture	
-
+* *************	
+} //end capture												// Close brace enclosing code, back to top, whose errors will be captured
+* *************
 
 
 
@@ -1927,7 +1907,7 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If unreported non-zero re
 
 
 if "$SMreport"==""	{							// Drop all globals, restoring those needed by succeeding stackMe commands
-												// (not if this was just done in errexit, if that was invoked)
+												// (not if this was just done in errexit, setting $SMreport!=""
 	scalar filename = "$SMfilename"				// Save, in a scalar, global filename – relevant for later stackMe cmds
 	scalar dirpath = "$SMdirpath"				// Ditto for $SMdirpath
 	scalar exit = "$exit"						// Ditto for $exit
@@ -1937,24 +1917,19 @@ if "$SMreport"==""	{							// Drop all globals, restoring those needed by succee
 	global SMdirpath = dirpath					// Ditto for dirpath
 	global exit = exit							// Ditto for $exit
 	global multivarlst = multivarlst			// Ditto fir $ultivarlst (used in most caller programs)
-	scalar drop filename dirpath exit multivarlst // But we should overtly drop the scalars used to secure those loc/globals
-
+	scalar drop filename dirpath exit multivarlst // But we must overtly drop the scalars used to secure those loc/globals
 }
+
+global origdta = "`origdta'"					// Will be cleared (after possble use) in caller, along with $SMreport & $multivarlst
 
 	
 end //stackmeWrapper							// Here return to `cmd' caller for data post-processing
 
 
-************************************************* end stackmeWrapper ******************************************************
+*************************************************** end stackmeWrapper *************************************************************
 
 
-
-
-
-
-
-
-**************************************************** SUBPROGRAMS **************************************************************
+**************************************************** BEGIN SUBPROGRAMS *************************************************************
 *
 * Table of contents
 *
@@ -1972,13 +1947,12 @@ end //stackmeWrapper							// Here return to `cmd' caller for data post-processi
 * varsImpliedByStubs	genstacksO						Name says it
 * subinoptarg			unsure if called at all			Replace argument within option string
 *
-********************************************************************************************************************************
-
+************************************************************************************************************************************
 
 
 capture program drop checkSM
 
-program define checkSM								// See of SMitem or S2item are among input/outcome vars
+program define checkSM, rclass							// Checks for valid special variable names (SM names) and their linkages
 
 
 	args check													  // Argument 'check' contains list of non-'unab'ed variables	
@@ -2001,7 +1975,7 @@ program define checkSM								// See of SMitem or S2item are among input/outcome
 		   
 		} //next 'var'
 		   
-		if "`SMitem'" ==""  local SMerrs = "`SMerrs' `var'"		  // If SMitem isnt linked, extend list of unlinked SMvars
+		if "`SMitem'" ==""  local SMerrs = "`SMerrs' `var'"		  // If SMitem isn't linked, extend list of unlinked SMvars
 		else  local gotSMvars = "`gotSMvars' `var'"		  		  // Else extend list of linked SMvars
 		   
 		if "`S2item'"=="" local SMerrs = "`SMerrs' `var'"		  // If S2item isnt linked, extend list of unlinked SMvars
@@ -2153,7 +2127,7 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 												//   IF STRINGS COME AS OPTIONS, errexit EXPECTS PRIOR DISPLAY BY CODEBLK THAT DIAG-
 												// NOSED THE ERROR AND, IF FOLLOWED BY OPTION `origdta', RESTORES ORIGINAL DATA PRIOR
 												// TO EXIT, USING `origdta' AS THE TEMPFILE HOLDING THE DATA TO BE RESTORED.
-												// (complexity is 'cos of need to handle legacy code using two arguments)
+												// (complexity is due to need to handle legacy code that uses just two arguments)
 
 *	gettoken head rest : "`0'"					// Get first word of string sent to this subprogram (overcomes quote problems)
 	if "`1'"==","  {							// If what was sent to 'errexit' starts with a comma then it handles all possibilities
@@ -2924,8 +2898,6 @@ end varsImpliedByStubs
 
 
 
-
-************************************************ END SUBROUTINES *****************************************************
 
 
 
