@@ -1,4 +1,5 @@
-capture program drop gendistP
+
+capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
 program define gendistP
 
@@ -19,12 +20,11 @@ program define gendistP
 	
 	
 
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) ] 			 ///
-		[ PPRefix(string) MPRefix(string) DPRefix(string) APRefix(string) LIMitdiag(integer -1) ] 			 ///
-		[ MCOuntname(name) MPLuggedcountname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace ]		 ///
-		[ NOCONtexts /*PROximities*/nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) * ] 	
+    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) PPRefix(string) ] ///
+		[ MPRefix(string) DPRefix(string) APRefix(string) MPLuggedcountname(name) LIMitdiag(integer -1) ] 		///
+		[ EXTradiag(integer 0) MCOuntname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace NOCONtexts ]	///
+		[ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) * ] 	
 															// now using label lname in lieu of ctxvar
-															// `filist' is disguised `iflist'
 						
 
 								
@@ -35,9 +35,7 @@ program define gendistP
 			
 
 	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!	** 
-/*
-	local count = `c'										// Count of contexts processed, as basis for progress dots
-*/	
+
 	if ("`missing'"=="") local missing = "all"				// Default if 'missing' option was not used
 	if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
 	if "`missing'"!="dif2"  local missing = substr("`missing'",1,3)	// Keep 4 chars if those are "dif2", else just 3 chars
@@ -45,7 +43,7 @@ program define gendistP
 	local stkd = 0
 	capture confirm variable SMstkid
 	if _rc == 0  local stkd = 1								// This versn makes no distinctn between stacked and unstkd dta
-	if "`nostacks'"!="" local stkd = 0						// Indiucates whether context includes stack #
+	if "`nostacks'"!="" local stkd = 0						// Idiucates whether context includes stack #
 
 	
 	
@@ -66,7 +64,7 @@ program define gendistP
 	  if "`postcolon'"!=""  {							 	// If `postcolon' is not empty we have a prefix string
 		local selfplace = "`precolon'"						// Replace with `precolon' whatever was optioned for selfplace	**
 		local isprfx = "isprfx"								// And set `isprfx' flag (not used in gendist), then ...	
-		local vars = strltrim(substr("`postcolon'",2,.)) 	// strip off the leading "`prefix:'" and any following blanks
+		local vars = strtrim(substr("`postcolon'",2,.)) 	// strip off the leading "`prefix:'" and any following blanks
 	  } //endif 											// (start with pre-colon prefix)
 
 	  else local vars = "`prepipes'"						// If there was no colon then varlist was in `prepipes'
@@ -77,16 +75,17 @@ program define gendistP
 	  local first `1'
 	  local last ``nvars''
 	  
-	  local weight = word("`wtexplst'",`nvl')
-	  if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper program	***
-
-
-	  
-	  
-	  
+	  if "`wtexplst'"!=""  {
+	    local weight = subinstr(word("`wtexplst'",`nvl'),"$"," ",.) // Replace any "$" by " " (substd to ensure 1 word per wt)
+	    if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper program	***
+	  }
 
 	  
-											// (3) Diagnostics are displayed only for first context SHOULD BE 'gendistO'	***
+	  
+	  
+
+	  
+											// (3) Diagnostics are displayed only for 1st context SHOULD BE IN 'gendistO'`***
 	  
 	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
  	
@@ -127,23 +126,20 @@ program define gendistP
 	 
 											// (4) Get plugging values separately for different 'missing' options
 		
-	 	local i = 0											// THIS CODEBLK SHOULD BE CONDUCTED ON WHOLE DATASET
+	 	local i = 0											// THIS CODEBLK SHOULD BE CONDUCTED ON WHOLE DATASET			***
 		while `i'<`nvars'  {
 		   local i = `i' + 1
 		   local var = word("`varlist'",`i')
-*		   isnewvar `var' 									// Commented out 'cos working data wouldn't permit dup diag
 
 		   qui gen m_`var' = missing(`var')					// Code m_var =0, or =1 if missing
 		   scalar skip`i' = 0
 		   qui count if ! m_`var'							// Yields r(N)==0 if var does not exist
+*noisily display "r(N) = " r(N)
 		   if r(N)==0  {									// If there are no observations for this var in this context
 			 scalar skip`i' = 1								// Flag used in next codeblock to skip this var
 			 continue										// Skip any vars with no obs by continuing w next var
 		   }
-/*		   local rN = r(N)
-		   if `rN'<`minN'  local minN = `rN'
-		   if `rN'>`maxN'  local maxN = `rN'
-*/															// Get means for this context, selectively if optioned
+
 		   capture {
 			 if "`missing'"=="all"  qui mean `var' `weight'	// Use all obs to derive mean only for option missing(all)			
 			 if "`missing'"=="sam"  qui mean `var' `weight'  if `selfplace'==`var'
@@ -151,22 +147,6 @@ program define gendistP
 			 if "`missing'"=="dif2" qui mean `var' `weight'  if `selfplace'!=`var' // (distinction from dif is made below)
 		   }
 
-/*		   if _rc!=0  {										// If there was an error in any 'mean' command
-		   	 local lbl : label lname `c'					// Get the context id
-		   	 local re = _rc									// Put the error # into local 're'
-		   	 if _rc==2000  {							
-			 	display as error "Stata reports 'no observations' error in contxt `lbl'"
-			 }
-			 else  {										// Issue appropriate error message
-		   	   display as error "Stata has flagged error `re' in context `lbl'" _continue
-error `re'
-		     }
-			 
-			 global exit = 1								// And tell wrapper to exit after restoring origdata
-		     exit 1											// Return to calling program
-			 
-		   }
-*/		   
 		   matrix b = e(b)									// Retrieve mean for this context from 'ereturn'
 		   scalar mean`i' = b[1,1]
 		   gen p_`var' = mean`i'							// Store that mean as plugging value to replace miss val
@@ -253,9 +233,7 @@ end gendistP
 
 
 
-**************************************************** SUBROUTINES **********************************************************
-
-
+**************************************************** SUBPROGRAM **********************************************************
 
 
 capture program drop createactiveCopy						// APPARENTLY NO LONGER CALLED IN VERSION 2
@@ -269,37 +247,10 @@ program define createactiveCopy
 	local newlab = "`type'-MEAN-PLUGD " + "`varlab'" 	   // `type' is type of missing treatment
 	quietly label variable `plugPrefx'`varlist' "`newlab'" // In practice, syntax changes `plugPrefx' to `plugPrefx'
 
-end //createActive copy
+end //createactiveCopy
 
 
-
-
-
-
-capture program drop isnewvar								// APPARENTLY NO LONGER CALLED IN VERSION 2
-
-program isnewvar
-	version 9.0
-	syntax varlist, prefix(name)
-	
-	capture confirm variable `prefix'`varlist' 
-	if _rc==0  {
-		display as error _newline "`prefix'-prefixd vars already exist; replace?{txt}"
-		capture window stopbox rusure "`prefix'-prefixed variables already exist; replace?"
-		global 
-		if _rc != 0  {
-			global exit = 1
-			exit 1
-		}
-	}
-	
-end //isnewvar
-
-
-
-
-
-************************************************** END SUBROUTINES **********************************************************
+************************************************** END SUBPROGRAM **********************************************************
 
 
 
