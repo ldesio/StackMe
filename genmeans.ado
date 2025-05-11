@@ -1,6 +1,10 @@
-capture program drop genmeanstats		// This program's name is 'genmeanstats' but I don't know how to rename the Github adofile
 
-program define genmeanstats
+capture program drop genmeanstats		// This program's name is now 'genmeanstats' but I don't know how to change it in Github
+
+										// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+
+program define genmeanstats				// Called by 'genme' a separate program defined after this one
+										// Calls subprogram 'stackmeWrapper'
 
 
 *!  Stata version 9.0; genstats version 2, updated Aug'23 by Mark from major re-write in June'22; revised Nov'24 to add prog genme
@@ -39,12 +43,18 @@ program define genmeanstats
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
 	
+*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 	
 	
-								// On return from wrapper ...
-								
-	if $exit  exit 1									// No post-processing if return from wrapper was an error return
-	
+														
+											// *****************************
+											// On return from stackmeWrapper
+											// *****************************
+											
+*********************														
+if "$SMreport"==""  {									// If return does not follow an errexit report
+*********************								
 								
 	local 0 = "`save0'"									// Restore what the user typed
 	
@@ -55,13 +65,16 @@ program define genmeanstats
 	
 	if `limitdiag'!=0  noisily display _newline "done." _newline
 
+* *****************
+} //endif $SMreport									// Close braces that delimit code skipped on return from error exit
+* *****************	  
+	
+	global multivarlst									// Clear this global, unused above
+	global SMreport										// Ditto
+	global origdta										// Ditto
 
 
 end //genmeanstats			
-
-
-*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 
 
 
@@ -79,5 +92,4 @@ end genme
 
 
 **************************************************** END genme ****************************************************************
-
 
