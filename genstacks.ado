@@ -1,8 +1,9 @@
 
+
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
 										 // SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-v
+
 program define genstacks									// Called by 'genst' a separate program defined after this one
 															// Calls subprogram stackmeWrapper and subprogram 'errexit'
 
@@ -468,9 +469,7 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
   global origdta											// And this one
 
  
- 
 end genstacks	
-
 
 
 ************************************************** program genst *********************************************************
@@ -486,6 +485,3 @@ end genst
 
 
 *************************************************** END PROGRAMS **********************************************************
-
-
-
