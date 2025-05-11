@@ -1,10 +1,11 @@
 
-
 capture program drop gendist				// Calculates distances (now also proximities) between respondent spatial locations and
-											// the spatial location of battery items.
-											// Called from program gendi; calls program stackmeWrapper
+											// the spatial location of battery items.// Called from program gendi
 											
-program define gendist
+											// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+
+program define gendist										// Called by 'gendist' a separate program defined after this one
+															// Calls subprogram stackmeWrapper and subprogram 'errexit'
 
 *!  program gendist written for Stata version 9.0; gendist version 2, updated by Mark, May'23-May'25 from major re-write in June'22
 
@@ -12,8 +13,8 @@ version 9.0
 
 															
 
-										// (0 Here sets stackMe command-specific options and call the stackMe wrapper program;  
-										//    lines ending with "**" need to be tailored to specific stackMe commands
+											// (0 Here sets stackMe command-specific options and call the stackMe wrapper program;  
+											//    lines ending with "**" need to be tailored to specific stackMe commands
 
 global errloc "gendist(0)"									// $Records which codeblk is now executing, in case of Stata error
 
@@ -69,7 +70,7 @@ if "$SMreport"=="" {										// If got here via 'errexit' skip all code that fo
 
 
 
-								// Here deal with possible errors that might follow
+											// Here deal with possible errors that might follow
 **********	
 capture  {													 // (begin new capture block in case of errors to follow)
 **********
@@ -433,7 +434,7 @@ end gendist
 ****************************************************** PROGRAM gendi **********************************************************
 
 
-capture program drop gendi
+capture program drop gendi									// Short command name for 'gendist'
 
 program define gendi
 
@@ -442,8 +443,4 @@ gendist `0'
 end gendi
 
 
-******************************************************* END PROGRAMS **********************************************************
-
-
-
-
+******************************************************* END PROGRMES **********************************************************
