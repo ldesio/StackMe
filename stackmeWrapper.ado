@@ -1813,6 +1813,7 @@ pause (8.1)															// ***************************************************
     } //endif 'spdtst'												// END OF CODEBLOCK THAT MINIMIZES N OF TIMES FILES ARE OUTPUT/USED
 	
 	
+
 	
 	
 global errloc "wrapper(9)"	
@@ -1834,7 +1835,7 @@ pause (9)
 	  if "$prefixedvars"!=""	{							// If there were any name conflicts for merging
 															// (diagnosed before call on 'cmd'P)
 	   foreach var of global prefixedvars  {				// This global was filled as a bi-product of codeblock (5) 
-		  mata:st_numscalar("a",ascii(substr("`var'",4,1)) 	// Get MATA to tell us the ascii value of char following "_"
+		  mata:st_numscalar("a",ascii(substr("`var'",4,1))) // Get MATA to tell us the ascii value of char following "_"
 		  if a>64 & a<91  continue							// If it is an upper case character, don't drop this var
 		  local prfx = strupper(substr("`var'",1,2))		// Change prefix string to upper case (it is followd by "_")
 		  local tempvar = "`prfx'" + substr("`var'",3,.)	// All prefixes are 2 chars long and all were previously lower case
@@ -1877,7 +1878,7 @@ pause (9.1)
 
 
 
-global errloc "wrapper(9)"	
+global errloc "wrapper(10)"	
 pause (10)
 										// (10) Handle any non-zero return codes from above (including called programs)
 										// 		Drop all globals except those needed by caller ('multivarlst') & succeeding commands
@@ -1926,10 +1927,11 @@ global origdta = "`origdta'"					// Will be cleared (after possble use) in calle
 end //stackmeWrapper							// Here return to `cmd' caller for data post-processing
 
 
-*************************************************** end stackmeWrapper *************************************************************
+************************************************* end stackmeWrapper ******************************************************
 
 
-**************************************************** BEGIN SUBPROGRAMS *************************************************************
+
+**************************************************** BEGIN SUBPROGRAMS **************************************************************
 *
 * Table of contents
 *
@@ -1947,12 +1949,13 @@ end //stackmeWrapper							// Here return to `cmd' caller for data post-processi
 * varsImpliedByStubs	genstacksO						Name says it
 * subinoptarg			unsure if called at all			Replace argument within option string
 *
-************************************************************************************************************************************
+********************************************************************************************************************************
+
 
 
 capture program drop checkSM
 
-program define checkSM, rclass							// Checks for valid special variable names (SM names) and their linkages
+program define checkSM, rclass						// Checks validity of stackMe special names (SM names) and their linkages
 
 
 	args check													  // Argument 'check' contains list of non-'unab'ed variables	
@@ -1975,7 +1978,7 @@ program define checkSM, rclass							// Checks for valid special variable names 
 		   
 		} //next 'var'
 		   
-		if "`SMitem'" ==""  local SMerrs = "`SMerrs' `var'"		  // If SMitem isn't linked, extend list of unlinked SMvars
+		if "`SMitem'" ==""  local SMerrs = "`SMerrs' `var'"		  // If SMitem isnt linked, extend list of unlinked SMvars
 		else  local gotSMvars = "`gotSMvars' `var'"		  		  // Else extend list of linked SMvars
 		   
 		if "`S2item'"=="" local SMerrs = "`SMerrs' `var'"		  // If S2item isnt linked, extend list of unlinked SMvars
@@ -2127,11 +2130,12 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 												//   IF STRINGS COME AS OPTIONS, errexit EXPECTS PRIOR DISPLAY BY CODEBLK THAT DIAG-
 												// NOSED THE ERROR AND, IF FOLLOWED BY OPTION `origdta', RESTORES ORIGINAL DATA PRIOR
 												// TO EXIT, USING `origdta' AS THE TEMPFILE HOLDING THE DATA TO BE RESTORED.
-												// (complexity is due to need to handle legacy code that uses just two arguments)
+												// (complexity is due to need to handle legacy code that used just two arguments)
 
-*	gettoken head rest : "`0'"					// Get first word of string sent to this subprogram (overcomes quote problems)
-	if "`1'"==","  {							// If what was sent to 'errexit' starts with a comma then it handles all possibilities
-*	if substr(strtrim("`head"),1,1) == ","  { 	// NOTE: 'msg' is always sent to stopbox, no matter how it was acquired or optioned
+capture {										// Open capture braces mark start ot codeblock within which errors will be captured
+
+	if "`1'"==","  {							// If what was sent to 'errexit' starts with a comma, errexit handles all possibilities
+												// NOTE: 'msg' is always sent to stopbox, no matter how it was acquired or optioned
 	   local display = ""						// 'msg' will only be displayed if optiond; origdta will be restored if optioned
 	   syntax , [ MSG(string) ORIgdta(string) STAtaerror(string) DISplay] *	
 	}											// (and optional `stataerror' is Stata return code or string that caused the error
@@ -2150,11 +2154,11 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 		capture confirm number `stataerror' 
 		if _rc  local msg = "Stata reports likely data error in $errloc"  // Not numeric so likely an 'unab' error (addressed below)
 		else  local msg = "Stata reports likely program error `stataerror' in $errloc" // Numeric so likely a captured return code
-		display as error "msg"
+		noisily display as error "msg"
 	} //endif
 	
-	else if "`display'"!="" display as err "`msg'" // Else, with no stata error, display the supplied 'msg' whether argument or optd
-												// (note that display might be optioned or might be inherent if it was an argument)
+	else if "`display'"!="" noisily display as err "`msg'" // Else no stata error: display supplied 'msg' whether argument or optd
+												// (note that display might be optioned or might be inherent msg it was an argument)
 												// Since we exit we must drop all globals, which yields a tricky problem addressed...
 	scalar SMstataerror = "`stataerror'"		// Save in a scalar the stataerror argument
 	scalar SMmsg = "`msg'"						// Save in a scalar the 'msg' argument or option
@@ -2185,6 +2189,17 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 	   else  window stopbox stop "`msg'; will exit on 'OK'"   // Sometimes exits directly; sometimes returns to program as above
 	} 											// (NEED TO RESEARCH THIS)															***
 	
+	local skipcapture = "skipcapture"			// Flag to skip capture code if that code was entered from here
+	
+) //end captured								// End of codeblock within which errors will be captured
+
+if "`skipcapture'"==""  {						// If entered this block without 'skipcapture' being set, 2 lines up, ..
+
+	noisily display "'errexit' diagnosed an error within itself"
+	global stopbox stop "'errexit' diagnosed an error within itself"
+	
+}
+
 	
 end errexit
 
@@ -2569,7 +2584,7 @@ global errloc "isnewvar"
 	  }
 	  else global newprfxdvars = "$newprfxdvars `var'"		// List of prefixed outcome vars
 	  local prfx = strupper(substr("`var'",1,2))			// Extract prefix from head of 'var' & change to upper case
-	  local badvar = "`prfx'"+substr("`var'",3,.)			// Potential badvar has upper case prefix
+	  local badvar = "`prfx'"+"_"+substr("`var'",4,.)		// Potential badvar has upper case prefix before "_"
 	  capture confirm variable `badvar'						// See if uppercase version is left over from previous error exit
 	  if _rc==0  {
 	  	global badvars = "$badvars `badvar'"				// If so, add to list of such vars
@@ -2899,9 +2914,5 @@ end varsImpliedByStubs
 
 
 
-
-
-************************************************** END SUBROUTINES *************************************************************
-
-
+****************************************************** END OF SUBPROGRAMS *****************************************************
 
