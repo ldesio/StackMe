@@ -1,7 +1,7 @@
 
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
-program define gendistP
+program define gendistP										// Called by 'stackmeWrapper'; calls subprograms 'errexit'
 
 	version 9.0												// gendist version 2.0, June 2022, updated May 2023
 	
@@ -18,6 +18,11 @@ program define gendistP
 	// was unable to handle new weighting requirements.
 	
 	
+global errloc "gendistP"						// Global that keeps track of execution location for benefit of 'errexit'
+
+********
+capture {										// Open capture braces mark start ot code where errors will be captured
+********	
 	
 
     syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) PPRefix(string) ] ///
@@ -223,7 +228,19 @@ program define gendistP
 	local temp = ""											// Dummy command needed as target for ,break option
 
 	
+	local skipcapture = "skipcapture"						// Local, if set, prevents capture code, below, from executing
 	
+	
+* *************
+} //end capture												// Endbrace for code in which errors are captured
+* *************												// Any such error would cause execution to skip to here
+															// (failing to trigger the 'skipcapture' flag two lines up)
+
+if "`skipcapture'"==""  {									// If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	
+}
 	
 end gendistP
 
@@ -234,7 +251,6 @@ end gendistP
 
 
 **************************************************** SUBPROGRAM **********************************************************
-
 
 capture program drop createactiveCopy						// APPARENTLY NO LONGER CALLED IN VERSION 2
 
@@ -247,11 +263,6 @@ program define createactiveCopy
 	local newlab = "`type'-MEAN-PLUGD " + "`varlab'" 	   // `type' is type of missing treatment
 	quietly label variable `plugPrefx'`varlist' "`newlab'" // In practice, syntax changes `plugPrefx' to `plugPrefx'
 
-end //createactiveCopy
-
+end //createActive copy
 
 ************************************************** END SUBPROGRAM **********************************************************
-
-
-
-
