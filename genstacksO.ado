@@ -1,9 +1,9 @@
+															
+global errloc "genstacks0"									// Global that keeps track of execution location for benefit of 'errexit'
 
-capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
-
-program define genstacksO, rclass							// Called by 'stackmeWrapper'; calls subprograms varsImpliedByStubs
-															// stunsImpliedByVars and subprogram 'errexit'
-
+********
+capture {													// Open capture braces mark start ot code where errors will be captured
+********	
 
 
 	syntax anything [aw fw pw/], [ USErcontxts(varlist) NOContexts STAckid(name) NOStacks ITEmname(varlist) NOCheck ] ///
@@ -254,8 +254,22 @@ pause (0.4)
 		return local reshapeStubs `reshapeStubs'			// So-called because stubs are used for reshaping in 'genstacksP'
 		
 
+	local skipcapture = "skipcapture"						// Local, if set, prevents capture code, below, from executing
+
+	
+* *************
+} //end capture												// Endbrace for code in which errors are captured
+* *************												// Any such error would cause execution to skip to here
+															// (failing to trigger the 'skipcapture' flag two lines up)
+
+if "`skipcapture'"==""  {									// If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	
+}
+
+		
 end genstacksO
 
 
-*********************************************** END OF PROGRAM *************************************************************
-
+***************************************************** END OF PROGRAM ******************************************************************
