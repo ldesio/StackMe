@@ -1,4 +1,5 @@
 
+
 capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
 program define genstacksP								// Called from 'stackmeWrapper', makes no calls on other subprograms
@@ -28,7 +29,13 @@ program define genstacksP								// Called from 'stackmeWrapper', makes no calls
 *set trace on
 
 
-global errloc "genstacksP(1)"
+global errloc "genstacksP(1)"								// Global that keeps track of execution location for benefit of 'errexit'
+
+********
+capture {													// Open capture braces mark start ot code where errors will be captured
+********	
+
+
 
 
   syntax anything [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
@@ -150,10 +157,23 @@ global errloc "genstacksP(3)"
   } //endif keep misstacks | fe
 		  	 
   noisily display "." _continue
-			
+		
+  local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
+	
+	
+* *************
+} //end capture													  	// Endbrace for code in which errors are captured
+* *************													  	// Any such error would cause execution to skip to here
+																	// (failing to trigger the 'skipcapture' flag two lines up)
+																	
+
+if "`skipcapture'"==""  {										  	// If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	
+}
 																	// Much post-processing of stacked data is in genstacks caller																
-end //genstacksP
+end genstacksP
 
 
 ********************************************************** END OF PROGRAM *********************************************************
-
