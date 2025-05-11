@@ -1,7 +1,9 @@
 
-capture program drop gendummiesP
 
-program define gendummiesP						// Does the heavy lifting (such as it is) for all contexts taken together
+capture program drop gendummiesP			  	// Does the gendummies heavy lifting (such as it is) for all contexts taken together
+
+program define gendummiesP									// Called by 'stackmeWrapper'; calls subprograms 'errexit'
+						
 
 
 *! Stata version 9.0; gendummies version 2, updated Mar'23 (with minor tweaks in Sept '24) from major re-write in June'22
@@ -13,7 +15,13 @@ program define gendummiesP						// Does the heavy lifting (such as it is) for al
 
    // NOTE that codeblocks importd from genyhatsP, which should be common across`cmd'Ps, needed some tweekng (see lines flagged **)
 	
+	
+global errloc "gendummiesP"									// Global that keeps track of execution location for benefit of 'errexit'
 
+********
+capture {													// Open capture braces mark start ot code where errors will be captured
+********	
+	
 	syntax anything, [ STUbname(name) STUbname(string) INCludemissing LIMitdiag(integer -1) CONtextvars(varlist) ] ///
 					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
 															// `prfx' string and `isprfx' not used in gendummies
@@ -50,7 +58,7 @@ program define gendummiesP						// Does the heavy lifting (such as it is) for al
 			if "`prefix'"!=""  {
 			   if substr("`prefix'",-1,1)!="_" local prefix = "`prefix'_" // Just in case user optioned 'prefix_'
 			}
-		}//endelse												
+		} //endelse												
 	   
 	   
 		unab varlist : `vars'
@@ -67,19 +75,14 @@ program define gendummiesP						// Does the heavy lifting (such as it is) for al
 			}
 			
 			quietly levelsof `var', local(values)				// Enumerate the category values for this variable
-
+		
 			
-			
-			
- 
- 
- 
+	
 												// (5) For each var, cycle thru all values
 												
-		
 			foreach val of local values  {
 				
-				capture confirm number `val'							// If real conversion of value is missing
+				capture confirm number `val'					// If real conversion of value is missing
 				if _rc  {
 					display as error "For variable `var', found non-integer value `val'. Ignore that value?{txt}"
 *                		  		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -155,11 +158,9 @@ program define gendummiesP						// Does the heavy lifting (such as it is) for al
 		if $exit continue, break								// Should not get here as earlier errors all have own exit cmd
 		
 		
-		
 	  
 											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
-											// 	   (or pre-process syntax for next varlist)
-											
+											// 	   (or pre-process syntax for next varlist)									
 
 		if "`postpipes'"==""  continue,break 					  // Break out of `nvl' loop if `postpipes' is empty
 																  // POSTPIPES COMMENTED OUT 'COS
@@ -172,15 +173,20 @@ program define gendummiesP						// Does the heavy lifting (such as it is) for al
 	} //next `nvl' 												  // (next list of vars having same options)
 	
  
+	local skipcapture = "skipcapture"							  // Local, if set, prevents capture code, below, from executing
 	
-	if $exit  exit 1											  // Should not get here as earlier error now itself has exit cmd
-	
+* *************
+} //end capture													  // Endbrace for code in which errors are captured
+* *************													  // Any such error would cause execution to skip to here
+																  // (failing to trigger the 'skipcapture' flag two lines up)
 
-   
+if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	
+}
+
 end //gendummiesP
 
 
-
 ******************************************************* END gendummiesP ***************************************************************
-
-
