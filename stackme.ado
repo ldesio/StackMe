@@ -1,15 +1,30 @@
-*! This ado file contains four stackMe utility programs: SMcontextvars (should be invoked immediately after 'use'ing the 
-*! datafile that will be processed by other stackMe commands; SMitemname (displays or edits the item name generally provided 
-*! by the genstacks command); S2itemname (does the same for doubly-stacked datasets); SMfilename does the same for name and
-*! directory path to the datafile currently being pre-processed.
 
-The file shares its name with stackMe.sthlp which is the introductory help file for the entire stackMe package of programs. SMcontextvars.sthlp and SMitemname.sthlp have more 
-Targeted help files for these programs.
 
-*! Written by Mark, Feb to May 2025.
+capture program drop SMshow
 
-************************************************** BEGIN UTILITY PROGRAMS ****************************************************
+program define SMshow							// This program was written to overcome an apparent error when Stata refused to
+												//   display text 'display'ed by a subprogram called from within a capture codeblk 
+args msg										// A better solution was to put the 'display' command within a capture block!, but
+												//   this (currently unused) subprogram may be found useful in other ways
 
+  while "`msg'"!=""  {										// While 'msg' is not empty
+
+	local m = substr("`msg'",1,80)
+	local l = strrpos("`m'", " ")							// Find char following last that will fit in 80 columns
+	local m = strtrim(substr("`msg'", 1, `l'-1)				// Get 1st remaining line of text
+	local msg = strtrim(substr("`msg'", `l'+1, .))			// And put rest of 'm' back into 'msg'
+	if substr("`msg'",1,4)=="{err")  {
+		local pre = "{err"
+		local end = "}"
+	}
+	global SMmsg = "$msg`pre'`m'`end' ||"					// Save that line of text (may start w "{err" )
+	local pre = ""
+	local end = ""
+															// On return from call, in calling program, need codeblk
+  } //endwhile 'msg'										//  that parses $SMmsg, pipes by pipes, displaying all
+															//  lines saved in $SMshow (initial pipes call for _newline)
+															// (multiple calls on SMshow would add to lines in $SMmsg)
+end SMshow
 
 
 
@@ -19,7 +34,7 @@ capture program drop SMcontextvars
 *! Written by Mark, Feb 2025.
 
 program define SMcontextvars					// This program should be invoked after 'use'ing the datafile to be processed
-
+												// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 version 9.0
 
 global cmd = "SMcontextvars"
@@ -654,6 +669,8 @@ varsion 9.0
 	
 	noisily display _newline "done." _newline
 
+
+
 end S2itemname
 
 
@@ -775,6 +792,7 @@ SMitemname `0'
 end SMfile
 
 
+
 capture program drop SMfil
 
 program define SMfil
@@ -784,8 +802,4 @@ SMitemname `0'
 end SMfil
 
 
-******************************************************* END OF UTILITY SUBPROGRAMS *****************************************************
-
-
-
-
+**************************************************** END OF stakMe UTILITIES ***************************************************
