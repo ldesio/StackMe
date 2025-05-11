@@ -1,9 +1,12 @@
 
-capture program drop gendummies
 
-program define gendummies				// Transforms categorical variables into dummy vars, one dummy for each level of the original
+capture program drop gendummies			// Transforms categorical variables into dummy vars, one dummy for each level of the original
 
+										// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
+program define gendummies								// Called by 'gendu' a separate program defined after this one
+														// Calls subprogram stackmeWrapper
+						
 
 *!  Stata version 9.0; gendummies version 2, updated Apr'23 (with minor tweaks in Sept '24) by Mark from major re-write in June'22
 
@@ -77,11 +80,10 @@ program define gendummies				// Transforms categorical variables into dummy vars
 end gendummies			
 
 
+*********************************************** PROGRAM GENDU *******************************************************************
 
-********************************************************* PROGRAM GENDU ************************************************************
 
-
-capture program drop gendu
+capture program drop gendu								// Short command name for 'gendummies'
 
 program define gendu
 
@@ -89,5 +91,4 @@ gendist `0'
 
 end gendu
 
-********************************************************** END GENDU **************************************************************
-
+************************************************* END GENDU *******************************************************************
