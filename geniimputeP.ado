@@ -1,7 +1,6 @@
 
-capture program drop geniimputeP
+capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
-*! this ado file contains programs geniimputeP and geniimputeP_body
 
 program define geniimputeP
 
@@ -14,21 +13,21 @@ program define geniimputeP
 	// (below) once for each context, having first created needed variables and local vars (passed as arguments to geniimpute_body)
 	//    Lines terminating in "**" should be inspected if this code is adapted for use in a different `cmd'							**
 	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								**
+	 
 
 
 
+	version 11													// geniimputeP version 2.0
+
+	
+global errloc "geniimputeO"										// Global that keeps track of execution location for benefit of 'errexit'
+
+
+********
+capture {														// Open capture braces mark start ot code where errors will be captured
+********	
+	
 	local cmd = "geniimpute" 
-
-*! geniimpute_body version 2 is called from geniimputeP version 2 (above) to run under Stata version 9, updated Feb'23 by Mark Franklin
-*! geniimpute_body calls the superseded Stata 'impute' command; reconstructed to be called from 'stackmeWrapper' March '24'
-
-	version 11												// geniimputeP_body version 2.0
-
-	// This program is called by stackmeWrapper once for each context for which imputed variables are to be 
-	// calculated. It is changed from previous versions by having all reference to contexts removed, since it is 
-	// called by geniimputeP once per context per (multi-)varlist instead of once per varlist.
-
-*set trace on
 	
 	syntax anything, [ LIMitdiag(integer -1) EXTradiag NOInflate SELected ROUndedvalues BOUndedvalues MINofrange(integer 0) ] ///
 			 [ MAXofrange(integer 0) FASt ctxvar(varname) nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] *
@@ -103,12 +102,12 @@ program define geniimputeP
 			local usedPTVs "`usedPTVs' `var'"					// Store only if some but not all ditto
 			local miscnts = "`miscnts' " + string(`missing')
 		}
-		local countPTVs = `countPTVs' + 1						// N of vars specified by user in varlist
+		local countPTVs = `countPTVs' + 1							// N of vars specified by user in varlist
 			
 	  } //next `var'
 		
 
-	  if `c'==2  {												// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT			***
+	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
 	     if `showDiag' noisily display /*_newline*/ "   Context `lbl' has `numobs' observations " _continue
 	  }
 	  else  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
@@ -292,16 +291,28 @@ program define geniimputeP
 				
 
 
-	  if !`showDiag' & "`fast'"==""  display "." _continue								// Only show progress dots if diagnostics not optioned
-
-			  
+	  if !`showDiag' & "`fast'"==""  display "." _continue				// Only show progress dots if diagnostics not optioned
+		  
 
 	} // next nvl
 	
+	
+	local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
+	
+* *************
+} //end capture													  		// Endbrace for code in which errors are captured
+* *************													 		// Any such error would cause execution to skip to here
+																		// (failing to trigger the 'skipcapture' flag two lines up)
+
+if "`skipcapture'"==""  {										  		// If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	
+}
+
 	
 		
 end //geniiP_body
 
 
 ****************************************************** END PROGRAM geniimputeP ***************************************************
-
