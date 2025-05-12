@@ -1,6 +1,12 @@
-capture program drop geniimpute
 
-program define geniimpute
+capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
+											// (the "multiple" in "multiply-imputed" is a feature of multi-country datasets)
+											
+											// Called by 'gendu' a separate program defined after this one
+											// Calls subprogram stackmeWrapper
+
+program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+
 
 *!  Stata version 9.0; genyhats version 2, updated May'23 from major re-write in June'22; unchanged in Nov'24
 
@@ -38,14 +44,28 @@ program define geniimpute
 *	*************************						// (`0' is what user typed; `prfxtyp' & `optMask' were set above)	
 													// (`prfxtyp' placed for convenience; will be moved to follow optns)
 													// ( that happens on fifth line of stackmeCaller's codeblock 0)
-							
 
-								// On return from wrapper ...
-								
-	if $exit  exit 1								// No post-processing if return from wrapper was an error return
+*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*  and so are added in 'stackmeWrapper'
+						
+											
+											
+										// *****************************
+										// On return from stackmeWrapper
+										// *****************************
+											
+*   *********************														
+	if "$SMreport"==""  {							 // If return does not follow an errexit report
+*	*********************							 // (exit 1 exits to caller, if any, or to Stata)
 	
+
+
+**********	
+capture  {											 // (begin new capture block in case of errors to follow)
+**********
+
 								
-	local 0 = "`save0'"								// Saved just before call on 'stackmeWrapper'
+	local 0 = "`save0'"								 // Saved just before call on 'stackmeWrapper'
 	
 	syntax anything [aw fw pw/] , [ IPRefix(name) MPRefix(name) LIMitdiag(integer -1) NODIAg REPlace MINofrange(string) ] ///
 								  [ MAXofrange(string) RANgeofvalues IPRefix(name) MPRefix(name) LIMitdiag(integer -1)  ] ///
@@ -200,6 +220,7 @@ program define geniimpute
 				  } //endif
 						  
 			} //next 'var'
+			
 
 	} //endwhile
 	
@@ -211,6 +232,20 @@ program define geniimpute
 
 
 	
+												// HERE RENAME VARS THAT WERE TEMPORRLY RENAMED IN origdata, TO AVOID MERGE CONFLCTS
+/*												// (These could not be renamed until after user-optioned nanme canges, above)
+	if "$prefixedvars"!=""  {					// COMMENTED OUT 'COS MIRRORING stackmeWrapper VARS WERE COMMENTED OUT				***
+		
+	  foreach var of global prefixedvars  {					// This global was used in wrapper's codeblock (10) 
+															// (to disguise prefixed vars in ordata to avoid conflicted merging)
+	    local prefix = strupper(substr("`var'",1,2))		// This is what the prefix was changed to before merging
+	    local tempvar = "`prefix'" + substr("`var'",3,.)	// (all prefixes are 2 chars long and all were lower case)
+	    rename `tempvar' `var'				
+	  
+	  } //next prefixedvar
+
+	} //endif "$prefixedvars"		
+*/	
 	global prefixedvars = ""								// Empty these globals
 
 	
@@ -221,17 +256,62 @@ program define geniimpute
 		global `alnvl' = ""
 	}
 	
-	
 	if `limitdiag'  noisily display _newline _newline "done." _newline
+
+	 
+	local skipcapture = "skipcapture"						// Overcome possibility that there's a trailing non-zero return code
+	
+
+*  ************
+} //end capture												// The capture brackets enclose all codeblocks in all subprograms
+*  ************
+
+
+if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
+															//   & if execution did not pass thru line before '} //end capture'
+															// (which is to say that execution arrived here by way of error capture)
+		
+
+											// (9) Deal with any Stata-diagnosed errors unanticipated by stackMe code
+											
+  if _rc  {													// If there is a non-zero return code (will be captured Stata error)
+															// (user errors should have been caughte in wrapper pre-processing)
+															
+	local err = "Stata reports a likely program error during post-processing"
+	display as error "`err'; retain processed dta?""
+*              		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	window stopbox rusure ///
+			  "`err'; retain (partially) post-processed data and clean it up yourself – ok?"
+	if _rc  {
+		window stopbox note "Absent permission to retain processed data, on 'OK' original data will be restored before exit"
+		
+		capture restore									// Just in case data were still preserved
+		
+		use $origdta, clear
+	}
+	else {													// Else 'ok' was clicked
+	
+		display as error "Partially post-processed data is retained in memory"
+	}
+	
+
+  } //endif _rc
+  
+
+  ***************************
+} //endif _rc & 'skipcapture'								// End brace-delimited error-capture handling
+  ***************************
+
+  ***************
+} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
+  ***************
+  
+global multivarlst											// Clear this global, retained only for benefit of caller programs
+global origdta												// And this one
+global SMreport												// And this one
 
 	
 end // geniimpute			
-
-
-
-*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*  and so are added in 'stackmeWrapper'
-
 
 
 
