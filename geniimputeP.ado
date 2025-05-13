@@ -1,4 +1,4 @@
-
+I 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
 
