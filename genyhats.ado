@@ -1,6 +1,8 @@
 
-capture program drop genyhats
+capture program drop genyhats				// Estimates inflated imputed values of listed variables for multiple imputation of
+											//   contextual data (multiply-imputed thanks to the multiple context\s)
 
+											// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 program define genyhats																									
 
 *!  Stata version 9.0; genyhats version 2, updated Apr'23 by Mark from major re-write in June'22
@@ -38,17 +40,21 @@ program define genyhats
 *	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
+*  Additionally, NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*														// All of those except limitdiag are added in stackmeWrapper, codeblock(2)
 														
 														
-								// On return from wrapper ...
-								
-	if $exit  exit 1									// No post-processing if return from wrapper was an error return
+											// *****************************
+											// On return from stackmeWrapper
+											// *****************************
+											
+* *********************														
+  if "$SMreport"==""  {								// If return does not follow an errexit report
+* ********************								// (if an error was reported we skip all processing otherwise done in caller)
+
 	
-								
-	local 0 = "`save0'"									// Restore what the user typed
 	
-	
-	
+	local 0 = "`save0'"								// On return from stackmeWrapper restore what user typed
 	
 	syntax anything, [ LIMitdiag(integer -1) NODiag *  ]
 	
@@ -57,15 +63,12 @@ program define genyhats
 	if `limitdiag'!=0  noisily display _newline "done." _newline
 
 
-	
+* *******************
+  } //endif $SMreport
+* *******************
+
+
 end genyhats			
-
-
-*  NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
-
-
-
 
 
 ************************************************* PROGRAM genyh **************************************************************
@@ -77,7 +80,7 @@ program define genyh
 
 genyhats `0'
 
-end genyhats
+end genyh
 
 
 **************************************************** END genyh **************************************************************
