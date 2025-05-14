@@ -1,94 +1,140 @@
-capture program drop gendummies
+{smcl}
+{cmd:help gendummies}
+{hline}
 
-program define gendummies
+{title:Title}
 
-
-
-*!  Stata version 9.0; gendummies version 2, updated Apr'23 (with minor tweaks in Sept '24) by Mark from major re-write in June'22
-
-	version 9.0
-										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
-										// that end with "**" need to be tailored to specific stackMe commands
-										
-														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		
-	local optMask = "STUbname(name) /*DUPrefix(string) */LIMitdiag(integer -1) INCludemissing REPlace /*NODUPrefix */NOSTUbname"					    	 //	**
-
-														// Ensure stubname for this stackMe command is placed first and its 
-														// negative is placed last; ensure options with arguments preceed toggle 														// (aka flag) options; limitdiag should folloow last argument, followed
-														// (aka flag) options for this command. Options (apart from limitdiag) 
-														// common to all stackMe `cmd's will be added in stackmeWrapper.
-														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**
-
-	local prfxtyp = /*"var"*/"othr"	/*"none"*/			// Nature of varlist prefix – var(list) or other. (`stubprefix' will	**
-														// be referred to as `opt1', the first word of `optMask', in codeblock 
-														// (0) of stackmeWrapper called just below). `opt1' is always the name 
-														// of an option that holds a varname or varlist (which must be referred
-														// using double-quotes). Normally the variable named in `opt1' can be 
-														// updated by the prefix to a varlist, but not in genyhats.
-		
-	local multicntxt = ""/*"multicntxt"*/				// Whether `cmd'P takes advantage of multi-context processing			**
-	
-	local save0 = "`0'"									// Seems necessary, perhaps because called from gendi
-
-	
-*	*************************									   
-	stackmeWrapper gendummies `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
-*	*************************							// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
-														// (`prfxtyp' placed for convenience; will be moved to follow options)
-														// (that happens on fifth line of stackmeWrapper's codeblock 0)
-
-														
-														
-														
-	
-											// On return from stackmeWrapper
-
-	if $exit  exit 1									// Exit may have been occasioned by wrapper or by 'cmd'P
+{p2colset 5 20 20 2}{...}
+{p2col :{ul:gendu}mmies {hline 2}}Generates batterie(s) of dummy (0,1) variables, each outcome having a numeric 
+suffix taken from the values (what Stata calls "{help levelsof:levels}") of a categorical variable{p_end}
+{p2colreset}{...}
 
 
-	local 0 = "`save0'"									// On return from stackmeWrapper estore what user typed
+{title:Syntax}
 
-*	***************	
-	syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) NODiag *  ]
-*	***************
-	
-		
-	if "`nodiag'"!=""  local limitdiag = 0
-	
-*	if "`stubprefix'"!="" 								// SEEMINGLY NO POST-PROCESSING FOR THIS 'cmd'							***
+{p 8 16 2}
+{cmdab:gendu:mmies} {varlist} [{cmd:,} {it:options} ]
 
-	local vars = stritrim(subinstr("$multivarlst","||"," ",.)) // Replace any "||" with blanks then trim any multi-blanks
-														// $multivarlst was stored i wrapper codeblk (6)
-														// (gendummies handles multi-varlists in this summary fashion!)
+{p 12}or{p_end}
 
-                            // THIS PROGRAM OMITS POS-ROCESSING HAVING TO DO WITH VARIABLE NAMING TO AVOID MERGE NAME CONFLICTS
-                            // SEE PROGRAM gendist FOR MODEL CODE.
-
-	if `limitdiag'!=0  noisily display _newline "done." _newline
-	
-	
-	
-end gendummies			
+{p 8 16 2}
+{cmdab:gendu:mmies} [{it:stubname}:]{varlist} [ || ... ] [ || [{it:stubname}:]{varlist} [{cmd:,} {it:options} ] ]
 
 
+{p 8 8}{bf:Note that} the most effective approach to using {cmdab:gendu:mmies} is generally to use Stata's 
+{help rename group} command (see especially Rule 17) to ensure distinctive names by duplicating and renaming 
+variables as needed before invoking command {cmdab:gendu:mmies}, using the first (Stata standard) syntax shown 
+above.
+
+{p 8 8}No options are required but, if any are supplied, they should follow the last of any set of {varlist}s
 
 
-*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
+{synoptset 18 tabbed}{...}
+{synopthdr}
+{synoptline}
+{p2colset 5 22 20 2}
+{synopt :{opth stu:bname(name)}}Optional stubname for generated dummy variable(s) (default is to 
+use the name of the variable from which the dummies are generated). That name should not itself already 
+have a numeric suffix.{p_end}
+{synopt :{opt inc:ludemissing}}Include missing values coded as zeros.{p_end}
+{synopt :{opt rep:lace}}Drop the original categorical input variable(s).{p_end}
+{synopt :{opth lim:itdiag(#)}}Limit # of contexts for which diagnostics will be displayed. Only {opth lim:itdiag(0)} 
+has any effect since, for {cmdab:gendu:mmies}, contexts are ignored if present.{p_end}
+{synopt :{opt nod:iag}}Equivalent to {opth lim:itdiag(0)}.{p_end}
 
 
+{p 4}None of these options are required.{p_end}
+{synoptline}
 
-*********************************************** PROGRAM GENDU *******************************************************************
+
+{title:Description}
+
+{pstd}
+{cmd:gendummies} generates batterie(s) of dummy variables (variables coded 0 or 1) derived from categorical 
+variable(s), using as suffixes for the newly generated variables the values (what Stata calls the 
+"{help levelsof:levels}") actually found in the data, with the option of coding missing categories as zeros 
+(especially useful when a battery question asks about only one pole of a bipolar topic). The resulting 
+batteries provide a convenient mechanism for including categorical information in stacked data.{break}
+{space 3}Any variable for which a {bf:stubname} is not provided will be named by using as stub the name of the 
+variable whose categories are being re-organized as separate dummies. Resulting variables are given labels 
+derived from original variables' corresponding value labels, if any.{break}
+{space 3}{cmd:gendummies} uses the codes found in the data as suffixes for the outcome variables, thus permitting 
+users to ensure consistent codes across disparate batteries of responses (e.g. behaviours, attitudes, etc.) 
+relating to the same items (e.g. political parties). This is in contrast to Stata's {cmd:tab1} command, which uses 
+sequential suffixes starting at the number 1 for the generated variables, no matter how those variables were coded. 
+
+{pstd}
+SPECIAL NOTE ON MULTIPLE BATTERIES. In datasets derived from election studies (and perhaps more generally) it is 
+quite common for some questions to be repeated in regard to different objects (eg. politial parties), producing what 
+{cmd:stackMe} refers to as a battery of questions, one question for each battery object (eg. politicel party). It 
+It is not uncommon for such batteries to cover only a subset of the objects being investigated. Moreover, questions 
+relating to those objects may not always list them in the same order. Thus not only may the number of variables in 
+the resulting battery be different from those in a cognate battery (perhaps relating to a different party) but also 
+the numeric suffixes generated by {cmdab:gendu:mmies} may not be the same for each battery.{break}
+{space 3}Yet stacked datasets (the type of datasets for which batteries of dummy variables are normally wanted) 
+absolutely require all batteries pertaining to the objects that were stacked to have the same ID numbers for the 
+same items, which only the user can check.
 
 
-capture program drop gendu
+{title:Options}
 
-program define gendu
+{phang}
+{opt stu:bname(name)} if specified, optional name for the stub used to name the generated dummy variable(s). The 
+recommended default is to use as stubname the name of the variable from which dummies are being generated, 
+renaming those variables as necessary before invoking {cmdab:gendu:mmies}. The ability to define a different 
+stubname (by using either the optional prefix to the command's {varlist} or the {opt stu:bname}} option) is 
+provided mainly for conformity with the syntax for other {help stackMe##Description:commands}.{p_end}
 
-gendist `0'
+{phang}
+{opt inc:ludemissing} if specified, code missing values for each {it:varname} as zero.{p_end}
 
-end gendu
+{phang}
+{opt rep:lace} Drop the original categorical input variable(s) once their outcome equivalents have been generated.{p_end}
 
-************************************************* END GENDU *******************************************************************
+{phang}
+{opth lim:itdiag(#)} Only {opth lim:itdiag(0) has any effect with {cmdab:gendu:mmies}, which pays no attention to 
+context distinctions{p_end}
 
+{phang}
+{opt nod:iag} Equivalent to {opth lim:itdiag(0)}.{p_end}
+
+
+{p 4}All options have default settings.{p_end}
+{marker categoricalVars}
+{pstd} SPECIAL NOTE ON STACKING CATEGORICAL VARIABLES. Using {cmd:gendummies} as a preliminary to stacking a 
+normal survey item with no more than about 10 categories is an easy way to produce a corresponding stacked 
+variable. But if the cetegorical variable has significantly more categories than that, this uses up a lot of 
+space in the unstacked data and is not very useful when stacked. A more economical procedure is to let the 
+many-categoried item be duplicated onto the separate stacks (the natural fate for variables that are not 
+reshaped during stacking) and use logical expressions to derive one or more corresponding stacked variables 
+(eg. 'generate vote = ptyvot==ptyid') which produces a dummy variable equal to 1 where the expression is 
+true (in this example, where the party voted for is the party of that stack) and 0 otherwise.{break}
+{p_end}
+
+{title:Examples:}
+
+{phang2}{cmd:. gendummies relig: denom churchat || educ || dummy: gender }{p_end}
+
+{pstd}Generate dummies named "relig_denomX" "relig_churchatX" "educX" and "dummy_genderX" for different values (X) found 
+in the data for the variables {it:denom churchat} {it:educ} and {it:gender}; missing values on the original variable(s) 
+will produce missing values on all of the corresponding dummy variables.{p_end}
+
+{phang2}{cmd:. gendummies denom educ gender, includemis}{p_end}
+
+{pstd}Generate dummies for different values of the same variables as in the first example, but naming all of these by 
+appending, to the input variable names (used as stubnames for the outcome variables), suffixes identifying the values 
+found; use of the option {opt inc:ludemissing} ensures that missing values on any of these variables will coded zero on 
+all the corresponding dummy outcomes.{p_end}
+
+
+{title:Generated variables:}
+
+{pstd}
+{cmdab:gendu:mmies} saves the following (sets of) variables ...{p_end}
+
+{p 4 11}{it:name1} {it:name2} ...{p_end}
+{p 11 11}a set of dummy variables with 
+names whose numeric suffixes match the values ({help levelsof:levels}) of input variables; each input variable 
+providing the stub to which those numeric suffexes are appended (unless that name was changed by means of the 
+{opt stu:bname} option. The original variables are left unchanged unless {opt rep:lace} was optioned.{p_end}
 
