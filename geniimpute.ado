@@ -1,4 +1,3 @@
-
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-country datasets)
 											
@@ -55,8 +54,25 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 										// *****************************
 											
 *   *********************														
-	if "$SMreport"==""  {							 // If return does not follow an errexit report
-*	*********************							 // (exit 1 exits to caller, if any, or to Stata)
+if "$SMreport"!=""  {										// If this re-entry follows an error report (reported by program errexit)
+															// ($SMreport is non-empty so error has been reported)
+	if "$abbrevcmd"==""  {									// If the abbreviated command (next program) was NOT employed
+															// (so user invoked this command by using the full stackMe cmdname)
+		global multivarlst									// Clear this global, retained only for benefit of caller programs
+		capture erase $origdta 								// Erase the 'origdta' tempfile whose name is held in $origdta
+		global origdta										// Clear that global
+		global SMreport										// And this one
+
+		if "$SMrc"!="" {									// If a non-empty return code accompanies the error report
+			local rc = $SMrc 								// Save that RC in a local (often the error is a user error w'out RC)
+			global SMrc										// Empty the global
+			exit `rc' 										// Then exit with that RC (the local will be cleared on exit)
+		} //endif $SMrc										// ($SMrc will be re-evaluated on re-entry to abbreviated caller) 
+	} //endif $abbrevcmd
+	exit													// If got here via 'errexit' exit to gendi or Stata
+															// (skip any further codeblocks, below, for this command)
+} //endif $SMreport
+*	*********************							 // (exit exits to caller, if any, or to Stata)
 	
 
 
@@ -262,6 +278,7 @@ capture  {											 // (begin new capture block in case of errors to follow)
 	local skipcapture = "skipcapture"						// Overcome possibility that there's a trailing non-zero return code
 	
 
+	
 *  ************
 } //end capture												// The capture brackets enclose all codeblocks in all subprograms
 *  ************
@@ -274,8 +291,6 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
 
 											// (9) Deal with any Stata-diagnosed errors unanticipated by stackMe code
 											
-  if _rc  {													// If there is a non-zero return code (will be captured Stata error)
-															// (user errors should have been caughte in wrapper pre-processing)
 															
 	local err = "Stata reports a likely program error during post-processing"
 	display as error "`err'; retain processed dta?""
@@ -294,8 +309,6 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
 		display as error "Partially post-processed data is retained in memory"
 	}
 	
-
-  } //endif _rc
   
 
   ***************************
@@ -307,8 +320,18 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
   ***************
   
 global multivarlst											// Clear this global, retained only for benefit of caller programs
-global origdta												// And this one
+erase $origdta 												// Erase the 'origdta' tempfile whose name is held in $origdta
+global origdta												// Clear that global
 global SMreport												// And this one
+
+if "$abbrevcmd"==""  {										// If the abbreviated command (next program) was NOT employed
+															// (so user invoked this command by using the full stackMe cmdname)
+	if "$SMrc"!="" {										// If a non-empty return code was flagged anywhere in the program chain
+		local rc = $SMrc 									// Save that RC in a local (often the error is a user error w'out RC)
+		global SMrc											// Empty the global
+		exit `rc' 											// Then exit with that RC (the local will be deleted on exit)
+	}
+} //endif $abbrevcmd										// Else $SMrc can still be evluated on re-entry to abbreviated caller 
 
 	
 end // geniimpute			
@@ -322,7 +345,19 @@ capture program drop genii
 
 program define genii
 
+global abbrevcmd = "used"									// Lets `cmd' know that abbreviated command was employed
+
 geniimpute `0'
+
+global abbrevcmd 											// On return to abbreviatd caller ('cos 'cmd' was called from here)
+															// (immediately clear the global used to indicate that fact)
+if "$SMrc"!="" {											// If a non-empty return code was flagged anywhere in program chain
+	local rc = $SMrc 										// Save that RC in a local
+	global SMrc												// Empty the global
+	exit `rc' 												// Then exit with that RC (the local will be cleared on exit)
+}															// Else execute a normal end-of-program
+
+
 
 end genii
 
