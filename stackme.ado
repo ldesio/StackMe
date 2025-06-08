@@ -1,6 +1,9 @@
 
-
 capture program drop SMshow
+
+*! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
+*! Written by Mark, Feb-May 2025.
+
 
 program define SMshow							// This program was written to overcome an apparent error when Stata refused to
 												//   display text 'display'ed by a subprogram called from within a capture codeblk 
@@ -363,6 +366,7 @@ version 9.0
 	
 	
 	local msg = "You can temporarily override this charactristic by optioning {opt ite:mname} on any stackMe cmd"
+*                12345678901234567890123456789012345678901234567890123456789012345678901234567890			
 																// 'msg', displayed by stopbox, is not limited to 80 char screenwidth
 																// (but cannot contain any smcl syntax)
 	if "`varlist'"!=""  {										// If varlist is not empty ...
@@ -382,7 +386,7 @@ version 9.0
 			capture window stopbox rusure ///
 						    "Varname provided will link SMitem to the var already linked to S2item; is this what you want?"
 
-			if _rc  window stopbox stop "You did not click 'ok' so will exit on next 'OK'" // Subprogrm errexit (in wrapper ado file) uses window stopbox to exit 
+			if _rc  errexit "You did not click 'ok'" 
 
 		} //endif
 		
@@ -792,7 +796,6 @@ SMitemname `0'
 end SMfile
 
 
-
 capture program drop SMfil
 
 program define SMfil
@@ -802,4 +805,8 @@ SMitemname `0'
 end SMfil
 
 
+
 **************************************************** END OF stakMe UTILITIES ***************************************************
+
+
+
