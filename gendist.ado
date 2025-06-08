@@ -22,11 +22,9 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
 															// prefixvar (here SELfplace) is first option and its negative is last.
 															
-	local optMask = "SELfplace(varname) CONtextvars(varlist) ITEmname(varname) MISsing(string) DPRefix(string) PPRefix(string)" ///	**
-				  + " MPRefix(string) MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMitdiag(integer -1)" 		/// **
-				  + " PROximities PLUgall ROUnd NOREPlace NOSelfplace" // NOTE that 'noreplace' is not returned in macro 'replace'	**
-*  		  EXTradiag REPlace NODIAg NOCONtexts NOSTAcks APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most stackMe cmds.
-															// All of these except limitdiag are added in wrapper's codeblock(1)
+	local optMask = "SELfplace(varname) ITEmname(varname) MISsing(string) DPRefix(string) PPRefix(string) MPRefix(string) APRefix(string)" ///
+				  + " MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMitdiag(integer -1) PROximities PLUgall" 		/// **
+				  + " ROUnd NOREPlace NOSelfplace" 			// NOTE that 'noreplace' is not returned in macro 'replace'	**
 	
 															// First option in optMask has special status, generally naming a var or
 															//  varlist	that may be overriden by a prefixing var or varlist (hence	
@@ -35,7 +33,7 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 															//  in any given 'cmd' is shown by option 'prfxtyp' (next line).
 															
 	local prfxtyp = "var"/*"othr" "none"*/					// Nature of varlist prefix – var(list) or other. (NOTE that a varlist	**
-															// may itself be prefixd by a string, in which case 'prfxtyp' is 'othr'.
+															// may itself be prefixd by a string, but that leaves prfxtyp unchanged).
 															
 															// Ensure that options with args preceed toggle (aka flag) options, and	
 															//  that the final pre-flag option is 'limitdiag', which served as 
@@ -57,39 +55,58 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1))
 															// `multicntxt', if empty, sets stackMeWrapper flag 'noMultiContxt'
 			
+*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*															// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
+	
 	
 								// **************************
 								// On return from wrapper ...
 								// **************************
 								
 								
-********************
-if "$SMreport"=="" {										// If got here via 'errexit' skip all code that follows
-********************										// ($SMreport would be non-empty)
+************************
+if "$SMreport"!=""  {										// If this re-entry follows an error report (reported by program errexit)
+															// ($SMreport is non-empty so error has been reported)
+	if "$abbrevcmd"==""  {									// If the abbreviated command (next program) was NOT employed
+															// (so user invoked this command by using the full stackMe cmdname)
+		global multivarlst									// Clear this global, retained only for benefit of caller programs
+		capture erase $origdta 								// Erase the 'origdta' tempfile whose name is held in $origdta
+		global origdta										// Clear that global
+		global SMreport										// And this one
 
+		if "$SMrc"!="" {									// If a non-empty return code accompanies the error report
+			local rc = $SMrc 								// Save that RC in a local (often the error is a user error w'out RC)
+			global SMrc										// Empty the global
+			exit `rc' 										// Then exit with that RC (the local will be cleared on exit)
+		} //endif $SMrc										// ($SMrc will be re-evaluated on re-entry to abbreviated caller) 
+	} //endif $abbrevcmd
+	exit													// If got here via 'errexit' exit to gendi or Stata
+															// (skip any further codeblocks, below, for this command)
+} //endif $SMreport
+************************
 
-
-
-											// Here deal with possible errors that might follow
-**********	
-capture  {													 // (begin new capture block in case of errors to follow)
-**********
-															 // First check-see whether this was an error return from wrapper or 'cmd'?
 	
-															 // On return from stackmeWrapper, above is 1st codeblk executed
-
-	local 0 = "`save0'"										 // On return from wrapper, re-create local `0', restoring what user typed
-															 // (so syntax cmd, below, can initialize option contents, not done above)
-	
-	
-
-
+															// Else continue with body of gendist ...
 global errloc "gendi(1)"
+
+
+
+**********	
+capture  {													// Begin new capture block in case of errors to follow)
+**********
+
+
+
+	
+	local 0 = "`save0'"										// On return from wrapper, re-create local `0', restoring what user typed
+															// (so syntax cmd, below, can initialize option contents, not done above)
+	
+
 	
 											// (1) Post-process active variables (after returning from stackmeWrapper)
 											
 *	***************	
-	syntax anything [if] [in] [aw fw iw pw/], [ CONtextvars MPRefix(string) PPRefix(string) DPRefix(string) XPRefix(string) ] /// ***
+	syntax anything [if] [in] [aw fw iw pw/], [ CONtextvars(varlist) MPRefix(string) PPRefix(string) DPRefix(string) XPRefix(string) ] /// ***
 /*	***************/                          [ LIMitdiag(integer -1) ROUnd REPlace NODiag PROximities KEEpmissing          ] /// ***
 											  [ APRefix(string) * ]
 											  
@@ -102,9 +119,9 @@ global errloc "gendi(1)"
 	if "`contextvars'"!=""  local contexts = "`contextvars'"
 	local contextvars = "`contexts'"						// In this caller we don't actually make use of contextvars
 	
-	if "`nodiag'"!=""  local limitdiag = 0
-	
+	if "`nodiag'"!="" local limitdiag = 0
 	if `limitdiag'<0  local limitdiag = .					// If =-1 make that a very big number
+	if "`noreplace'"!=""  local replace = "replace"			// Actual option seen by user is 'noreplace'
 				
 	local non2missing = ""									// List of vars present across all varlists
 	local skipvars = ""										// List of vars missing for all contexts, cumulates across varlists
@@ -173,35 +190,48 @@ global errloc "gendi(3)"
 	
 	foreach SMvar in SMdmisCount SMdmisPlugCount {			// Cycle thru the two summary measures
 	
-		if "`SMvar'"=="SMdmisCount" local txt = "original "
+		if "`SMvar'"=="SMdmisCount" local txt = "original " // Set text to be included in var label
 		else local txt = "mean-plugged "
-	
-		capture confirm variable `SMvar'					// See if variable exists frop previous run
+
+		local name = ""										// Name to be used in code that follows coming loop
+
+		capture confirm variable `SMvar'					// See if variable exists from previous run
 		if _rc==0  {										// If that var already exists
 
 			  local msg = "Var `SMvar' already exists (left by some earlier stackMe command); replace?"
 *					       12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		      if strlen("`msg'")>80 local msg = "Var `SMvar' exists (left by earlier stackMe command); replace?"
-			  display as error "`msg'{txt}"
+			  display as error "`msg'{txt}"					// If needed, shorten 'msg' to fit in 80 columns
 			  capture window stopbox rusure ///
 			  "Var `SMvar' already exists (left by some earlier stackMe command); provide new name?"
-			  if _rc  errexit, msg("Exiting $cmd")
-			  else  {
-			  	noisily display "Enter new name for `SMvar'" _request(SMvar)
-				local SMvar = "$SMvar"
-				macro drop SMvar
-				noisily display "With variable `SMvar' renamed to $SMvar execution continues..."
-				global SMvar = ""
+			  if _rc  errexit, msg("Exiting $cmd")			// _rc was non-zero so user is not 'OK'
+			  else  {										// Else user clicked 'OK'
+			    local txt = ""
+			    while "`name'"==""  {
+			  	  noisily display "`txt'Copy-paste '`SMvar'' into Command window and edit before returning" _newline _request(newname)
+				  if "$newname"!=""`SMvar'  {				// If new name is not same as 'SMvar'
+				    if "$newname'"=="BREAK"  exit 1			// User can type "BREAK" to exit 
+				    local name = "$newname"					// Move new name into relevant local
+				    global newname = ""						// And empty that global
+				  }				  	
+				  else local txt = "UNCHANGED! "			// Else name is unchanged so repeat loop whith that word heading display
+				} //next while
+				
+				noisily display "With variable `SMvar' renamed to $newname execution continues..."
 			  }
 
-		} //endif _rc
+		} //endif _rc										// Either way 'egen' the var now named by local SMvar
 		
-		else quietly egen `SMvar' = rowmiss(`non2missing')	// Count of vars not all-missing for any varlist
-
-		if "`first'"=="`last'" capture label var `SMvar' "N of missing values for `txt'var (`first')"
-		else {
-			capture label var SMmisCount "N of missing values for `txt'vars (`first'..`last')"
+		if "`name'"==""  {
+			local name = "`SMvar'"							// If there was no newname, use 'SMvar' for egen
 		}
+		
+		quietly egen `name' = rowmiss(`non2missing')		// Count of vars not all-missing for any varlist
+
+		if "`first'"=="`last'" capture label var `name' "N of missing values for `txt'var (`first')"
+		else {
+			capture label var `name' "N of missing values for `txt'vars (`first'..`last')"
+		}													// Contents of `txt' local was set above
 	
 	} //next SMvar
 	
@@ -240,6 +270,7 @@ global errloc "gendi(5)"
 
 															 
 	if "`missing'"=="dif" local missing = "diff"			// Lengthen `missing'=="dif" for display purposes
+	if "`missing'"=="di2" local missing = "dif2"			// Ditto for 'di2'
 	if "`missing'"=="sam" local missing = "same"			// Ditto for "sam"	
 
 	foreach var of local non2missing  {						//`non2missing' relates to vars across all varlists
@@ -247,12 +278,12 @@ global errloc "gendi(5)"
 	   local miss = "`missing'-assessed"					// Text string to insert into distance measure's (variable) label
  	   capture local lbl : variable label `var'				// Get existing var label, if any
 	   if "`lbl'"!=""  local lbl = ": `lbl'"
-	   local lbl1 = "Distance from `selfplace' to `miss' `var'`lbl'"
-	   if `prx'  local lbl2 = "Proximity of `selfplace' to `miss' `var'`lbl'"
+	   local lbl1 = "Distance from `selfplace' to `miss' `var':`lbl'"
+	   if `prx'  local lbl2 = "Proximity of `selfplace' to `miss' `var':`lbl'"
 	   if strlen("`lbl1'")>78  local lbl1 = substr("`lbl1'",1,78) + ".."
 	   if `prx' & strlen("`lbl2'")>78  local lbl2 = substr("`lbl2'",1,78) + ".."
 	   
-	   label var m_`var' "Whether variable `var' was originally missing" // Label default-prefixed versions
+	   label var m_`var' "Whether variable `var' was originally missing" // NOTE that m_`var' was remamed but not labeled in wrapper
 	   label var p_`var' "`miss' plugging values to replace missing values for variable `var'"
 	   label var d_`var' "`lbl1'"	
 	   if `prx'  label var x_`var' "`lbl2'"
@@ -289,11 +320,14 @@ global errloc "gendi(6)"
 	} //endif `round'
 	
 	
+	
+	
 
 global errloc "gendi(7)"
 											// (7) Here alter variable prefix strings, renaming vars as optioned
+											
 																	
-	if "`aprefix'`mprefix'`pprefix'`dprefix'`xprefix'"!="" {
+	if "`pprefix'`dprefix'`xprefix'"!="" {					 // 'aprefix' and 'mprefix' are handled in wrapper
 	   if `limitdiag'  noisily display "Altering variable prefix strings as optioned"
 	}
  	
@@ -343,9 +377,21 @@ global errloc "gendi(8)"
 											// (8) HERE RENAME VARS THAT WERE TEMPORARILY RENAMED IN origdata, AVOIDING MERGE
 											// 	   CONFLCTS (these could not be renamed until after user-optioned name changes)
 
-											
-	if "$prefixedvars"!=""  {								// They were placed in this global in wrapper codeblk 5
-		
+	
+	
+	if "$namechange"!=""									// Placed in this global by getprfxdvars <-- isnewvar <-- wrapper(5)
+	
+		foreach var in $namechange  {						// These vars had first char of (generally stringprefix) name made
+															//   upper case
+			origname = strlower(substr("`var'",1,1)) + substr("`var'",2,.)
+															// Append rest of `var' to lower-case version of its first char
+			rename `var' `origname'							// Rename `var' to its original name 
+	  }														// (changed in getprfxdvars <-- isnewvar <-- wrapper(5))
+
+	  
+	  
+	if "$prefixedvars"!=""  {								//  wrapper codeblk 5
+	
 	  foreach var in $prefixedvars  {						// This global was used in wrapper's codeblock (10) 
 															// (to disguise prefixed vars in origdta to avoid conflicted merging)
 	    local prefix = strupper(substr("`var'",1,2))		// This is what the prefix was changed to before merging
@@ -379,9 +425,10 @@ global errloc "gendi(8)"
 	
 	
 	local skipcapture = "skipcapture"						// Overcome possibility that there's a trailing non-zero return code
+	
 
 *  ************
-} //end capture												// The capture brackets enclose all codeblocks in all subprograms
+} //end capture												// End capture brackets that enclosed all codeblocks since call on wrapper
 *  ************
 
 
@@ -392,40 +439,47 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
 															// (which is to say that execution arrived here by way of error capture)
 		
 
-											// (9) Deal with any Stata-diagnosed errors unanticipated by stackMe code
-											
-
-  if _rc  {													// If there is a non-zero return code (will be captured Stata error)
-															// (user errors should have been caughte in wrapper pre-processing)
-															
-	local err = "Stata reports a likely program error during post-processing"
-	display as error "`err'; retain processed dta?""
-*              		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	window stopbox rusure ///
+		
+		
+											// (9) Deal with any Stata-diagnosed errors in above codeblks unanticipated by stackMe code
+														
+	local rc = _rc
+	local err = "Stata reports likely program error `rc' in $errloc during post-processing"
+	dispLine "`err'; retain (partially) post-processed dta and clean it up yourself – ok?{txt}" "aserr"
+*              	 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	capture window stopbox rusure ///
 			  "`err'; retain (partially) post-processed data and clean it up yourself – ok?"
 	if _rc  {
-		window stopbox note "Absent permission to retain processed data, on 'OK' original data will be restored before exit"
-		use $origdta, clear
+		window stopbox note "Absent permission to retain partially-processed data, on 'OK' original data will be restored before exit"
+		capture use $origdta, clear
+		noisily display "{bf:NOTE: original dataset has been restored}"
 	}
 	else {													// Else 'ok' was clicked
-		display as error "Partially post-processed data is retained in memory"
+		noisily display "{bf:NOTE: Partially post-processed data is retained in memory}"
 	}
 	
+	
 
-  } //endif _rc
+  *********************************
+} //endif _rc & 'skip..' & 'report'							// End brace-delimited error-capture handling
+  *********************************
 
-  ***************************
-} //endif _rc & 'skipcapture'								// End brace-delimited error-capture handling
-  ***************************
-
-  ***************
-} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
-  ***************
+ 
   
 global multivarlst											// Clear this global, retained only for benefit of caller programs
-global origdta												// And this one
+capture erase $origdta 										// Erase the 'origdta' tempfile whose name is held in $origdta
+global origdta												// Clear that global
 global SMreport												// And this one
 
+if "$abbrevcmd"==""  {										// If the abbreviated command (next program) was NOT employed
+															// (so user invoked this command by using the full stackMe cmdname)
+	if "$SMrc"!="" {										// If a non-empty return code was flagged anywhere in the program chain
+		local rc = $SMrc 									// Save that RC in a local (often the error is a user error w'out RC)
+		global SMrc											// Empty the global
+		exit `rc' 											// Then exit with that RC (the local will be deleted on exit)
+	}
+} //endif $abbrevcmd										// Else $SMrc can still be evluated on re-entry to abbreviated caller 
+															// (but if 'abbrevcmd' was empty we execute a normal end-of-program)
 
 end gendist
 
@@ -434,13 +488,25 @@ end gendist
 ****************************************************** PROGRAM gendi **********************************************************
 
 
-capture program drop gendi									// Short command name for 'gendist'
+capture program drop gendi									// Abbreviated command name for 'gendist'
 
 program define gendi
 
-gendist `0'
+global abbrevcmd = "used"									// Lets `cmd' know that abbreviated command was employed
+
+gendist `0'													// Invoke the command using its full name and append what user typed
+
+global abbrevcmd 											// On return to abbreviatd caller ('cos 'cmd' was called from here)
+															// (immediately clear the global used to indicate that fact)
+if "$SMrc"!="" {											// If a non-empty return code was flagged anywhere in program chain
+	local rc = $SMrc 										// Save that RC in a local
+	global SMrc												// Empty the global
+	exit `rc' 												// Then exit with that RC (the local will be cleared on exit)
+}															// Else execute a normal end-of-program
+
 
 end gendi
 
 
-******************************************************* END PROGRMES **********************************************************
+******************************************************* END PROGRAMS **********************************************************
+
