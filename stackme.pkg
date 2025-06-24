@@ -33,4 +33,5 @@ f genstacks.ado
 f genstacks.sthlp
 f genmeans.ado
 f genplace.ado
+f stackmeWrapper.ado
 
