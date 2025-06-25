@@ -1,4 +1,5 @@
-I 
+
+
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
 
@@ -20,7 +21,7 @@ program define geniimputeP
 	version 11													// geniimputeP version 2.0
 
 	
-global errloc "geniimputeO"										// Global that keeps track of execution location for benefit of 'errexit'
+global errloc "geniimputeP"										// Global that keeps track of execution location for benefit of 'errexit'
 
 
 ********
@@ -30,13 +31,13 @@ capture {														// Open capture braces mark start ot code where errors wi
 	local cmd = "geniimpute" 
 	
 	syntax anything, [ LIMitdiag(integer -1) EXTradiag NOInflate SELected ROUndedvalues BOUndedvalues MINofrange(integer 0) ] ///
-			 [ MAXofrange(integer 0) FASt ctxvar(varname) nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) ] *
+			 [ MAXofrange(integer 0) FASt ctxvar(varname) NVArlst(integer 1) nc(integer 0) c(integer 0) WTExplst(string) * ]
 			 
 			 // rangeofvalues used in geniimputeO to initialize 
 	
 																 // varlist is passed in a set of globals, one for each nvl
 
-	local thiscontext = `c'										 // Transfer local parameters set in wrapper & transferred thru `cmd'P 
+	local thiscontext = `c'										 // Local parameter set in wrapper & transferred thru call on `cmd'P 
 
 												/*	
 												incremental simple imputation logic: select cases with 1 missing PTV, impute that PTV 
@@ -78,12 +79,12 @@ capture {														// Open capture braces mark start ot code where errors wi
 	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
 	  
 	  local vlnvl = "vl`nvl'"
-	  local varlist = "$`vlnvl'" 								// Varlist for each nlv was stored in global by geniimputeP
+	  local varlist = "$`vlnvl'" 								// Varlist for each nlv was stored in global by geniimputeO
 *	  global `vlnvl' = ""										// Empty that global after transferring contents to local `varlist'
 	  local alnvl = "al`nvl'"
 	  local added = "$`alnvl'"									// Varlist for added vars derived as for main varlist, above
 *	  global `alnvl' = ""
-	  local thePTVs = "`varlist'"								// Varlist derived from global above, originating in geniimputeP
+	  local thePTVs = "`varlist'"								// Varlist derived from global above, originating in geniimputeO
 	  local usedPTVs = ""
 
 	  local countPTVs = 0
@@ -130,7 +131,7 @@ capture {														// Open capture braces mark start ot code where errors wi
 	  local nvals = wordcount("`missingCounts'")
 
 
-	  if "`fast'"==""  {												// 'fast' overrides 'selected' if optioned
+	  if "`fast'"==""  {											// 'fast' overrides 'selected' if optioned
 		
 	     if "`selected'" != ""  {				// This option selects only additional vars with more missing cases than in missingCounts	***
 		
@@ -181,7 +182,7 @@ capture {														// Open capture braces mark start ot code where errors wi
 			if `availableN'<=(_N-`countUsedPTVs'-wordcount("`added'")) { // Cannot predct vals for var whose N < _N - N of predictrs (N-k)
 				tempvar tmp												 // Create tempvar for imputed variable
 
-				if "`extradiag'"!="" & `showDiag'  display "{break}impute `thisPTV' `remainingPTVs' `imputedPTVs' `added'" _continue
+				if "`extradiag'"!="" & `showDiag'  noisily display "{break}impute `thisPTV' `remainingPTVs' `imputedPTVs' `added'" _continue
 
 				
 				
@@ -237,9 +238,9 @@ capture {														// Open capture braces mark start ot code where errors wi
 				local space1 = substr("          ",1,8-`lenwrd')
 				local space2 = substr("          ",1,`lenN'-strlen("`iN'"))
 				if (`inflate'|`rounded'|`bounded')  {					// Only append '_continue' if more to come
-				   display _newline "`name':`space1'originl N`blnk'`oN' SD `oSD',`space2' imputd N `iN' SD `iSD'," _continue
+				   noisily display _newline "`name':`space1'originl N`blnk'`oN' SD `oSD',`space2' imputd N `iN' SD `iSD'," _continue
 				}
-				else  display _newline "`name':`space1'originl N`blnk'`oN' SD `oSD',`space2' imputd N `iN' SD `iSD'"
+				else  noisily display _newline "`name':`space1'originl N`blnk'`oN' SD `oSD',`space2' imputd N `iN' SD `iSD'"
 				   local ndiag = `ndiag' + 1
 
 			  } //endif showdiag										// For some unfathomable reason {space `gapo'(=1)} prints as "   "
@@ -291,7 +292,7 @@ capture {														// Open capture braces mark start ot code where errors wi
 				
 
 
-	  if !`showDiag' & "`fast'"==""  display "." _continue				// Only show progress dots if diagnostics not optioned
+	  if !`showDiag' & "`fast'"==""  noisily display "." _continue				// Only show progress dots if diagnostics not optioned
 		  
 
 	} // next nvl
@@ -306,8 +307,8 @@ capture {														// Open capture braces mark start ot code where errors wi
 
 if "`skipcapture'"==""  {										  		// If not empty we did not get here due to stata error
 	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
-	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ
+	exit
 }
 
 	
@@ -316,3 +317,4 @@ end //geniiP_body
 
 
 ****************************************************** END PROGRAM geniimputeP ***************************************************
+
