@@ -4,7 +4,7 @@ capture program drop gendist				// Calculates distances (now also proximities) b
 											
 											// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
-program define gendist										// Called by 'gendist' a separate program defined after this one
+program define gendist										// Called by 'gendi' a separate program defined after this one
 															// Calls subprogram stackmeWrapper and subprogram 'errexit'
 
 *!  program gendist written for Stata version 9.0; gendist version 2, updated by Mark, May'23-May'25 from major re-write in June'22
@@ -115,10 +115,12 @@ capture  {													// Begin new capture block in case of errors to follow)
 	local multivarlst = "$multivarlst"						// get multivarlst from global saved in block (6) of stackmeWrapper
 															// (not used in practice)
 											  
-	local contexts = "`_dta[contextvars]'"
-	if "`contextvars'"!=""  local contexts = "`contextvars'"
+	local contexts = "`_dta[contextvars]'"					// ONLY NEEDED IF WE MAKE USE OF CONTEXTS (PROBABLY NOT)
+	if "`contextvars'"!="" local contexts = "`contextvars'" // Override 'contextvars' characteristic if there was a contextvars option
 	local contextvars = "`contexts'"						// In this caller we don't actually make use of contextvars
-	
+	capture confirm variable SMstkid						// If data are stacked then SMstkid is context or extends contxt
+	if _rc==0 local contextvars = "`contextvars' SMstkid"
+
 	if "`nodiag'"!="" local limitdiag = 0
 	if `limitdiag'<0  local limitdiag = .					// If =-1 make that a very big number
 	if "`noreplace'"!=""  local replace = "replace"			// Actual option seen by user is 'noreplace'
@@ -136,7 +138,7 @@ global errloc "gendi(2)"
 											// (2) Extract the distance/proximity components from each varlist
 
 	
-	while `more'  {											// Parse each varlist (making 'multivarlst' redundant)
+	while `more'  {											// Parse each varlist in 'multivarlst'
 	
 	  local nvl = `nvl' + 1									// Increment number of varlists
 		
@@ -166,7 +168,7 @@ global errloc "gendi(2)"
 		qui count if !missing(`var')						// These counts are for the entire dataset
 		if r(N)==0  {										// (unlike the counts by context made in 'stackmeWrapper')
 			local skipvars = "`skipvars' `var' "
-			continue										// Skip to next var if all-missing
+			continue										// Continue to next var if all-missing
 		}
 		else  {
 		 	local nonmissing "`nonmissing' `var'"			// Else there are non-missing observations in this varlist
@@ -235,12 +237,14 @@ global errloc "gendi(3)"
 	
 	} //next SMvar
 	
+	if `limitdiag' noisily display " "						// Display a blank line to terminate per context diagnostics
+
 	
 	
 global errloc "gendi(4)"	
 
 											// (4) Here generate proximity measures if optioned
-											
+	
 	local prx = 0
 	
 	if "`proximities'"!=""  {								// If proximities were optioned
@@ -379,34 +383,17 @@ global errloc "gendi(8)"
 
 	
 	
-	if "$namechange"!=""									// Placed in this global by getprfxdvars <-- isnewvar <-- wrapper(5)
+	if "$namechange"!=""  {									// Placed in this global by getprfxdvars <-- isnewvar <-- wrapper(5)
 	
 		foreach var in $namechange  {						// These vars had first char of (generally stringprefix) name made
 															//   upper case
-			origname = strlower(substr("`var'",1,1)) + substr("`var'",2,.)
+			local origname = strlower(substr("`var'",1,1)) + substr("`var'",2,.) // Otherwise all prefixes start w lower case char
 															// Append rest of `var' to lower-case version of its first char
 			rename `var' `origname'							// Rename `var' to its original name 
-	  }														// (changed in getprfxdvars <-- isnewvar <-- wrapper(5))
+	    }													// (changed in getprfxdvars <-- isnewvar <-- wrapper(5))
+	
+	} //endif
 
-	  
-	  
-	if "$prefixedvars"!=""  {								//  wrapper codeblk 5
-	
-	  foreach var in $prefixedvars  {						// This global was used in wrapper's codeblock (10) 
-															// (to disguise prefixed vars in origdta to avoid conflicted merging)
-	    local prefix = strupper(substr("`var'",1,2))		// This is what the prefix was changed to before merging
-	    local tempvar = "`prefix'" + substr("`var'",3,.)	// (all prefixes are 2 chars long and all were lower case)
-		if "`var'"=="`tempvar'"  {							// Here we might learn (a little late) of a renaming conclict
-			errexit "Var `tempvar' should not exist (program error)"	// (should not happen)
-		}
-	    rename `tempvar' `var'				
-	  
-	  } //next prefixedvar
-
-	} //endif "$prefixedvars"		
-	
-	
-	
 	capture drop p_* 										// These will be vars with missing obs for all cases
 	capture drop m_*
 	capture drop d_*
@@ -424,7 +411,7 @@ global errloc "gendi(8)"
 	
 	
 	
-	local skipcapture = "skipcapture"						// Overcome possibility that there's a trailing non-zero return code
+	local skipcapture = "skip"								// Deal with possibility that there's a trailing non-zero return code
 	
 
 *  ************
@@ -508,5 +495,5 @@ if "$SMrc"!="" {											// If a non-empty return code was flagged anywhere in
 end gendi
 
 
-******************************************************* END PROGRAMS **********************************************************
+******************************************************* END PROGRMES **********************************************************
 
