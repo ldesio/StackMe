@@ -18,28 +18,32 @@ program define gendistP										// Called by 'stackmeWrapper'; calls subprogram
 	// was unable to handle new weighting requirements.
 	
 	
-global errloc "gendistP"						// Global that keeps track of execution location for benefit of 'errexit'
+global errloc "gendistP(1)"						// Global that keeps track of execution location for benefit of 'errexit'
+
+
+
 
 ********
 capture {										// Open capture braces mark start ot code where errors will be captured
 ********	
 	
 
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) CONtextvars(varlist) MISsing(string) PPRefix(string) ] ///
+    syntax anything [aw fw pw iw/], [ SELfplace(varname) MISsing(string) PPRefix(string) ] ///
 		[ MPRefix(string) DPRefix(string) APRefix(string) MPLuggedcountname(name) LIMitdiag(integer -1) ] 		///
 		[ EXTradiag(integer 0) MCOuntname(name) PLUgall ROUnd REPlace NOStacks NODiag NOSELfplace NOCONtexts ]	///
-		[ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) * ] 	
+		[ PROximities nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) * ] 	
 															// now using label lname in lieu of ctxvar
 						
 
 								
-								
-								
-								
+* **********												// Open braces enclosing code for which errors will be captured
+  capture  {								
+* **********								
 											// (1) Pre-process gendist-specific options not preprocessed in wrapper
 			
 
 	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!	** 
+	if "`nodiag'"!=""  local limitdiag = 0
 
 	if ("`missing'"=="") local missing = "all"				// Default if 'missing' option was not used
 	if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
@@ -81,7 +85,8 @@ capture {										// Open capture braces mark start ot code where errors will b
 	  local last ``nvars''
 	  
 	  if "`wtexplst'"!=""  {
-	    local weight = subinstr(word("`wtexplst'",`nvl'),"$"," ",.) // Replace any "$" by " " (substd to ensure 1 word per wt)
+	    local weight = subinstr(word("`wtexplst'",`nvl'),"$"," ",.) 
+															// Replace any "$" by " " (substd to ensure 1 word per wt)		 **
 	    if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper program	***
 	  }
 
@@ -89,23 +94,19 @@ capture {										// Open capture braces mark start ot code where errors will b
 	  
 	  
 
-	  
+global errloc "gendistP(3)"	  
 											// (3) Diagnostics are displayed only for 1st context SHOULD BE IN 'gendistO'`***
 	  
 	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
  	
 	    if ("`pprefix'"!="" & "`missing'"=="") {			// Redundant 'cos already substituted "all" for empty
 	      display as error "Option {bf:pprefix} requires option {bf:missing} – exiting gendist"
-		  window stopbox note "Option pprefix requires option missing"
-		  global exit = 1									// Tells wrapper to exit after restoring origdata
-		  continue, break									// Break out of 'nvl' loop
+		  errexit, msg("Option pprefix requires option 'missing'")
 	    }
 
 		if ("`missing'"=="dif2" & "`plugall'"=="")  {
-	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – exiting gendist"
-		  window stopbox note "Option missing(dif2) requires option plughall – exiting gendist"
-		  global exit = 1									// Tells wrapper to exit after restoring origdata
-		  continue, break									// Break out of 'nvl' loop
+	      display as error "Option {bf:missing(di2)} requires option {bf:plugall} – exiting gendist"
+		  errexit, msg("Option missing(di2) requires option plughall")
 		}
 
 		gettoken precolon postcolon : anything, parse(":")	// See if varlist contained prefix var & remove it if so
@@ -121,14 +122,16 @@ capture {										// Open capture braces mark start ot code where errors will b
 		
 	  } //endif`c'==1
 
-	  
-	  
-	  if `limitdiag'>`c' noisily display "." _continue
-	  
-	 
+	  	 
 	  quietly {
+	  	
+		
+		
+		
+		
+		
 	 
-	 
+global errloc "gendistP(4)"	 
 											// (4) Get plugging values separately for different 'missing' options
 		
 	 	local i = 0											// THIS CODEBLK SHOULD BE CONDUCTED ON WHOLE DATASET			***
@@ -162,7 +165,7 @@ capture {										// Open capture braces mark start ot code where errors will b
 
 
 
-
+global errloc "gendistP(5)"
 	 
 											// (5) Get distances and replace with plugging values as required
 	
@@ -206,7 +209,7 @@ capture {										// Open capture braces mark start ot code where errors will b
 
 	
 
-
+global errloc "gendistP(6)"
 			
 											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
 											// 	   (or pre-process syntax for next varlist)
@@ -231,16 +234,23 @@ capture {										// Open capture braces mark start ot code where errors will b
 	local skipcapture = "skipcapture"						// Local, if set, prevents capture code, below, from executing
 	
 	
+	
+	
 * *************
-} //end capture												// Endbrace for code in which errors are captured
+} //end capture												// End-brace for code in which errors are captured
 * *************												// Any such error would cause execution to skip to here
 															// (failing to trigger the 'skipcapture' flag two lines up)
 
 if "`skipcapture'"==""  {									// If not empty we did not get here due to stata error
 	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	if _rc  {
+		local rc = _rc
+		errexit, msg("Stata reports program error in $errloc") displ rc(`rc')
+		exit `rc'											// Display in results window and process non-zero return code
+	}
 	
-}
+} //endif 'skipcapture'
+	
 	
 end gendistP
 
@@ -251,6 +261,7 @@ end gendistP
 
 
 **************************************************** SUBPROGRAM **********************************************************
+
 
 capture program drop createactiveCopy						// APPARENTLY NO LONGER CALLED IN VERSION 2
 
@@ -265,4 +276,7 @@ program define createactiveCopy
 
 end //createActive copy
 
+
+
 ************************************************** END SUBPROGRAM **********************************************************
+
