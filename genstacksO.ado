@@ -1,3 +1,10 @@
+
+capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
+
+
+program define genstacksO, rclass							// Called by 'stackmeWrapper'; calls subprograms varsImpliedByStubs
+															// stunsImpliedByVars and subprogram 'errexit'
+
 															
 global errloc "genstacks0"									// Global that keeps track of execution location for benefit of 'errexit'
 
@@ -49,7 +56,10 @@ capture {													// Open capture braces mark start ot code where errors wil
 				if wordcount("`errlist'")>1 local msg = "drop these from stacked dataset?"
 				else local msg = "drop this from stacked dataset?"
 				window stopbox rusure "Variable(s) already exist with stubname(s) `errlist'; `msg'"
-				if _rc errexit "Will exit on 'ok'"
+				if _rc  {
+					errexit "Will exit on 'ok'"
+					exit
+				}
 				foreach `var' of local errlist  {
 					quietly drop `var'
 				} //next 'var'
@@ -62,9 +72,10 @@ capture {													// Open capture braces mark start ot code where errors wil
 *			******************
 
 			local impliedVars = r(keepv)					// Implied by the stubs actually specified by user	
-
-			if strpos("`impliedvars'",".")>0  {
+			if "`impliedVars'"=="."  local impliedVars = ""
+			if strpos("`impliedvars'"==""  {
 				errexit "Could not determine vars implied by seeming stubs"
+				exit
 			}
 
 		} //endif `isStub'									// Eliminate any missing variable indicators from `keepv'
@@ -80,12 +91,14 @@ capture {													// Open capture braces mark start ot code where errors wil
 *			 ******************
 				
 			 local stublist = r(stubs)						// (one stubname per varlist in genstacks syntax 1)
-*			
+			 if "`stublist'"==""  local stublist = ""
+			 
 			 ******************
 			 varsImpliedByStubs `stublist'					// See if both varlists have same vars (in any order)
 			 ******************
 			
 			 local impliedVars = r(keepv)					// 'Implied' by the variables actually specified by user
+			 if "`impliedVars'"==""  local impliedVars = ""
 
 			 local same : list impliedVars === keepv		// returns 1 in 'same' if 'implied' & 'keep' have same contents 
 *		
@@ -98,6 +111,7 @@ capture {													// Open capture braces mark start ot code where errors wil
 								"`msg'maybe some contexts have fewer variables; use existing vars?"
 				if _rc   {									// Exit with error if user says "no" 
 					errexit "`Absent permission to use existing vars"
+					exit
 				}
 
 				noi display "Execution continues ..."
@@ -116,20 +130,25 @@ capture {													// Open capture braces mark start ot code where errors wil
 		if "`usercontxts'"!="" | "`nocontexts'"!=""  {
 			errexit "In V2, contextvars are set by {help SMutilities} and cannot be overriden in genstacks"
 *					 12345678901234567890123456789012345678901234567890123456789012345678901234567890abcdefg
+			exit
 		}
 		
 		if "`stackid'"!="" | "`nostacks'"!=""  {
 			display as err "In Version 2, the stack ID variable is named SMstkid and is not user-optioned"
 *						 	12345678901234567890123456789012345678901234567890123456789012345678901234567890
 			window stopbox rusure "In Version 2, the stack ID variable is named SMstkid and is not user-optioned; continue?"
-			if _rc  errexit "Lacking permission to continue"
+			if _rc  {
+				errexit "Lacking permission to continue"
+				exit
+			}
 		}	
 		
 		if "`itemname'"!=""  {								// In genstacks any 'itemname' option names var to be kept, below
 			capture confirm variable `itemname'				// (it provides a link from each stack to other battery items)
 			if _rc  {
 				errexit "Option `itemname' does not name an existing variable" // 'errexit' limited to 60 chars
-*						12345678901234567890123456789012345678901234567890123456789012345678901234567890	
+*						12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				exit
 			}												// 'itemname' will override SMitemname dataset characteristic
 			else {											// (created by genstacks)
 				if `limitdiag' noisily display "NOTE: optioned itemname will override dataset characteristic set by 'genstacks'"
@@ -158,6 +177,7 @@ pause (0.4)
 *						 	                12345678901234567890123456789012345678901234567890123456789012345678901234567890	
 			if _rc {
 				errexit "'nostacks' cannot be optioned with command genstacks"
+				exit
 			}												//  (no need to restore full dataset since not yet messed with)
 			noi display "Execution continues ..."
 			local nostacks = ""
@@ -177,6 +197,7 @@ pause (0.4)
 				if _rc  {
 					global exit = 2							// $exit=2 tells 'errexit' no need to restore origdta before exit
 					errexit "`msg'"  						// (NO LONGER; errexit now expects 'origdta' option if restoring)		***
+					exit
 				}
 				display as error "Execution continues..."
 			} //endif
@@ -193,7 +214,8 @@ pause (0.4)
 				capture window stopbox rusure "Variable SMunit should not already exist in unstacked data; Continue anyway?"
 *						                       12345678901234567890123456789012345678901234567890123456789012345678901234567890
 				if _rc!=0  {
-					errexit "Variable SMunit should not already exist in unstacked data"						
+					errexit "Variable SMunit should not already exist in unstacked data"
+					exit
 				}
 				foreach var in SMunit SMnstks SMmxstks SMitem SMunit  {
 					capture drop `var'
@@ -216,6 +238,7 @@ pause (0.4)
 *						 		  12345678901234567890123456789012345678901234567890123456789012345678901234567890	
 				if _rc!=0  {
 					errexit "Variable S2unit should not already exist in data not double-stacked"
+					exit
 				}
 				else  {
 					foreach name in S2stkid S2nstks S2mxstks S2unit S2item {
@@ -264,12 +287,15 @@ pause (0.4)
 
 if "`skipcapture'"==""  {									// If not empty we did not get here due to stata error
 	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
-	
+	if _rc  {
+		errexit "Stata reports program error in $errloc"
+		exit
+	}
 }
 
 		
 end genstacksO
 
 
-***************************************************** END OF PROGRAM ******************************************************************
+
+********************************************** END OF PROGRAM *************************************************************************
