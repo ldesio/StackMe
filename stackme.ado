@@ -5,22 +5,22 @@ capture program drop SMshow
 *! Written by Mark, Feb-May 2025.
 
 
-program define SMshow							// This program was written to overcome an apparent error when Stata refused to
-												//   display text 'display'ed by a subprogram called from within a capture codeblk 
-args msg										// A better solution was to put the 'display' command within a capture block!, but
-												//   this (currently unused) subprogram may be found useful in other ways
+program define SMshow							// This program was written to overcome an apparent error when Stata refused to display
+												//   text 'display'ed by a subprogram called from within a capture codeblk 
+args msg										// A better solution was to use 'display noisily' but this (currently unused) subprogram 
+												//   may be found useful in other ways
 
   while "`msg'"!=""  {										// While 'msg' is not empty
 
-	local m = substr("`msg'",1,80)
+	local m = substr("`msg'",1,81)
 	local l = strrpos("`m'", " ")							// Find char following last that will fit in 80 columns
 	local m = strtrim(substr("`msg'", 1, `l'-1)				// Get 1st remaining line of text
 	local msg = strtrim(substr("`msg'", `l'+1, .))			// And put rest of 'm' back into 'msg'
-	if substr("`msg'",1,4)=="{err")  {
-		local pre = "{err"
-		local end = "}"
+	if substr("`msg'",1,5)=="{err}")  {
+		local pre = "{err}"
+		local end = "{txt}"
 	}
-	global SMmsg = "$msg`pre'`m'`end' ||"					// Save that line of text (may start w "{err" )
+	global SMmsg = "$msg`pre'`m'`end' ||"					// Save that line of text (may start w "{err}" )
 	local pre = ""
 	local end = ""
 															// On return from call, in calling program, need codeblk
@@ -31,18 +31,18 @@ end SMshow
 
 
 
-capture program drop SMcontextvars
+capture program drop SMsetcontexts
 
 *! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
 *! Written by Mark, Feb 2025.
 
-program define SMcontextvars					// This program should be invoked after 'use'ing the datafile to be processed
+program define SMsetcontexts					// This program should be invoked after 'use'ing the datafile to be processed
 												// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 version 9.0
 
-global cmd = "SMcontextvars"
+global cmd = "SMsetcontexts"
 
-															// See if this is initial call on SMcontextvars for new dataset
+															// SEE IF THIS IS INITIAL CALL on SMsetcontexts for a new dataset
 local filename : char _dta[filename]						// Get established filename if already set as dta characteristic
 local dirpath  : char _dta[dirpath]							// Ditto for $SMdirpath; if empty then datafile not initialized
 
@@ -55,9 +55,9 @@ if strpos("`fullname'", c(tmpdir))>0  {						// If c(tmpdir) is contained in dir
   local fullname = ""										// And we don't have a useable new filename
 															// Check out the `filename' characteristic retrieved earlier
   if "`filename'"==""  {									// If dataset was not yet initialized (so we need characteristics)
-	display as error "{bf:SMcontextvars} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
+	display as error "{bf:SMsetcontexts} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
 *						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	window stopbox stop "'SMcontextvars' cannot access name of datafile; invoke this command closer to relevant 'use' command"
+	window stopbox stop "'SMsetcontexts' cannot access name of datafile; invoke this command closer to relevant 'use' command"
   }
 } //endif strpos
  
@@ -114,8 +114,8 @@ else  {														// Else we have a useable supposed (new) filename
 	if "`delete'"!=""  local clear = "clear"					// 'delete' is undocumented and included for user convenience
 
 	if "`varlist'"=="" & "`nocontexts'"=="" & "`clear'"=="" & "`delete'"=="" & "`display'"==""  {
-		display as error "Command SMcontextvars needs varlist or ', display' | ', nocontexts' | ', clear'"
-		window stopbox stop "Command SMcontextvars needs varlist or ', display' or ', nocontexts' or ', clear'"
+		display as error "Command SMsetcontexts needs varlist or ', display' | ', nocontexts' | ', clear'"
+		window stopbox stop "Command SMsetcontexts needs varlist or ', display' or ', nocontexts' or ', clear'"
 											
 	}
 	
@@ -131,8 +131,7 @@ else  {														// Else we have a useable supposed (new) filename
 	
 	while `notdone'  {											// Permits a 'continue, break' exit from program
 																// (should not loop back here 'cos loop ends w 'continue, break')
-	
-	
+																
 																// Now go through the possible user requests
 
 	if "`varlist'"!=""  {										// If there is a varlist..
@@ -142,8 +141,8 @@ else  {														// Else we have a useable supposed (new) filename
 	    if "`SMstkid'"!=""  {
 		  display as error "This dataset already has a SMstkid variable; cannot initialize a stacked dataset"
 *    					    12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		  display as error "Reconfigure this dataset before continuing. See {help stackMe##SMcontextvars:contextvars} help text"
-		  window stopbox stop "Cannot initialize a stacked dataset; reconfigure before continuing - type 'help SMcontextvars'"
+		  display as error "Reconfigure this dataset before continuing. See {help stackMe##SMsetcontexts:contextvars} help text"
+		  window stopbox stop "Cannot initialize a stacked dataset; reconfigure before continuing - type 'help SMsetcontexts'"
 
 		}														// (genstacks would have checked this so something wierd has happened)  
 																
@@ -172,12 +171,13 @@ else  {														// Else we have a useable supposed (new) filename
 	} //endif
 		
 		
+		
 
 	if "`SMstkid'"!="" & "`varlist'"!=""  {						// If there's already a stackid variable AND new contextvars are optnd
 	   
 	   noisily display "This dataset has established contextvars: `contextvars'"
 	   display as error ///										// User needs warning of consequences for discarding the characteristc
-			"Established contextvars should not change after stacking; use {help stackme##SMcontextvars:contextvars} option"
+			"Established contextvars should not change after stacking; use {help stackme##SMsetcontexts:contextvars} option"
 *    	     12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	   local msg = "Contextvars characterstic should not change after stacking – use contextvars option on any stackMe command"
 	   window stopbox stop "`msg' to override established contexts just for that command – else start again with original data"
@@ -305,7 +305,7 @@ else  {														// Else we have a useable supposed (new) filename
 	noisily display _newline "done." _newline
 	  
 	
-end SMcontextvars
+end SMsetcontexts
 
 
 ********************************************************************************************************************************
@@ -315,7 +315,7 @@ capture program drop SMcon
 
 program define SMcon
 
-SMcontextvars `0'
+SMsetcontexts `0'
 
 end SMcon
 
@@ -345,7 +345,7 @@ version 9.0
 		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
 		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
 *    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
+		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMsetcontexts' closer to relevant 'use' command"
 	} //endelse
 	
 } //endif
@@ -508,21 +508,21 @@ varsion 9.0
 	global cmd = "S2itemname"
 	
 	if "$filename"==""  {										// If filename was not recorded by previous stacmMe command...
-	local fullname = c(filename)							// Path+name of datafile most recently used or saved
-	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
-	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
-		global dirpath = substr("`fullname'",1,`nameloc'-1)	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-		global filename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
-	}														// (used by genstacks as default name for newly-stackd dtafile)
+		local fullname = c(filename)							// Path+name of datafile most recently used or saved
+		local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
+		if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
+			global dirpath = substr("`fullname'",1,`nameloc'-1)	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+			global filename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
+		}														// (used by genstacks as default name for newly-stackd dtafile)
 	
-	else  {													// Else a tempfile was opened since any datafile
-		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
-		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
+		else  {													// Else a tempfile was opened since any datafile
+			gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
+			display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
 *    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMcontextvars' closer to relevant 'use' command"
-	} //endelse
+			window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMsetcontexts' closer to relevant 'use' command"
+		} //endelse
 	
-} //endif
+	} //endif
 
 
 	syntax [varlist(default=none)] [, DISplay CLEar DELete ]	// 'delete' is undocumented and included for user convenience
@@ -605,10 +605,11 @@ varsion 9.0
 																// (presumably won't cause an error if this leaves the link unchanged)
 	} //endif 'varlist'
 	
-				else  {											// Else change an existing link
+	
+	else  {														// Else change an existing link
 
-				   display as error "`msg'"
-				   capture window stopbox rusure `msg'; continue anyway?"
+		display as error "`msg'"
+		capture window stopbox rusure `msg'; continue anyway?"
 				   
 				   if _rc  window stopbox stop "You did not click 'ok'; will exit on next 'OK'"
 
@@ -710,17 +711,17 @@ program define SMfilename
 
 	syntax [anything] [, DIRpath CLEar DELete DISplay * ]
 
-	global cmd = "SMcontextvars"
+	global cmd = "SMfilename"
 		
 	quietly display "{smcl}" _continue
 	
 	syntax [anything], [DIRpath CLEar DELete DISplay]
 	
 	if "`delete'"!=""  local clear = "clear"					// 'delete' is undocumented and included for user convenience
-	
+*FIX THIS
 	if "`anything'"=="" & "`dirpath'"=="" & "`clear'"=="" & "`delete'"=="" & "`display'"==""  {
-	  display as error "Command SMcontextvars needs filename or ', display' | ', dirpath' | ', clear'"
-	  errexit "Command SMcontextvars needs varlist or ', display' or ', dirpath' or ', clear'"
+	  display as error "Command SMfilename needs filename or ', display' | ', dirpath' | ', clear'"
+	  errexit "Command SMfilename needs varlist or ', display' or ', dirpath' or ', clear'"
 	}
 	
 	local name = "`_dta[filename]'"								// Get established filename & dirpath, if any
@@ -730,9 +731,9 @@ program define SMfilename
 	  
 	  if "`path'"==""  {
 	  	local msg = "Dataset not yet initialized by"
-	  	display as error "`msg' {help SMutilities##SMcontextvars:SMcontextvars} so it has no established dirpath"
+	  	display as error "`msg' {help SMutilities##SMsetcontexts:SMsetcontexts} so it has no established dirpath"
 *                	         12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox stop "`msg 'SMcontextvars' so it has no established dirpath; will exit on next 'OK'"
+		window stopbox stop "`msg 'SMsetcontexts' so it has no established dirpath; will exit on next 'OK'"
 	  }
 	
 	  global fname = "`path'"+"`name'"							// Puts whatever we have into $fname
@@ -807,6 +808,4 @@ end SMfil
 
 
 **************************************************** END OF stakMe UTILITIES ***************************************************
-
-
 
