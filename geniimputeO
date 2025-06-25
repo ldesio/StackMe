@@ -1,8 +1,8 @@
 
-ccapture program drop geniimputeO							// Prep codeblocks for entire dataset before calling geniiP for each context
+capture program drop geniimputeO							// Preparations that can be done before calling geniiP for each context
 
 															// Called by stackmeWapper; calls no subprograms
-program define geniimputeO
+program define geniimputeO, rclass
 
 *! geniimputeO (was geniimpute) version 2 is called by stackmeWrapper version 2 to run under Stata versions 9/16, updated Feb,Apr'23 by MNF
 *! Minor tweaks in Nov 2024; major reorganization March 2025 where this program becomes geniimputeO, accessing entire working data prior
@@ -44,50 +44,25 @@ capture {													// Open capture braces mark start ot code where errors wil
 	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
 	local missingflagprefix = "m_"	
 	
-	capture confirm variable SMimisCount						// See if SMmiscnt still has values from previous calL
+	capture confirm variable SMimisCount						// See if SMimisCount still has values from previous calL
 	
 	if _rc==0  {												// If the variable exists
-		quietly count SMimisCount
-		if r(N)>0  {											// And has any non-missing observations
-			display as error "Variable SMimisCount has values from previous call on geniimpute. Replace them?{txt}"
-*                		      12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window stopbox rusure "Variable SMimisCount has values from previous call on geniimpute. Replace them?"
-			if _rc {
-				global exit = 1
-				exit 1
-			}
-		}
 		drop SMimisCount										// Default values will be provided by egen, below
-		noisily display _newline "Execution continues..." _newline
-		
+																// (wrapper will already have asked user if this is ok)
 	} //endif _rc==0											// Next command involving this var generates it
 
 	
 	capture confirm variable SMimisImpCount
 	
-	if _rc==0  {
-		quietly count SMimisImpCount
-		if r(N)>0  {
-			display as error "Variable SMimisImpCount has values from previous call on geniimpute. Replace them?{txt}"
-			capture window stopbox rusure ///
-							 "Variable SMimisImpCount has values from previous call on geniimpute. Replace them?"
-			if _rc  {
-				global exit = 1									// Restore origdta and exit if not
-				exit 1
-			}
-		}
-		noisily display _newline "Execution continues..." _newline
-		drop SMimisImpCount
-	
+	if _rc==0  {												// Same comments as for SMimisCount
+		drop SMimisImpCount										// Except default values are not provided until return to caller
 	} //endif _rc==0
-
-	quietly generate SMimisImpCount = .							// Next reference to this var replaces it
 
 			
 
 
-	local missingCntName = "SMmisCount"							// Legacy code references this variables
-	local missingImpCntName = "SMmisImpCount"					// Ditto
+	local missingCntName = "SMimisCount"						// Legacy code references this variables
+	local missingImpCntName = "SMimisImpCount"					// Ditto
 
 	
 	
@@ -107,6 +82,7 @@ capture {													// Open capture braces mark start ot code where errors wil
 	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
 	local totaddv = 0										// Will hold count of max # of additional vars
 	local nonmisPTVs = ""									// Will hold list of non-missing PTVs
+	local prfxdPRVs = ""
 	
 
 	
@@ -124,7 +100,7 @@ capture {													// Open capture braces mark start ot code where errors wil
 		    local anything = strtrim(substr("`postcolon'",2,.))	// strip off the leading ":" along with any following blanks
 		} //endif `anything'									// If there was no colon then varlist was in `anything'
 		
-		unab thePTVs : `anything'								// Legacy name for vars for which missing data wil be imputed
+		unab thePTVs : `anything'								// Legacy name for vars for which missing data will be imputed
 		local allPTVs = "`allPTVs' `thePTVs'"					// Add to list of all PTVs from all varlists
 		if "`prfxvars'"!=""  {
 			unab addvars : `prfxvars'							
@@ -156,6 +132,8 @@ capture {													// Open capture braces mark start ot code where errors wil
 			local missing = r(N)								// N of missing cases for this PTV within full dataset
 			if `missing'==0  local nonmisPTVs = "`nonmisPTVs' `var'" 
 																// Accumulate list of non-missing PTVs
+			local prfxdPTVs = "`prfxdPTVs' i_`var' m_`var'"		// And list of prefixed and initialized PTVs
+			
 		} //next var 											// (in this varlist)
 		  
 /*																// NOT SURE WE USE ANY OF THESE
@@ -176,8 +154,10 @@ capture {													// Open capture braces mark start ot code where errors wil
 		local alnvl = "al`nvl'"
 		global `alnvl' = "`alladdv'"							// Additional varlist for this `nvl' (as above)
 
-		if "`anything'"==""  continue, break					// Break out of multi-varlist loop if no more varlists				**
-		local anything = strtrim(substr("`anything'", 3, .))	// Else strip "||" & put remaining varlist(s) in `anything'			**
+		if "`anything'"==""  continue, break					// Break out of multi-varlist loop if no more varlists	
+		if substr("`anything'",1,2)=="||"  {					// SEEMINGLY TESE WERE ALREADY STRIPPED								***
+		   local anything = strtrim(substr("`anything'", 3, .))	// Else strip "||" & put remaining varlist(s) in `anything'			**
+		}
 		
 	} //next `nvl' (varlist) 									// (in this multi-varlist)
 	
@@ -186,29 +166,26 @@ capture {													// Open capture braces mark start ot code where errors wil
 		display as error _newline ///
 			"Add to prfix list or optn as 'additionl' vars without {help missing:missing values}: {bf:`nonmisPTVs'}{txt}"
 *			 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox note ///									// (help link should suggest need to learn about Stata missng)
-			"Add to prefix list or option as 'additional' any vars that have no Stata missing values (>=.):`nonmisPTVs'"
-		global exit = 1											// $exit==1 means restore original data before exiting
-		exit 1 													// (evaluated by calling program on return to that program)
+		errexit, ///											// (help link should suggest need to learn about Stata missng)		***
+			msg("Add to prefix list or option as 'additional' any vars that have no Stata missing values (>=.):`nonmisPTVs'")
+		exit
 	}
 		
-	quietly egen SMmisCount = rowmiss(`allPTVs')				// Var holding N of missing cases for variable to be impoted
-	capture label var SMmisCount "N of missing values in `nvars' variables to impute (`first'...`last')"
-	quietly gen SMmisImpCount = .
-	capture label var SMmisImpCount "N of missing values in `nvars' imputed variables (`first'...`last')"
-
+	quietly egen SMimisCount = rowmiss(`allPTVs')				// Var holding N of missing cases for variable to be impoted
+	capture label var SMimisCount "N of missing values in `nvars' variables to impute (`first'...`last')"
+																// ('SMimisImpCount' will be generated in caller)
 
 	
 *	local added = "`alladdv'"									// Need a local that can be overwritten, as `addvars' cannot
 
 	local maximpvar = `totPTVs' + `totaddv'
 	if (`maximpvar' > 30) {
-		display as error "Max of 30 vars for varlist + additional – you have specified `maximpvar'{txt}"
-		window stopbox note ("Max of 30 vars for varlist + additional – you have specified `maximpvar'")
-		global exit = 1
+		errexit "Max of 30 vars for varlist + additional – you have specified `maximpvar'"
+		exit
 	}
-
-	if $exit  exit 1	
+	
+	local keepvars = "`allPTVs' `alladdv' `prfxdPTVs' `SMimisCount'"
+	return local keepvars `keepvars'							// Return unabbreviated un-hyphenated vars in r(checked)
 
 	
  
@@ -222,7 +199,7 @@ capture {													// Open capture braces mark start ot code where errors wil
 if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
 	
 	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
-	
+	exit
 }
 
 	
@@ -231,3 +208,4 @@ end //geniimputeO
 
 
 ********************************************** END PROGRAM GENIIMPUTEO ********************************************************
+
