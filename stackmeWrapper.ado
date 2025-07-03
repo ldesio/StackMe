@@ -24,8 +24,6 @@ capture program drop stackmeWrapper
 program define stackmeWrapper	  		// A 'wrapper' called by `cmd'.ado (the ado file named for any user-invoked stackMe cmd) 
 
 scalar save0 = "`0'"					// Save existing macros of relevance to this invocation of 'stackmeWrapper' so that 
-scalar dirpath = "$SMdirpath"			// we can drop all such macros using the first substantive command illustrated below.
-scalar filename = "$SMfilename"			// (then replacing needed macros from these scalar copies).
 scalar pauseon = "$PAUSEON"
 										// This wrapper calls `cmd'O, once each, for several commands and then repeatedly calls 
 										// `cmd'P (the program doing the heavy lifting for that command) where context-specific 
@@ -112,10 +110,8 @@ scalar pauseon = "$PAUSEON"
 *		*****************				//
 		macro drop _all					// Global flags, etc., may have remained active on earlier error exit, so this cmd is issued
 		local 0 = save0					//  here – the earliest point where all stackMe commands share the same lines of program code.
-		global SMdirpath = dirpath		// Then immediately restore them from scalars saved on entry to 'stackmeWrapper', above.
-		global SMfilename = filename	//
-		global PAUSEON = pauseon		//
-		scalar drop save0 dirpath filename pauseon	
+		global PAUSEON = pauseon		// Don't want this turned off at start of every stacmMe command
+		scalar drop _all				// Similarly for scalars active after error exit	
 *		*****************				//
 										//
 *		*******************				//
@@ -372,6 +368,17 @@ pause (1)
 			
 		} //endif 'stackid'								// SMstkid and other such will be put in working data 
 														// (after 'origdta' has been saved)
+		local cen = substr("`adjust'",1,3)				// Require only 1st 3 chars of what user optioned						***
+														// (genyhats option)
+		if "`cen'"==""  local cen = "mea"
+		if ("`cen'" != "mea" & "`cen'" != "con" & "`cen'" != "no") {
+			display as error "Valid adjustment options are {opt:mea:n}, {opt:con:stant} or {bf:no}{txt}"
+			errexit, msg("Valid adjustment options are mean, constant or no")	
+			exit
+		} //endif
+		
+*	} //endif options
+
 		
 														// Identify optioned var(lists) to keep; 'genplace' has two of them
 				
@@ -573,7 +580,7 @@ pause (1.2)
 		   }											// If 'itemname' survives this check it will be added to 'keepoptvars'		   
 		}
 		
-				
+		
 	    if "``opt1''"!="" & "`prfxtyp'"=="var" {		// If first option names a variable(list)
 		
 *	  	  *****************************
@@ -597,17 +604,16 @@ pause (1.2)
 		   }											// 'exit' cmd returns to caller, skipping rest of wrappr, incldng skipcapture
 		 
 		} //endif 'opt1'
-
-	} //endif 'options'
 	
 
 	
 															
-	local keepoptvars = strtrim(stritrim("`contextvars' " +  /// Trim extra spaces from before, after and between names to be kept
-			  "`optadd' `optad1' `itemname'"))  			  // Put all these option-related variables into keepoptvars. SMstkid,
-															  //   and other stacking identifiers will be handled separately
-															  // (`itemname' can be referenced only by using this alias)
-															  // (NOT SURE WHAT BENEFIT USER GETS FROM REFERRING TO IT INDIRECTLY)		***	
+		local keepoptvars = strtrim(stritrim("`contextvars' " + /// Trim extra spaces from before, after and between names to be kept
+			  "`optadd' `optad1' `itemname'"))  			  	// Put all these option-related variables into keepoptvars. SMstkid,
+																//   and other stacking identifiers will be handled separately
+																// (`itemname' can be referenced only by using this alias)
+																// (NOT SURE WHAT BENEFIT USER GETS FROM REFERRING TO IT INDIRECTLY)		***	
+	} //endif 'options'
 	
 	
 	
@@ -621,8 +627,10 @@ pause (2)
 										//		that can be passed to whatever 'cmnd'P is currentlu being processed.
 	
 	
-	   local varlists = strtrim(stritrim("`multivarlst'"))		// Here we process multivarlsts for all commands (including genstacks)
-																// (ensure just one space between each component of 'anything')																// Put the 'multivarlst' (from end of codeblk 0.1) into 'varlists' 
+	   local multivarlst = strtrim(stritrim("`multivarlst'"))	// Here we process multivarlsts for all commands (including genstacks)
+	   local varlists = "`multivarlst'"							// (ensure just one space between each component of 'anything')	
+	   global genstkvars = "`multivarlst'"						// Cluge to get around genstacks having two varlist formats
+																// Put the 'multivarlst' (from end of codeblk 0.1) into 'varlists' 
 	   local multivarlst = ""									// Then empty it to be refilled with varlists shorn of ifinwt,opts
 																// ('multivarlst' is reconstructed towards end of this codeblk)
 	   local lastvarlst = 0										// Will be reset =1 when final varlist is identified as such
@@ -660,9 +668,11 @@ pause (2)
 	local vars = ""													// Should be redundant but will help with trouble-shooting
 	local prefixtovarname = ""										// Flag avoids duplicate warning if happens more than once
 
-*	***********************	  										// `varlists' was initialized above from 'multivarlsts'
-	while "`varlists'"!= ""  {										// Repeat while another pipe-delimited segment remains in 'varlists'
-*	***********************											// (so rest of codeblk is collecting lists of items, 1 per varlist)							
+	if "`cmd'"!="genstacks"  {
+		
+*		***********************	  									// `varlists' was initialized above from 'multivarlsts'
+		while "`varlists'"!= ""  {									// Repeat while another pipe-delimited segment remains in 'varlists'
+*		***********************										// (so rest of codeblk is collecting lists of items, 1 per varlist)							
 																	// Here parse the stackMe varlist, generally with following format:
 																	// [[string_]inputvar(s):] outcomevars [ifin][weight] [no opts here]
 																	// (strictly, all vars are inputs; some yield str-prefxed outcomes)
@@ -779,10 +789,7 @@ pause (2.1)
 										// (2.1) Here check on validity of vars split into in 'inputs' and 'outcomes' for each varlist
 										
 
-		   if "`cmd'"=="genstacks" local vars = "`anything'"		// genstacks inputs can be stubs that function like vars for now
-																	// (redundant since genstacks uses multivarlst, accumulated above)
-																	
-		   else  {													// Else 'anything' holds regular vars to be checked for errors
+		  if "`cmd'"!="genstacks"  {								// Else 'anything' holds regular vars to be checked for errors
 																	// (and all vars unabbreviated)
 		     gettoken precolon postcolon : anything, parse(":")		// Parse components of 'anything' based on position of ":", if any
 		   
@@ -790,7 +797,7 @@ pause (2.1)
 																	// (FOR GENYHATS, no colon indicates generation of bivariate yhats)
 			   local prfxvar = ""									// Insert placeholder if no colons
 			   local strprfx = ""									// Ditto for strprfx
-			   local vars = "`anything'"							// 'anything' overwrites empty varlist
+			   local vars = "`anything'"							// 'anything' overwrites empty varlist (vars provide most outcomes)
 			   														// (even for gendu and genyh whose precolons get special treatment)
 		     } //endif 'postcolon'									// (could use r(checked) instead of 'anything'; contains no hyphens)
 		   
@@ -798,7 +805,7 @@ pause (2.1)
 		     else  {												// THERE IS A COLON, so 'inputs' will get (perhps tail of) 'precolon'
 		   
 			   local vars = strtrim(substr("`postcolon'",2,.))		// 'vars' is remains of 'postcolon' after ":" is removed from head
-			   local nvars = wordcount("`vars'")	
+			   local nvars = wordcount("`vars'")					// ('vars' are generally outcomes but, in genyhats, can be inputs)
 			   local nstubs = wordcount("`precolon'")				// Colon could follow stubname in gendummies
 
 		       if wordcount("`precolon'")==1  {						// Deal with the pre-colon stuff 
@@ -841,7 +848,7 @@ pause (2.1)
 			   			   				
 		       else {												// Else precolon has a varlist
 			 
-			     local inputs = "`precolon'"						// (which necessarily contributes to inputs)
+			     local input = "`precolon'"							// (which necessarily contributes to inputs)
 			  
 			   } //endelse wordcount								// NOTE: 'precolon' is neither outcome nor input for gendummies
 			   
@@ -854,22 +861,23 @@ pause (2.1)
 
 			 } //endelse 'postcolon'								// NOTE: 'prfxvar's are a subset of `input'`outcome' vars
 																	//		 (some being input vars and one being an outcome)
-																	// BETTER WLD BE TO IMPLMENT GLOBALS TO HOLD VARLISTS IN NXT VERSN
+			 local outcome = "`vars'"								// (tho, in genyhats univariate procedure, vars are inputs)
 																	
 																	
 																	
 			 if "`prfxvar'"!="" local prfxvars = "`prfxvars' `prfxvar'"
 			 else local prfxvars = "`prfxvars' null"				// "null" is a placeholder so that there is a word for each varlist
 			 
-			 if "`outcome'"!="" local outcomes = "`outcomes' `outcome'" // Outcomes should never be empty: they ARE the varlist/namelist
-			 
-			 else {													// For genyhats, 'prfxvar' is in 'outcome' as well as in 'prfxvars'
+			 if "`outcome'"!="" local outcomes = "`outcomes' `outcome'" 
+																	// Outcomes should never be empty: they ARE the varlist/namelist
+/*			 else {													// For genyhats, 'prfxvar' is in 'outcome' as well as in 'prfxvars'
 		  	   local outcomes = "`outcomes' `vars'"					// Else outcome varnames are in `vars'
-			 }															// (for genyhats the two are added)
-
+			 }														// (for genyhats the two are added)
+*/
 			 local outcome = ""										// This string needs to be emptied for next varlist
+			 local vars = ""										// Ditto
 		  
-			 if "`input'"!=""  local input = "`input'"				// For genyhats, prefix varname is in 'input'	  
+			 if "`input'"!=""  local inputs = "`input'"				// For genyhats, prefix varname is in 'input'	  
 																	// (this is a do-nothing command needed if `input' is not empty)
 			 else  {
 		  	   if word("`prfxvars'",1)!="null" local inputs = "`prfxvars'" // Else input varnames are in 'prfxvars'
@@ -877,28 +885,28 @@ pause (2.1)
 
 			 if "`input'"!="" & "`input'"!="null" local inputs = "`inputs' `input'"
 			 
-			 local input = ""											// This string also needs to be emptied for next varlist
+			 local input = ""										// This string also needs to be emptied for next varlist
 		  		
 																	
-*			**************************************						// Here is the first step in accellerating all 'cmd'P programs
-			global nvarlst = `nvarlst'									// Stores number of current varlist; ultimately n of varlists
-			scalar VARLISTS`nvarlst' = "`outcomes'"						// Store in globals where can be found by 'cmd'P and elsewhere
-			scalar PRFXVARS`nvarlst' = "`prfxvars'"						// Store in global the name of var(list) that preceed a colon
-			scalar PRFXSTRS`nvarlst' = "`strprfx'"						// Has string that may prefix single-var prefixvar, or has a stubname
-*			**************************************						// PARALLEL GLOBAL wtexplst`nvarlst' WAS FILLED IN CODEBLOCK (2)
-																		// (but might slow things up significantly)							***
+*			**************************************					// Here is the first step in accellerating all 'cmd'P programs
+			scalar NVARLSTS = `nvarlst'								// Stores number of current varlist; ultimately n of varlists
+			scalar VARLISTS`nvarlst' = "`outcomes'"					// Store in globals where can be found by 'cmd'P and elsewhere
+			scalar PRFXVARS`nvarlst' = "`prfxvars'"					// Store in global the name of var(list) that preceed a colon
+			scalar PRFXSTRS`nvarlst' = "`strprfx'"					// Has string that may prefix single-var prefixvar, or has a stubname
+*			**************************************					// PARALLEL GLOBAL wtexplst`nvarlst' WAS FILLED IN CODEBLOCK (2)
+																	// (but might slow things up significantly)							***
 													
-			if `lastvarlst'  continue, break							// If this was identified as the final list of vars or stubs,						
-																		// ('break' ensures next line to be executed follows "} next while")
-		} //endelse genstacks
+			if `lastvarlst'  continue, break						// If this was identified as the final list of vars or stubs,						
+																	// ('break' ensures next line to be executed follows "} next while")
+		 } //endif !genstacks										// End of codeblock executed for all cmds except genstacks	
 																
 																
-*	****************					
-	} //next `while'												// End of code processing successive varlists within multivarlst
-*	****************												// Local lists processed below cover all varlists in multivarlst	
+*	   ****************					
+	   } //next `while'												// End of code processing successive varlists within multivarlst
+*	   ****************												// Local lists processed below cover all varlists in multivarlst	
 
 
-	if "`cmd'"!="genstacks"	 {										// Following codeblocks again are not relevant for 'genstacks'
+*	  if "`cmd'"!="genstacks"	 {									// Following codeblocks again are not relevant for 'genstacks'
 	
 	  local llen : list sizeof wtexplst								// Finish up the wtexplst now all varlists have been processed	
 	  while `llen'<`nvarlst'  {	
@@ -1028,10 +1036,10 @@ pause (4)
 
 	
 	  checkvars "`keepvars'"
-	  local keepvars = r(checked)								// 'list uniq' requires any hyphenated varlists to be spelled out
+	  local keepvars = r(checked)							// 'list uniq' requires any hyphenated varlists to be spelled out
 	  local keepvars = subinstr("`keepvars'",".","",.) 		// Remove any missing variable symbols
 
-	  local keepvars : list uniq keepvars						// Stata-provided function drops duplicate words in any list
+	  local keepvars : list uniq keepvars					// Stata-provided function drops duplicate words in any list
 
 	
 	
@@ -1176,7 +1184,8 @@ pause (6)
 	
 															// Above 'cmd's all have a 'cmd'O program that accesses full dataset
 															// (may add gendist & genyhats so only gendummies will be w'out 'cmd'O)
-		
+		if "`cmd'"=="genstacks"  local multivarlst = "$genstkvars"
+															// Recover original multivarlst if call will be on genstacks
 *	 	******************** 
 		`cmd'O `multivarlst', `optionsP' nc(`nc') nvar(`nvarlst') wtexp(`wtexplst') ctx(`_temp_ctx') orig(`origdta') 
 		if "$SMreport"!=""  exit 							// ($SMrc is empty if a non-zero return code was not reported)
@@ -1185,22 +1194,23 @@ pause (6)
 															// Some 'cmd'O commands may still use legacy error reporting
 	
 	
-			
+		local temp = ""	
 		if "`cmd'" == "genstacks"  {						// Command genstacks deals with own varlist/stublist
 			local temp = r(impliedvars)						// (other sources supply 'multivarlst' for other 'cmd's)  ******************
 			if "`temp'"=="."  local temp = ""
+			if "`temp'"!=""  global genstkvars = "`temp'"
 			local keep = "`keepvars' `temp'"				// Append impliedvars to keepvars AND SAVE BOTH IN 'keep' HERE MORPH HAPPENS
 			local inputs = "`temp'"
 			local multivarlst = r(reshapeStubs)				// Used in `cmd'P call, feeding 'reshapeStubs' to `cmd'P. ******************
 		    local multivarlst = subinstr("`multivarlst'",".","",.) // Remove any missing variable symbols
-			local outcomes = "`multivarlst'"
-		} //endif 'cmd'=='genstacks'						
+			local outcomes = "$genstkvars"					// THIS IS ANOMOLOUS SINCE GENSTACK OUTCOMES ARE VARS THAT WERE STUBS
+		} //endif 'cmd'=='genstacks'						// (but wrapper does not know that)
 		
 		  
 		else  {												// Else for the other two cmds currently having cmd'O programs
 		  local temp = r(keepvars)
 		  local temp = subinstr("`temp'",".","",.) 			// Remove any missing variable symbols
-
+															//																*******
 		  local keep = "`keepvars' `temp'"					// And from `temp'' to 'keep'							   		OR HERE		
 		  if `limitdiag'  local fast = "fast"				// Only relevant to geniimpute; limits per context diagnostics  *******
 		}
@@ -1211,17 +1221,28 @@ pause (6)
 	  else  {												// Else command is not one with special requarements for call on 'cmd'P
 															//																*******
 		local keep = "`keepvars'"							//																OR HERE
+	  }														// 																*******
+	
 															// ********************************************************************
-	  }														// Last bit of 'keep' before dropping all other vars from working data
+	  if "`SMstkid'"!=""  local keep = "`keep' SMstkid"		// And add 'SMstkid', if extant, for diagnostic displays
 															// ********************************************************************														
+															// (Last bit of 'keep' before dropping all other vars from working data)
 	
-	  capture confirm variable SMstkid
-	  if _rc==0  local keep = "`keep' SMstkid"				// (and add 'SMstkid', if extant, for diagnostic displays)
+
 	
+	
+	
+	  if "`cmd'"!="genstacks"  {							// Get list of all outcomes for whatever command this may be
+	  	local outcomes = ""									// (genstacks outcomes were already filled from r(impliedvars), abve)
+	  	forvalues nvl = 1/`nvarlst'  {
+	  	   local outcomes = "`outcomes' " + VARLISTS`nvl'	
+		}
+	  } //endelse
+	  
 	  tempvar count											// Check whether Stata missing data codes are in use
-	  local lastvar = word("`inputs'",-1)					// Record this so can we tell when the last var has been tested
+	  local lastvar = word("`outcomes'",-1)					// Record this so can we tell when the last var has been tested
 				
-	  foreach var of local inputs  {					// (similar code in 5.2 only if `showdiag'; & here overhead is small)
+	  foreach var of local outcomes  {						// (similar code in 5.2 only if `showdiag'; & here overhead is small)
 
 		egen `count' = count(`var'>=.)  					// Count any observations with values >= missing
 
@@ -1291,7 +1312,7 @@ pause (6.1)
 
 	  global multivarlst = "`multivarlst'"					// Make it accessible to caller programs and subprograms
 															// (`multivarlst' has list of all varlists including ":" and "||")
-	
+
 	
 	
 *	  ********************									************************************
@@ -1317,7 +1338,7 @@ pause (6.1)
 				
    
 *		******************************************		   		  
-		if `limitdiag'>=`c' & "$cmd"!="geniimpute" & "$cmd"!="genstacks" {																					 
+		if `limitdiag'>=`c' & "$cmd"!="geniimpute" /*& "$cmd"!="genstacks"*/ {																					 
 *		******************************************		  			// Limit diagnostics to `limitdiag'>=`c' and ! (geniimpute|genstacks)	
 		
 *			******************************
@@ -1339,7 +1360,7 @@ pause (6.2)
 										// (6.2) HERE ENSURE WEIGHT EXPRESSIONS GIVE VALID RESULTS IN EACH CONTEXT OF WORKING DATASET	***
 							
 										
-			forvalues nvl = 1/`nvarlst'  {							 
+			forvalues nvl = 1/`nvarlst'  {							// Cycle thru all varlists for this command		 
 	   				 
 		       if "`wtexplst"!=""  {								// Now see if weight expression is not empty in this context
 
@@ -1641,50 +1662,6 @@ pause (9.1)
 	
 	if "$busydots"!="" noisily display " "					// Override 'continue' following final busy dot(s)
 	
-	if "`noreplace'"!=""  local replace = "replace"			// Actual option picked by user might be 'noreplace'														// Here handle options 'aprefix' & 'mprefix' for all commands
-
-	local nvarlst = "$nvarlst"								// SOMEHOW $nvarlst SURVIVES save/restore PROCESS; OTHER GLOBALS NOT	***
-	
-	forvalues nvl = 1/$nvarlst  {							// Holds number of varlists
-	  
-	  global varlists`nvl' = VARLISTS`nvl'					// Store in global the scalar saved to overcome global impermanence
-	  global prfxvars`nvl' = PRFXVARS`nvl'					// Ditto for $prefixvars`nvarlst'
-	  global prfxstrs`nvl' = PRFXSTRS`nvl'					// Ditto for $prefixstrs`nvarlst'
-	  
-	  local varlist = VARLISTS`nvl'							// THO $varlists`nvl' IS A COPY OF VARLISTS`nvl' I CANT GET A LOCAL 	***
-															// COPY OF $varlists`nvl'; ONLY OF VARLISTS`nvl'
-	  checkvars "`varlist'"									// Unab the varlist (using checkvars avoids occasional unab error)
-	  local varlist = r(checked)
-	  local varlist = subinstr("`varlist'",".","",.) 		// Remove any missing variable symbols
-
-
-	  foreach var of local varlist  {
-	  	
-		capture local vlbl : variable label `var'			// Get existing var label, if any
-
-		local istprfx = substr("$cmd",4,1)					// First char of outcome prefix for any cmd is 4th char of 'cmd'name
-		
-		if "`aprefix'"!=""  {								// 'aprefix' SHOULD NORMALLY START AND END WITH "_"						***
-															// This option applies to all prefixes for current 'cmd'
-		
-		   if substr("`aprefix'",-1,1)=="_"	 {				// If 'aprefix' ends with "_"
-			  if "`vlbl'"!=""  local vlbl = substr("`aprefix'",1,strlen("`aprefix'")-1) + ": `vlbl'"
-			  else  local vlbl = substr("`aprefix'",1,strlen("`aprefix'")-1) + ": outcome variable"
-		   }
-		   else  {											   // Else 'aprefix' does not end in "_"
-		   	  if "`vlbl'"!="" local vlbl = "`aprefix': `vlbl'" // If input var had a label, modify that label to label outcome
-			  else local vlbl ="`aprefix': outcome variable"   // Else use "outcome variable" as string to label outcome
-		   }
-		   rename *_`var' `istprfx'`aprefix'`var'			   // Rename the variable(s) appropriately
-		   label var `istprfx'`aprefix'`var' "`istprfx'`aprefix'`var'`vlbl'" // (and label it appropriately)
-		   
-		} //endif 'aprefix'
-		
-	  } //next 'var'
-		
-	} //next 'nvl'											// Other prefix options are handled in respective caller programs
-
-
 	
 	local skipcapture = "skip"								// In case there is a trailing non-zero return code
 	
@@ -1713,8 +1690,6 @@ pause (10)
 
   if "$SMreport"==""	{									// Lack of $SMreport means did not already tidy up; do so now ...
 															// Drop all globals, restoring those needed by succeeding stackMe commands
-	scalar filename = "$SMfilename"							// Save, in a scalar, global filename – relevant for later stackMe cmds
-	scalar dirpath = "$SMdirpath"							// Ditto for $SMdirpath
 	scalar origdta = "$origdta"								// Ditto for $origdta
 	scalar exit = "$exit"									// Ditto for $exit
 	scalar multivarlst = "$multivarlst"						// Ditto for $multivarlst
@@ -1722,15 +1697,11 @@ pause (10)
 	scalar SMreport = "$SMreport"							// (an undefined scalar cannot be defined by assigning it an empty global)
 	macro drop _all											// Drops above globals (along with many others and all locals) before exit
 	
-	global SMfilename = filename							// But global filename is needed by later 'stackme' commands
-	global SMdirpath = dirpath								// Ditto for dirpath
 	global origdta = origdta								// Global origdta is needed by caller programs, re-entered on 'end' below
 	global exit = exit										// Ditto for $exit
 	global multivarlst = multivarlst						// Ditto for $multivarlst (used in many caller programs)
 	if SMreport !="initialized" global SMreport = SMreport	// And $SMreport, if its scalar's "initialized" flag has been replaced
 	
-	scalar drop _all 										// But we must overtly drop the scalars used to secure those locals/globals
-															// (along with many others created by stackMe and other Stata programs)
   } //endif $SMreport 
 															// ABOVE DROPS scalars VARLISTS#, PRFXVARS# & PRFXSTRS BUT WE CAN KEEP
 															// PARSING $multivarlst AS WE DO NOW										***
@@ -2065,8 +2036,9 @@ if "$SMreport"!=""  exit						// If the error was previously reported then the c
 
 if "$exit"==""  global exit = 0					// If $exit is empty that will be because it has not yet been set
 
-global SMrc = _rc								
-
+if "$SMrc"==""  global SMrc = 0					// If $SMrc is empty give it a return code of 0
+if $SMrc==0  global SMrc = _rc					// If $SMrc already holds an error code, leave it unchanged
+												// (else give it the current value of _rc)
 
 	
 ********
@@ -2099,27 +2071,21 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 
 
 	if $exit==1 {								// If (restored) data has been modified must also 'use' the original dataset
-	   quietly use $origdta, clear 				// Here restore 'origdta' dataset (provided not already done so)
-	   erase $origdta 							// (and erase the tempfile in which it was held, if any)
+	   capture quietly use $origdta, clear 		// Here restore 'origdta' dataset (provided not already done so)
+	   capture erase $origdta 					// (and erase the tempfile in which it was held, if any)
 	} //endif	
 	
 												// Since we exit we must drop all globals, which yields a tricky problem addressed...
 	scalar SMrc = "$SMrc"						// Save in a scalar the global copy of a non-zero error code or command
 	scalar SMmsg = "`msg'"						// Save in a scalar the 'msg' argument or option
-	scalar filename = "$SMfilename'"			// Save, in a scalar, global filename – relevant for later stackMe cmds
-	scalar dirpath = "$SMdirpath"				// Ditto for $dirpath
 	scalar errloc = "$errloc"					// Ditto for $errloc
-	scalar origdta = "$origdta"					// Ditto for $origdta
 	scalar exit = "$exit"						// Ditto for $exit
 	scalar multivarlst = "$multivarlst"			// Ditto for $multivarlst
 	macro drop _all								// Clear all macros before exit (evidently including all of the above)
 												// (note that scalars are not macros so they are not dropped by above command)
 	global SMrc = SMrc							// Get $SMrc back from its scalar copy
 	local msg = SMmsg							// Governs way in whicn msgs are displayed
-	global SMfilename = filename				// $filename is needed by certain 'stackme' commands
-	global SMdirpath = dirpath					// Ditto for dirpath
 	global errloc = errloc						// $errloc is needed by caller program, re-entered after wrapper 'end' command
-	global origdta = origdta					// Ditto for $origdta
 	global exit = exit							// Ditto for $exit
 	global multivarlst = multivarlst			// Ditto for $multivarlst	
 
@@ -2129,6 +2095,7 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 	
 	   capture confirm number $SMrc 			// See if it was a numeric return code
 	   if _rc  {								// Not numeric so "$SMrc" holds the command line that caused the error
+	   
 		  if "`msg'"==""  local msg = "Stata reports likely data error in $errloc"  
 		  if display !=""  display as error "`loc'`msg'{txt}" // ('display' is a scalar flag, set on entry to this program)
 		  
@@ -2136,7 +2103,9 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 		  else window stopbox note "`loc2'`msg' – click on blue return code for details; will exit on 'OK'" // Else this version
 		  "$SMrc"								// Invoke the command line that caused the error, so Stata reports the RC
 	   }
+	   
 	   else  {									// Else $SMrc is numeric so likely a captured return code
+	   
 		  if "`msg'"==""  local msg = "Likely program error `rc' in $errloc – click blue return code for details" 
 *		   							   12345678901234567890123456789012345678901234567890123456789012345678901234567890 
 		  if display !=""  noisily display as error "`loc'`msg'{txt}" // ('display' is a scalar flag, set earlier in program)
@@ -2156,6 +2125,7 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 	} //endif $SMrc
 	
 	else  {										// Else $SMrc is empty
+	
 	   if display !=""  {						// 'display' is a scalar; it shows 'display' was implied or optd earlier in prog
 	     if strlen("`loc'`msg'")>80  {			// If total length (including any for `loc') >80...
 		   dispLine "`loc'`msg'" "aserr"		// Use more that one line, if needed, to add "In $errloc"
@@ -2595,10 +2565,14 @@ global errloc "showdiag1"
 
 		args limitdiag c nc nvarlst
 		
+		if "$cmd"=="genstacks" {									  // For cmd genstacks we by-pass normal sources for vartest
+			if `nvarlst'==0  local nvarlst = 1
+			local vartest = "$genstkvars"
+		}
 		
 		forvalues nvl = 1/`nvarlst'  {
 
-				   local vartest = /*"$keepvars"*/ VARLISTS`nvarlst'
+				if "$cmd"!="genstacks"  local vartest = VARLISTS`nvarlst' // For most cmds get 'vartest' from this scalar
 
 				   local vartest = subinstr("`vartest'",".","",.)	  // Remove any missing-symbols (DK where they come from)
 				   unab vartest : `vartest'	
@@ -2637,11 +2611,11 @@ global errloc "showdiag1"
 		} //next 'nvl'
 				
 				
-		if !_rc  {								  		  // Only execute this codeblk if an error has not called for exit 
-			if `rc'!=0 & `rc'!=2000 {						  // If there was a different error in any 'count' command...
+		if !_rc  {								  		  		// Only execute this codeblk if an error has not called for exit 
+			if `rc'!=0 & `rc'!=2000 {						  	// If there was a different error in any 'count' command...
 				errexit "Stata error `rc' at $errloc in contxt `lbl' – click blue RC for details" // LBL IS A SCALAR; 'lbl' a local
 *						          12345678901234567890123456789012345678901234567890123456789012345678901234567890 
-				exit `rc'									  // Set flag for wrapper to exit after restoring origdata
+				exit `rc'									  	// Set flag for wrapper to exit after restoring origdata
 			}
 				   
 		} //endif !_rc
@@ -2715,22 +2689,27 @@ global errloc "showdiag2"
 				}
 				
 				if `displ'  {
-				   local msg = "   `lbl' has `numobs' observations"
+				   local msg = "  Context `lbl' has `numobs' observations"
 				   noisily display  "`msg'" 						 // Noisily display the msg
 
 				   if `xtra'  {									 	 // If 'extradiag' was optiond, also for other stacks
 					  local other = "Relevant vars "				 // Resulting re-labeling occurs with next display
-					  if "$noobsvarlst"!=""  {
+					  if "$noobsvarlst"!="" & `xtra' {				 // If $noobsvarlst is not empty and 'extradiag'
 						local errtxt = ""
 						local nwrds = wordcount("$noobsvarlst")
 						local word1 = word("$noobsvarlst", 1)
 						local wordl = word("$noobsvarlst", -1)		 // Last word is numbered -1 ('wordl' ends w lower L)
 						if `nwrds'>2  {
 							local word2 = word("$noobsvarlst", 2)
-							local errtxt = "`word2'...`wordl'"
-							if `nwrds'==2 local errtxt = "`wordl'"
-*							if `xtra' noisily display "NOTE: No observations for var(s) `word1' `errtxt' in `lbl'"
-							if `xtra' noisily display "NOTE: No observations for var(s) `word1' `errtxt' in lbl"
+							local errtxt = "`word1' `word2'...`wordl'"
+							local errshort = "`word1'...`wordl'"
+							if `nwrds'==1 local errtxt = "`word1'"
+							if `nwrds'==2 local errtxt = "`word1' word2"
+							if strlen("No obs for var(s) `errtxt' in context lbl") > 80 {
+								noisily display "No obs for var(s) `errshort' in context lbl"
+							}
+							else  noisily display "No obs for var(s) `errtxt' in context lbl"
+*						          		12345678901234567890123456789012345678901234567890123456789012345678901234567890 
 							local other = "Other vars "				 // Ditto
 						}
 					  }
@@ -2743,7 +2722,6 @@ global errloc "showdiag2"
 					  if "$cmd"=="genstacks" local newline = ""
 					  
 					  if `multiCntxt'  noisily display 				/// geniimpute displays its own diags
-*						 "`other'in context `lbl' have between `minN' and `maxN' valid obs"
 						 "`other'in context `lbl' have between `minN' and `maxN' valid obs"						 
 *					  noisily display "{txt}" _continue
 
@@ -2960,7 +2938,8 @@ global errloc "varsImpl"
 		foreach var of varlist `vars'  {
 			local suffix = substr("`var'",`lenstub'+1,.)		// Abstract the suffix for each var
 			capture confirm integer number `suffix'				// See if whole suffix is an integer number
-			if !_rc  {  										// If return code is zero ..
+			if _rc  continue									// Suffix is not numeric means longer stub so continue w next v
+			else  {  											// Else return code is zero, so suffix is numeric
 				local keepv = "`keepv' `var'"					// Append var to varlist if its whole suffix is numeric
 			}
 		} //next 'var'
@@ -2979,9 +2958,7 @@ global errloc "varsImpl"
    }
 														
   
-	
 end varsImpliedByStubs
-
 
 
 ****************************************************** END OF SUBPROGRAMS *****************************************************
