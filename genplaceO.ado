@@ -764,9 +764,7 @@ global errloc "genplaceO(8)"
 ****************
 
 if _rc & "`skipcapture'"==""  {
-
 												// Error handling for errors in above codeblocks comes here
-
 	if _rc  errexit  "Stata flagged likely program error"
 
 } //endif _rc &'skipcapture
