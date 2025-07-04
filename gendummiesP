@@ -192,6 +192,5 @@ if "`skipcapture'"==""  {										  // If not empty we did not get here due to 
 end //gendummiesP
 
 
-
 ******************************************************* END gendummiesP ***************************************************************
 
