@@ -30,6 +30,9 @@ global errloc "genplaceP(0)"
 										// (0) genplaceP2 version 2 preliminaries (MOVED TO genplaceO)
 	version 9.0
 	
+*****************
+capture noisily {									// Error in following codeblocks will be processed after corresponding "}"
+*****************
 	
 	syntax anything , [ CWEight(varname) INDicator(varname) MPRefix(string) PPRefix(string) IPRefix(string) ]			///
 					  [ lbl(string) CALl(string) LIMitdiag(integer -1) NOPLUgall TWOstep EXTradiag WTPrefixvars ]		///
@@ -113,6 +116,79 @@ global errloc "genplaceP(2)"
 	
 															// STILL MAY NEED CODE IN genplace CALLER TO FINISH UP ?
 end //genplaceP
+
+
+
+
+
+
+
+*************************************************** SUBPROGRAMS *****************************************************
+
+
+capture program drop SMpolarizIndex
+
+
+program define SMpolarizIndex			  	// Name of program called by genplace (rest of command line is
+                                          	//  processed by the 'args' line that follows)
+
+*! This program benefits from being able to access stacked observations (using egen) and vars (using gen)
+
+global errloc "SMpolarIndex(0)"
+		
+
+   args opts                             	// Establishes the arguments used when invoking this `cmd'
+                                          	// Next line refers to (global) varlist (counterpart to local)
+   gettoken vars wt:(global)varlist, p("[") // Split varlist from appended weight expression (the global
+                                            //  varlist was supplied by genplace); the weight expression
+                                            //  will be needed by some users; the ', p("[")' suffix 
+                                            //  provides a parsing character that replaces the default
+                                            //  space used earlier to define word boundaries)
+   local prfx = word("`opts'",1)            // Get what we need from the generic `opts' string
+                                            // (for this `cmd', we need prefix string and weight var
+		
+   tempvar wtlr sumwt meanwtlr summeanwtlr devlr devlrsq wtdevlrsq
+	
+   foreach var of varlist vars {            // Cycle thru each `lrp' in the genplace varlist
+										    // (varlist holds left-right placements of each party)
+	  gen `wtlr'   = wt * var			    // Weighted l-r position of this party		
+	  egen `sumwt'  = total(wt)				// Sum of weights for all parties in current context								
+	  gen `meanwtlr' = `wtlr' / `sumwt'		// Mean of vote-weighted l/r positions for all parties 
+	  egen `summeanwtlr' = total(`meanwtlr') if lr<. // Sum of meanwtlr – only for non-missing lr
+	  gen `devlr' = `j'lr - `summeanwtlr'	// Deviation of party l-r position from mean l-r position			
+	  gen `devlrsq' = (`devlr'/5)^2			// Squared normalizd l-r deviatns of pty from mean l/r for system	
+	  gen `wtdevlrsq' = wt`wt' * `devlrsq'	// Weighted squared deviations (NOTE Dalton weights only by votes)	
+	  egen sumwtdevlrsq = total(`wtdevlrsq') if lr<. // Sum of vote-weighted squared deviations–only non-missing
+	  gen  `po_'`var' = sqrt(sumwtdevlrsq)	// Assign each result to successive (now "po_"-prefxd) vars
+                                            // (separately for each combination of stack & context;
+   } //next `var'                           //  a service provided automatically by stackMe according
+                                            //  to user-supplied options for the genplace command)
+
+
+
+	local skipcapture = "skip"										// No errors if exit above codeblocks at this point 
+
+****************
+} // end capture													// End of codeblocks where errors will be captured
+****************
+
+if _rc & "`skipcapture'"==""  {
+
+												// Error handling for errors in above codeblocks comes here
+	if _rc  errexit  "Stata flagged likely program error"
+
+
+} //endif _rc &'skipcapture
+
+
+
+										 	// Additional details are in the SMpolarIndex help file
+                                            // The full called program is in the SMpolarizindex.ado file that follows 
+                                            //  included in the 'genplace.ado' file.
+end genplaceP 
+									
+
+******************************************** END SUBPROGRAMS *******************************************************
 
 ******************************************* SUBPROGRAMS *****************************************************
 
