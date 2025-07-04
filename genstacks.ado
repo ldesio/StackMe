@@ -524,3 +524,15 @@ end genst
 
 *************************************************** END PROGRAMS **********************************************************
 
+
+/*
+		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
+		sum `contexts'
+		tempvar rank
+		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
+		tab1 `rank'
+		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
+		label var SMnstks "Number of stacks identified by SMstkid per context"
+																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
+*/
+
