@@ -1,36 +1,16 @@
 
-capture program drop SMshow
 
-*! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
-*! Written by Mark, Feb-May 2025.
-
-
-program define SMshow							// This program was written to overcome an apparent error when Stata refused to display
-												//   text 'display'ed by a subprogram called from within a capture codeblk 
-args msg										// A better solution was to use 'display noisily' but this (currently unused) subprogram 
-												//   may be found useful in other ways
-
-  while "`msg'"!=""  {										// While 'msg' is not empty
-
-	local m = substr("`msg'",1,81)
-	local l = strrpos("`m'", " ")							// Find char following last that will fit in 80 columns
-	local m = strtrim(substr("`msg'", 1, `l'-1)				// Get 1st remaining line of text
-	local msg = strtrim(substr("`msg'", `l'+1, .))			// And put rest of 'm' back into 'msg'
-	if substr("`msg'",1,5)=="{err}")  {
-		local pre = "{err}"
-		local end = "{txt}"
-	}
-	global SMmsg = "$msg`pre'`m'`end' ||"					// Save that line of text (may start w "{err}" )
-	local pre = ""
-	local end = ""
-															// On return from call, in calling program, need codeblk
-  } //endwhile 'msg'										//  that parses $SMmsg, pipes by pipes, displaying all
-															//  lines saved in $SMshow (initial pipes call for _newline)
-															// (multiple calls on SMshow would add to lines in $SMmsg)
-end SMshow
-
-
-
+									// stackMe.ado contains stackMe utility programs (programs with names starting with 'SM) as follows:
+									//
+									// SMsetcontexts: invoked, after opening a file, to establish or update context-defining vars as 
+									//  characteristics of that dataset. It also establishes the filename and filepath for the file 
+									//  being initialized. File characteristics can be updated by using SMsavefile to save the (possibly 
+									//  renamed) file in a new location (see below)
+									//  
+									// SMsavefile: invoked to save the active file under a new name and/or directory location
+									//
+									// SMitemname: invoked to supply
+									
 capture program drop SMsetcontexts
 
 *! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
@@ -42,70 +22,49 @@ version 9.0
 
 global cmd = "SMsetcontexts"
 
-															// SEE IF THIS IS INITIAL CALL on SMsetcontexts for a new dataset
-local filename : char _dta[filename]						// Get established filename if already set as dta characteristic
-local dirpath  : char _dta[dirpath]							// Ditto for $SMdirpath; if empty then datafile not initialized
+												// SEE IF THIS IS INITIAL CALL on stackMe utility for a new dataset
+															
+	local filename : char _dta[filename]					// Get established filename if already set as dta characteristic
+	local dirpath  : char _dta[dirpath]						// Ditto for dirpath; if empty then datafile was not initialized
 
-if "$SMfilename"!="" & "`filename'"!="$SMfilename"  {		// If previous SMfilename is not empty and `filename' is different
-  local oldSMfile = "$SMfilename"							// Then store the name in local 'oldSMfile'
-}
-
-local fullname = c(filename)								// Path+name of datafile most recently used or saved
-if strpos("`fullname'", c(tmpdir))>0  {						// If c(tmpdir) is contained in dirpath then this is a tempfile...
-  local fullname = ""										// And we don't have a useable new filename
-															// Check out the `filename' characteristic retrieved earlier
-  if "`filename'"==""  {									// If dataset was not yet initialized (so we need characteristics)
-	display as error "{bf:SMsetcontexts} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
+															// Either way, get name and dirpath for currently used file
+	local fullname = c(filename)							// Path+name of datafile most recently used or saved
+	if strpos("`fullname'", c(tmpdir))>0  {					// If c(tmpdir) is contained in dirpath then this is a tempfile...
+		if "`filename'" = ""								// And we don't have an existing filename in filename characteristic
+		display as error "{bf:SMsetcontexts} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
 *						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	window stopbox stop "'SMsetcontexts' cannot access name of datafile; invoke this command closer to relevant 'use' command"
-  }
-} //endif strpos
- 
-else  {														// Else we have a useable supposed (new) filename
+		window stopbox stop "'SMsetcontexts' cannot access name of datafile; invoke this command closer to relevant 'use' command"
+	}														// (should not happen)
 	
-  local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
-  global SMdirpath = substr("`fullname'",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-  global SMfilename = substr("`fullname'",`nameloc',.)		// Update filename with latest filename saved or used by Stata
+															// Otherwise we have a useable supposed (new) filename
+	
+	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL dirsep ("/" or "\") of dirpath
+	local newpath = substr("`fullname'",1,`nameloc'-1) 		// `newpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+	local newname = substr("`fullname'",`nameloc',.)		// Update filename with latest filename saved or used by Stata
   
-  if "$SMfilename"!="" & "$SMfilename"!="`filename'"  {		// If most recently opened file name is not characteristic name
-  	if "`filename'"=="" {									// And if characteristic is empty
-	  char define _dta[filename] $SMfilename 				// Establish most recent filename as characteristic of dataset
-	  char define _dta[dirpath]  $SMdirpath 				// Initialization still needs contextvars, added far below
-	}
+	if "`filename'"=="" {									// If filename characteristic is empty
+		char define _dta[filename] `newname' 				// Establish most recent filename as characteristic of dataset
+		char define _dta[dirpath]  `newpath' 				// Initialization still needs contextvars, added far below
+		noisily display "NOTE: File named `newname' initialized as new stackMe datafile"
+	} //endif 'newname'
 	
-	else  {													// Else established filename is not empty
-	  if "$SMfilename"!="`filename'"  {						// If we have a conflict – existing char differnt from new name...
-		if "`oldSMname'"!=""  {								// If previous SMfilename exists...
-		  if "`oldSMname'"=="`filename'"  {					// And it matches `filename' charactarestic
-		    local msg = "Latest used file doesn't match established filename; keep filename `filename'?"
-		    display as err "`msg'"
+	else  {													// Else file has already been initialized with existing filename
+	
+	  if "`newname'"!="`filename'"  {						// If existing char differnt from new name we have potential conflict...
+		 local msg = "Name of open file doesn't match its filename characterstic"
+		 display as err "`msg'; replace charctrstic?"
 *					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		    capture window stopbox rusure "`msg' Else you'll get a filename list to select from"
-		    if _rc  {										// Check on return code from rusure
-		  	  global fname = "`dirpath'"					// Non-zero return from rusure; so put up a save box
-		  	  capture window fsave $fname "" dta
-			  if _rc  {										// If non-zero return code, file $fname already exists
-			    local exists = "yes"						// (as it should if it is the existing file! – so no response)
-			  }
-			  else window stopbox stop "Selected file does not exist"
-		    } //endif
-		  } //endif `oldSMname'
-		 
-		  else  {											// Else characteristic doesn't match either possible filename
-		  	local msg = "Recently used filename doesn't match filename characteristic; continue anyway?"
-*					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window stopbox rusure "`msg' (Only 'ok' if you know what is happening)"
-		  }
-		} //endif `oldSMname'
-	  } //endif $SMfilename
+		 capture window stopbox rusure "`msg'; if you renamed the file with that name stackMe can continue"
+		 if _rc  {										// Check on return code from rusure
+		  	display as error "Else best restart analysis with most recent coherent file" // Non-zero RC is a 'no'
+		  	window stopbox stop "stackMe recommends you restart analysis with most recent coherent file"
+		 } //endif
+	  } //endif `newname'
     } //endelse `filename'
-	
-  } //endif $SMfilename
-} //endelse strpos
 
 
-
-												// Continue with establishing contextvars
+												// CONTINUE WITH establishing contextvars
+												
 
 	syntax [varlist(default=none)] [, NOCONtexts CLEar DELete DISplay * ]
 
@@ -311,9 +270,19 @@ end SMsetcontexts
 ********************************************************************************************************************************
 
 
-capture program drop SMcon
+capture program drop SMsetcon
 
-program define SMcon
+program define SMsetcon
+
+SMsetcontexts `0'
+
+end SMcon
+
+
+
+capture program drop SMset
+
+program define SMset
 
 SMsetcontexts `0'
 
@@ -325,31 +294,152 @@ end SMcon
 
 
 
-capture program drop SMitemname
+capture program drop SMsavefile
 
+program define SMsavefile									// Utility to save a stackMe file under new name and/or directory
+
+version 9.0
+
+global cmd "SMsavefile"
+
+
+
+	local filename : char _dta[filename]					// Filename established by setcontexts
+	local dirpath  : char _dta[dirpath]						// Dirpath established by setcontexts
+	
+	global newfile = "`dirpath'" + "`filename'" 			// Default filename and dirpath in global required by fsave
+	
+	capture window fsave newfile "Edit name and choose folder for file in which to save stackMe data" "Stata Data (*.dta)|*.dta" dta
+*              		              12345678901234567890123456789012345678901234567890123456789012345678901234567890	
+	
+	if _rc  {
+		noisily display "File not saved."					// Non-zero RC means user did not supply a filename
+		exit	
+	}
+
+	
+	else {													// Else user supplied a filename
+	
+	   capture save $newfile
+	
+	   if _rc!=0  {											// If file already exists..
+
+		   noi display as error _newline "Overwrite existing file?{txt}" 
+*              		         		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		   capture window stopbox rusure "Overwrite existing file?"
+		   
+		   if _rc==0  {										// If user responded with 'OK'
+		   
+			   noi display "This file replaces existing $newfile"
+			   
+		   } //endif _rc
+		   
+		   else  {
+		   
+			   window stopbox stop "Absent permission to overwrite existing file will exit on OK"
+			   
+		   }
+		   
+		   local nameloc = strrpos("$newfile","`c(dirsep)'") +1 // Loc of first char after FINAL dirsep "/" or "\" of dirpath
+		   global SMdirpath = substr("$newfile",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+		   global SMfilename = substr("$newfile",`nameloc',.)	// Update filename with latest filename saved or used by Stata
+
+		   char define _dta[filename] "$SMfilename"			// Establish this filename as characteristic of dataset			   
+		   char define _dta[dirpath] "$SMdirpath"			// And the directory path to that name
+															// (globals support legacy code that did not use data characteristics)
+			
+		   noisily display "file $newfile saved."
+		   		
+	   } //endif _rc!=0										// Otherwise file does not already exist and has been saved
+	  
+	} //endelse 											
+
+
+end SMsavefile
+
+
+
+***********************************************************************************************************************************
+
+
+capture program drop SMsave
+
+program define SMsave
+
+SMsavefile `0'
+
+end SMsave
+
+
+
+capture program drop SMsav
+
+program define SMsav
+
+SMsavefile `0'
+
+end SMsav
+
+
+
+***********************************************************************************************************************************
+
+
+
+capture program drop SMitemname								// Utility enables establishment of, or change to, data characteristics
+															//  that name SMitem and S2item variables that provide stack linkage
+															//  variables that supplement SMstkid and S2stkid by providing alternative  
+															//  identifiers linking stacks to substantive variables regarding each stack
 program define SMitemname
 
 version 9.0
 
-	global cmd = "SMitemname"
+	global cmd "SMitemname"
 	
-	if "$SMfilename"==""  {									// If filename was not recorded by previous stacmMe command...
-	local fullname = c(filename)							// Path+name of datafile most recently used or saved
-	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL "/" or "\" of dirpath
-	if strpos("`fullname'", c(tmpdir)) == 0  {				// Unless c(tmpdir) is contained in dirpath ...
-		global SMdirpath=substr("`fullname'",1,`nameloc'-1) // `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-		global SMfilename = substr("`fullname'",`nameloc',.)	// Update filename with latest name saved or used by Stata
-	}														// (used by genstacks as default name for newly-stackd dtafile)
-	
-	else  {													// Else a tempfile was opened since any datafile
-		gettoken cmd rest : 0								// Get the command name from head of local `0' (what the user typed)
-		display as error "{bf:cmd} cannot access name of datafile; invoke this command closer to relevant {bf:use}"
-*    				  	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox stop "`cmd' cannot access name of datafile; invoke '`cmd'' or 'SMsetcontexts' closer to relevant 'use' command"
-	} //endelse
-	
-} //endif
+												  // SEE IF THIS IS INITIAL CALL on stackMe utility for a new dataset
+												  
+	local filename : char _dta[filename]					// Get established filename if already set as dta characteristic
+	local dirpath  : char _dta[dirpath]						// Ditto for dirpath; if empty then datafile was not initialized
 
+															// Either way, get name and dirpath for currently used file
+	local fullname = c(filename)							// Path+name of datafile most recently used or saved
+	if strpos("`fullname'", c(tmpdir))>0  {					// If c(tmpdir) is contained in dirpath then this is a tempfile...
+		if "`filename'" = ""								// And we don't have an existing filename in filename characteristic
+		display as error "{bf:SMsetcontexts} can't get name of datafile; invoke this cmd closer to relevant {bf:{help use}}"
+*						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		window stopbox stop "'SMsetcontexts' cannot access name of datafile; invoke this command closer to relevant 'use' command"
+	}														// (should not happen)
+	
+															// Otherwise we have a useable supposed (new) filename
+	
+	local nameloc = strrpos("`fullname'","`c(dirsep)'") + 1	// Loc of first char after FINAL dirsep ("/" or "\") of dirpath
+	local newpath = substr("`fullname'",1,`nameloc'-1) 		// `newpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+	local newname = substr("`fullname'",`nameloc',.)		// Update filename with latest filename saved or used by Stata
+  
+	if "`filename'"=="" {									// If filename characteristic is empty
+		char define _dta[filename] `newname' 				// Establish most recent filename as characteristic of dataset
+		char define _dta[dirpath]  `newpath' 				// Initialization still needs contextvars, added far below
+		noisily display "NOTE: File named `newname' initialized as new stackMe datafile"
+	} //endif 'newname'
+	
+	else  {													// Else file has already been initialized with existing filename
+	
+	  if "`newname'"!="`filename'"  {						// If existing char differnt from new name we have potential conflict...
+		 local msg = "Name of open file doesn't match its filename characterstic"
+		 display as err "`msg'; replace charctrstic?"
+*					     12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		 capture window stopbox rusure "`msg'; if you renamed the file with that name stackMe can continue"
+		 if _rc  {											// Check on return code from rusure
+		  	display as error "Else best restart analysis with most recent coherent file" // Non-zero RC is a 'no'
+		  	window stopbox stop "stackMe recommends you restart analysis with most recent coherent file"
+		 } //endif
+	  } //endif `newname'
+	  
+    } //endelse `filename'
+
+
+													// CONTINUE WITH INITIALIZING OR UPDATING ITEMNAME LINKS
+													
 
 	syntax [varlist(default=none)] [, DISplay CLEar DELete ] 	// 'delete' is undocumented but included for user convenience
 
@@ -808,4 +898,5 @@ end SMfil
 
 
 **************************************************** END OF stakMe UTILITIES ***************************************************
+
 
