@@ -64,26 +64,9 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 								// **************************
 								
 								
-************************
+*********************
 if "$SMreport"!=""  {										// If this re-entry follows an error report (reported by program errexit)
-															// ($SMreport is non-empty so error has been reported)
-	if "$abbrevcmd"==""  {									// If the abbreviated command (next program) was NOT employed
-															// (so user invoked this command by using the full stackMe cmdname)
-		global multivarlst									// Clear this global, retained only for benefit of caller programs
-		capture erase $origdta 								// Erase the 'origdta' tempfile whose name is held in $origdta
-		global origdta										// Clear that global
-		global SMreport										// And this one
-
-		if "$SMrc"!="" {									// If a non-empty return code accompanies the error report
-			local rc = $SMrc 								// Save that RC in a local (often the error is a user error w'out RC)
-			global SMrc										// Empty the global
-			exit `rc' 										// Then exit with that RC (the local will be cleared on exit)
-		} //endif $SMrc										// ($SMrc will be re-evaluated on re-entry to abbreviated caller) 
-	} //endif $abbrevcmd
-	exit													// If got here via 'errexit' exit to gendi or Stata
-															// (skip any further codeblocks, below, for this command)
-} //endif $SMreport
-************************
+*********************
 
 	
 															// Else continue with body of gendist ...
@@ -418,8 +401,9 @@ global errloc "gendi(8)"
 } //end capture												// End capture brackets that enclosed all codeblocks since call on wrapper
 *  ************
 
-
-
+*  ****************
+} //endif $SMreport
+*. ****************
 
 if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
 															//   & if execution did not pass thru line before '} //end capture'
@@ -457,15 +441,6 @@ global multivarlst											// Clear this global, retained only for benefit of 
 capture erase $origdta 										// Erase the 'origdta' tempfile whose name is held in $origdta
 global origdta												// Clear that global
 global SMreport												// And this one
-
-if "$abbrevcmd"==""  {										// If the abbreviated command (next program) was NOT employed
-															// (so user invoked this command by using the full stackMe cmdname)
-	if "$SMrc"!="" {										// If a non-empty return code was flagged anywhere in the program chain
-		local rc = $SMrc 									// Save that RC in a local (often the error is a user error w'out RC)
-		global SMrc											// Empty the global
-		exit `rc' 											// Then exit with that RC (the local will be deleted on exit)
-	}
-} //endif $abbrevcmd										// Else $SMrc can still be evluated on re-entry to abbreviated caller 
 															// (but if 'abbrevcmd' was empty we execute a normal end-of-program)
 
 end gendist
@@ -479,18 +454,7 @@ capture program drop gendi									// Abbreviated command name for 'gendist'
 
 program define gendi
 
-global abbrevcmd = "used"									// Lets `cmd' know that abbreviated command was employed
-
 gendist `0'													// Invoke the command using its full name and append what user typed
-
-global abbrevcmd 											// On return to abbreviatd caller ('cos 'cmd' was called from here)
-															// (immediately clear the global used to indicate that fact)
-if "$SMrc"!="" {											// If a non-empty return code was flagged anywhere in program chain
-	local rc = $SMrc 										// Save that RC in a local
-	global SMrc												// Empty the global
-	exit `rc' 												// Then exit with that RC (the local will be cleared on exit)
-}															// Else execute a normal end-of-program
-
 
 end gendi
 
