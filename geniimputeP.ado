@@ -25,7 +25,7 @@ global errloc "geniimputeP"										// Global that keeps track of execution loc
 
 
 ********
-capture {														// Open capture braces mark start ot code where errors will be captured
+capture noisily {												// Open capture braces mark start ot code where errors will be captured
 ********	
 	
 	local cmd = "geniimpute" 
