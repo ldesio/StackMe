@@ -1,3 +1,4 @@
+
 capture program drop genplaceO					// This program prepares the entire working dataset for calls on cmd'P
 
 program define genplaceO, rclass				// This program is called before selecting working data for `genplaceP'
@@ -33,6 +34,10 @@ global errloc "genplaceO(1)"
 
 										// (0) genplaceO for stackMe version 2 preliminaries
 	version 9.0
+
+*****************
+capture noisily {											// Capture braces enclose code in which errors will be captured
+*****************
 	
 	syntax anything [ aw fw iw pw ] , [ CWEight(varlist) INDicator(varlist) MPRefix(name) PPRefix(name) IPRefix(name)]  ///
 				   [ CALl(string) LIMitdiag(integer -1) WTPrefixvars NOPLUgall TWOstep EXTradiag ctxvar(string) ]		///
@@ -751,5 +756,26 @@ global errloc "genplaceO(8)"
 	return local keepvars `keepvars'								// Return a list of the variables generated above
 	
 																	// NEED TO COVER POSSIBILITY THAT DATA ARE DOUBLY-STACKED		***
-		
+
+	local skipcapture = "skip"										// No errors if exit above codeblocks at this point 
+
+****************
+} // end capture													// End of codeblocks where errors will be captured
+****************
+
+if _rc & "`skipcapture'"==""  {
+
+												// Error handling for errors in above codeblocks comes here
+
+	if _rc  errexit  "Stata flagged likely program error"
+
+} //endif _rc &'skipcapture
+
+
 end genplaceO														
+			
+			
+
+
+			
+													
