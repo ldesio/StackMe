@@ -1,12 +1,10 @@
 
-capture program drop genplace			// 'Places' variables in terms of their SMstkid characteristics
-
-										// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-					
-program define genplace									// Called from program genpl, defined after this one
+capture program drop genplace							// Called from program genpl, defined after this one
 														// Calls stackmeWrapper and subprogram errexit
+program define genplace		
 
-*!  Stata version 9.0; genstats version 2, updated Aug'23 to Nov'24 by Mark
+*!  Stata version 9.0; genstats version 2, updated Aug'23 by Mark
+*!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
 
 version 9.0	
 														
@@ -17,11 +15,12 @@ version 9.0
 
 global errloc "genplace(0)"								// Records which codeblk is now executing, in case of Stata error
 
+
 														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
 														// prefixvar (here INDicator) is first and its negative is last.
 														
-	local optMask = " INDicator(varlist) CWEight(varlist) PPRefix(string) MPRefix(string) IPRefix(string) CALl(string) " 		///**
-				  + " LIMitdiag(integer -1) WTPrefixvars STKlevel TWOstep NOINDicator" 						 					// **
+	local optMask = " INDicator(varlist) CWEight(varlist) CONtextvars(varlist) PPRefix(string) MPRefix(string) IPRefix(string)" ///**
+				  + " CALl(string) LIMitdiag(integer -1) WTPrefixvars STKlevel TWOstep NOINDicator" 						 	// **
 
 *					EXTradiag NODIAg REPlace NOCONtexts NOSTAcks APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most 
 														// stackMe cmds and are added (except limitdiag) in wrapper, codeblk(1).
@@ -59,28 +58,34 @@ global errloc "genplace(0)"								// Records which codeblk is now executing, in
 														//  above; `prfxtyp', placed for convenience, will be moved to follow 
 														//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1)
 														// `multicntxt', if empty, sets stackMeWrapper flag 'noMultiContxt'
-*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
-*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
-
 														
 														
-											// *****************************
-											// On return from stackmeWrapper
-											// *****************************
-											
-* *********************														
-  if "$SMreport"==""  {								// If return does not follow an errexit report
-* *********************								// (exit 1 exits to caller, if any, or to Stata)
+							// ***************************
+							// On return from wrapper... *
+							// ***************************
 
-	local 0 = "`save0'"									// On return from stackmeWrapper restore what user typed
-							
+******************
+if $SMreport!="" {									// If error message already reported
+******************
 
-  capture  {											// Put remaining code within capture braces, in case of Stata error	
-														// (capture processing code is at the end if this adofile)
+*****************
+capture noisily {												// Put remaining code within capture braces, in case of Stata error	
+*****************												// (capture processing code is at the end if this adofile)
 														// (capture braces start after return from wrappr so doesn't capture same 
-														//  error already captured in wrapper)											
+														//  error already captured in wrapper)
+
+														// First check-see whether this was an error return from wrapper or 'cmd'
+															 
+	if $exit==2  exit 1								 	// No need to restore origdta ('cos data not changed or already restored)
+	if $exit==1  {										// Error exit may have been occasioned by wrapper or by 'cmd'P
+		capture restore									// With $exit==1, data in memory have been changed (maybe also restored)
+		use SMorigdta, clear							// (so, either way, restore original dataset)
+		erase SMorigdta									// Then erase the file before exit
+		exit 1											// (and exit to Stata – which is one level up)
+	}													// Else $exit is 0 or empty, so continue executing rest of `cmd'
 											
-	global errloc "genplace(1)"							// Records which codeblk is now executing, in case of Stata error
+											
+global errloc "genplace(1)"								// Records which codeblk is now executing, in case of Stata error
 											
 
 	local 0 = "`save0'"									// On return from wrapper, re-create local `0', restoring what user typed
@@ -133,16 +138,16 @@ global errloc "genplace(0)"								// Records which codeblk is now executing, in
 	}
 
 	noisily display _newline "done."
-	
 
-	local skipcapture = "skipcapture"						// Overcome possibility that there's a trailing non-zero return code
+	local skipcapture = "skip		"						// Overcome possibility that there's a trailing non-zero return code
 
-	
-  } //end capture												// Capture brackets enclose all genst codeblks aftr return from wrapper
 
+***************
+} //end capture												// Capture brackets enclose all genst codeblks aftr return from wrapper
+***************
 
 															// PROBLEM HERE: DON'T KNOW IF REASON FOR $EXIT==1 WAS ALREADY DISPLAYED	***
-  if _rc  & "`skipcapture'"=="" {								// If there is a non-zero return code (should be captured Stata error)
+if _rc  & "`skipcapture'"=="" {								// If there is a non-zero return code (should be captured Stata error)
 
 	if "$exit"=="" global exit = 0							// If $exit is empty that must be because it has not yet been set
 		
@@ -161,19 +166,25 @@ global errloc "genplace(0)"								// Records which codeblk is now executing, in
     macro drop _all											// Drop all globals used to process this stackMe command
 	exit _rc												// Exit with return code to be displayed by Stata
 
-  } //endif _rc & ! `skipcapture'
+} //endif _rc & ! `skipcapture'
 
-  
-* *****************
-  } //endif $SMreport										// Close braces that delimit code skipped on return from error exit
-* *****************	  
-	
-  global multivarlst										// Clear this global, unused above
-  global SMreport											// Ditto
-  global origdta											// Ditto
-	
+
+
+
+capture erase SMorigdta										// Erase temporary file that could not be defined as such
+global SMorigdta											// Amd empty the global holding its name
+global multivarlsts 										// Also the global holding multivarlists
+scalar drop all												// Drop all scalars used to process this stackMe command before exit
+if $SMrc!="" local rc = $SMrc
+global SMrc
+
+if "`rc'"!=""  exit `rc'
+
 	
 end //gensplace			
+
+
+
 
 
 *************************************************** PROGRAM genpl **************************************************************
@@ -185,7 +196,10 @@ program define genpl
 
 genplace `0'
 
+if _rc  exit _rc
+
 end genpl
 
 
 ************************************************* END PROGRAM genpl ************************************************************
+
