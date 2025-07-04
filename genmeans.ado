@@ -1,10 +1,6 @@
+capture program drop genmeanstats
 
-capture program drop genmeanstats		// This program's name is now 'genmeanstats' but I don't know how to change it in Github
-
-										// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-
-program define genmeanstats				// Called by 'genme' a separate program defined after this one
-										// Calls subprogram 'stackmeWrapper'
+program define genmeanstats
 
 
 *!  Stata version 9.0; genstats version 2, updated Aug'23 by Mark from major re-write in June'22; revised Nov'24 to add prog genme
@@ -38,7 +34,7 @@ program define genmeanstats				// Called by 'genme' a separate program defined a
 	
 
 *	***********************									   
-	stackmeWrapper genmeanstats `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
+	stackmeWrapper genmeanstats `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd					
 *	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
 														// (that happens on fifth line of stackmeWrapper's codeblock 0)
@@ -47,14 +43,15 @@ program define genmeanstats				// Called by 'genme' a separate program defined a
 *														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 	
 	
-														
-											// *****************************
-											// On return from stackmeWrapper
-											// *****************************
-											
-*********************														
-if "$SMreport"==""  {									// If return does not follow an errexit report
-*********************								
+								// On return from wrapper ...
+								
+*	*****************								
+	if "$SMreport"!="" {									// If return does not follow an errexit report
+*	*****************
+
+								
+	if $exit  exit 1									// No post-processing if return from wrapper was an error return
+	
 								
 	local 0 = "`save0'"									// Restore what the user typed
 	
@@ -64,17 +61,23 @@ if "$SMreport"==""  {									// If return does not follow an errexit report
 	if "`nodiag'"!=""  local limitdiag = 0
 	
 	if `limitdiag'!=0  noisily display _newline "done." _newline
-
-* *****************
-} //endif $SMreport									// Close braces that delimit code skipped on return from error exit
-* *****************	  
 	
-	global multivarlst									// Clear this global, unused above
-	global SMreport										// Ditto
-	global origdta										// Ditto
+	
+	
+	global multivarlst									// Clear this global, retained only for benefit of caller programs
+	global SMreport										// And these, retained for error processing
+	global SMrc												
+	capture erase $origdta 								// (and erase the tempfile in which it was held, if any)
+	global origdta
+
+	
+*	*******************
+    } //endif $SMreport
+*	*******************
 
 
-end //genmeanstats			
+end genmeanstats			
+
 
 
 
@@ -86,10 +89,12 @@ capture program drop genme
 
 program define genme
 
-genmeanstats `0'
+genmeans `0'
 
 end genme
 
 
 **************************************************** END genme ****************************************************************
+
+
 
