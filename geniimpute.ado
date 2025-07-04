@@ -55,19 +55,6 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 											
 *   *********************														
 if "$SMreport"!=""  {										// If this re-entry follows an error report (reported by program errexit)
-															// ($SMreport is non-empty so error has been reported)
-	if "$abbrevcmd"!=""	exit								// If command was invoked by abbreviated name (see program below)
-
-	global multivarlst										// Clear this global, retained only for benefit of caller programs
-	capture erase $origdta 									// Erase the 'origdta' tempfile whose name is held in $origdta
-	global origdta											// Clear that global
-	global SMreport											// And this one
-
-	local rc = $SMrc 										// Save that RC in a local (often the error is a user error w'out RC)
-	global SMrc												// Empty the global
-	exit `rc' 												// Then exit with that RC (the local will be cleared on exit)
-		
-} //endif $SMreport
 *	*********************							 		// (exit exits to caller, if any, or to Stata)
 	
 
@@ -316,6 +303,10 @@ global errloc "genii(4)"
 } //end capture												// The capture brackets enclose all codeblocks in all subprograms
 *  ************
 
+*  ****************
+} //endif $SMreport
+*  ****************
+
 
 if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
 															//   & if execution did not pass thru line before '} //end capture'
@@ -354,14 +345,6 @@ capture erase $origdta 										// Erase the 'origdta' tempfile whose name is h
 global origdta												// Clear that global
 global SMreport												// And this one
 
-if "$abbrevcmd"==""  {										// If the abbreviated command (next program) was NOT employed
-															// (so user invoked this command by using the full stackMe cmdname)
-	if "$SMrc"!="" {										// If a non-empty return code was flagged anywhere in the program chain
-		local rc = "$SMrc" 									// Save that RC in a local (often the error is a user error w'out RC)
-		global SMrc											// Empty the global
-		exit `rc' 											// Then exit with that RC (the local will be deleted on exit)
-	}
-} //endif $abbrevcmd										// Else $SMrc can still be evluated on re-entry to abbreviated caller 
 
 	
 end // geniimpute			
@@ -374,21 +357,8 @@ end // geniimpute
 capture program drop genii
 
 program define genii
-
-global abbrevcmd = "used"									// Lets `cmd' know that abbreviated command was employed
 															// (should that be needed)
 geniimpute `0'
-
-global abbrevcmd 											// On return to abbreviatd caller ('cos 'cmd' was called from here)
-															// (immediately clear the global used to indicate that fact)
-	global multivarlst										// Clear this global, retained only for benefit of caller programs
-	capture erase $origdta 									// Erase the 'origdta' tempfile whose name is held in $origdta
-	global origdta											// Clear that global
-	global SMreport											// And this one
-
-	local rc = "$SMrc" 										// Save that RC in a local (often the error is a user error w'out RC)
-	global SMrc												// Empty the global (might have been empty)
-	if "`rc'"!=""  exit `rc' 								// Then exit with that RC (the local will be cleared on exit)
 
 end genii
 
