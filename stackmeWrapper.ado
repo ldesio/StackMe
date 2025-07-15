@@ -1425,7 +1425,7 @@ set tracedepth 5
 		
 *			*************************************	
 			showdiag2 `limitdiag' `c' `nc' `xtra'					  
-			if "$SMreport"!="" exit 							  	// ($SMrc is empty if a non-zero return code was not reported)
+			if "$SMreport"!="" exit 							  	// ($SMreport is empty if an error was not yet reported)
 *			*************************************
 			
 		} //endif `limitdiag'>=`c' & ..
@@ -1662,19 +1662,316 @@ pause (9.1)
 	
 	if "$busydots"!="" noisily display " "					// Override 'continue' following final busy dot(s)
 	
+
+
+
+
+global errloc "wrapper(10)"
+
+pause (10)
+										// (10) CLOSING CODEBLOCKS: 
+										//		Reduce all prefix-options to single-char (users can employ either)
+										//		Then label vars appropriately according to input and outcome characteristics
+
+
+	local ic = substr("$cmd",4,1)							// Get initial (post-"gen") char of commandname
+
+	if "`noreplace'"!=""  local replace = "replace"			// Actual option seen by user is 'noreplace'
+	
+	local prx = 0
+	
+	if "`proximities'"!=""  {								// This codeblk applies only to 'gendist'
+		
+	   local prx = 1										// Proximities will be generated after next 'foreach var'
+	   
+	   if "`replace'"!=""  {
+			noisily display "Calculating proximities as optioned; dropping distances per 'replace' option"
+*					 		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	   }
+	   else noisily display "Calculatng proximities as optd; 'replace' was not optd so distances will be kept"
+
+	} //endif 'proximities'
+
+	else  {													// Else proximities are not being calculated
+		if "`replace'"!=""  noisily display "Dropping relevant input variables per 'replace' option"
+	}														// Applies to all but 'gendist' command
+	  
+	  														// (missing is only a gendist option)
+	if "`missing'"=="dif" local missing = "diff"			// Lengthen `missing'=="dif" for display purposes
+	if "`missing'"=="di2" local missing = "dif2"			// Ditto for 'di2'
+	if "`missing'"=="sam" local missing = "same"			// Ditto for "sam"	
+	if "`cmd'"=="geniimpute" local missing = "Imputed"		// These last two affect var labels for other commands
+	if "`cmd'"=="genyhats" local missing = "Predicted"
+
+				
+	local non2missing = ""									// List of vars present across all varlists (for diagnostic)
+	local skipvars = ""										// List of vars missing for all contexts, cumulates across varlists
+															// (needed to eliminate all-missing variables from the data)
+															
+	local nvarlsts = NVARLSTS								// Get N of varlists from scalar NVARLSTS
+
+	forvalues nvl = 1/`nvarlsts'  {							// Cycle thru all varlists
+	
+	   local vars = VARLISTS`nvl'							// Retrieve each varlist from scalar VARLISTS`nvarlst
+	   local prfxvars = PRFXVARS`nvl'						// Retrieve any var prefixes
+	   local strprfx = PRFXSTRS`nvl'						// And any string prefixes
+															// (two above were already copied into options in blk(3) if relevant)
+	   unab varlist : `vars'								// Unabbreviate and expand varlist 'vars'
+	  	  
+	   local nonmissing = ""								// Will hold list of vars present for at least 1 contxt
+															// (needed for diagnostics)
+															
+	   foreach var of local varlist  {						// This varlist is still the original user-typed varlist
+
+		  if strpos("`skipvars'","`var'")  continue			// If `var' is included in list of vars to skip, continue with next var
+		  
+		  qui count if !missing(`var')						// These counts are for the entire dataset
+		  if r(N)==0  {										// (unlike the counts by context made in 'stackmeWrapper')
+			local skipvars = "`skipvars' `var' "			// 'skipvars' holds vars that have no obs in any context
+			continue										// Continue to next var if all-missing
+		  }
+		  else  {											// Next line needed for diagnostics report
+		 	local nonmissing "`nonmissing' `var'"			// Else there are non-missing observations in this varlist
+
+			if `prx'  {										// If proximities were optioned on a gendist command
+			   tempvar max				
+			   egen `max' = max(`var')						// Get max value of `var' over whole dataset
+			   gen x_`var' = `max' - d_`var'				// Invert the distance measures
+			} //next var
+			
+			if "`cmd'"=="gendist" local miss = "`missing'-assessed" // Text string for distance measure's (var) label
+			capture local lbl : variable label `var'		// Get existing var label, if any
+			if _rc  local lbl = "battery member"			// If _rc not zero there was no lable so substitute this text
+			else  {			  // 12345679012345				// Else there is a label; see if it ends with numeric value
+			   while real(substr("`lbl'",-1,1))!=.  {		// If converstion to real not missing, last char is a number
+				  local lbl = substr("`lbl'",1,strlen("`lbl'")-1) // (so remove that char from end of string and repeat)
+			   } //next while								// Hopefully string now ends in generic name, not specific value
+			   local lbl = ": " + strrtrim("`lbl'")			// Insert leading colon and trim off right-most space, if any
+			} //endelse
+			
+			if "`cmd'"=="gendist"  {
+				local lbl1 = substr("Distance from `selfplace' to `miss' `var':`lbl'",1,78) + ".."
+*					 		  		 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				label var d_`var' "`lbl1'"					// Include as much of label as fits in 78 columns
+			}
+			else  {											// Else cmd is genii or genyh
+			   if "`cmd'"=="geniimpute"  {
+			  	  local lbl1 ="Outcome values imputed from "+stritrim(subinstr("`varlist'","`var'","",1)) + " `additional'"
+				  if strlen("`lbl1'")>78  local lbl1 = substr("`lbl1'",1,78) + ".." // Include as many names as fit in 78 cols
+				  label var i_`var' "`lbl1'"
+			   } //endif
+			   if "`cmd'"=="genyhats" {
+			  	  local lbl1 = substr("Outcome y-hat for `depvar' regressed on specified `var'`lbl'",1,78) + ".." 
+				  local lbl2 = "Outcome y-hats for `var' treated as indep regressed on by `depvar'"
+*					 		  		 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				  if "`multivariate'"!=""  label var d_`var' "`lbl1'"
+				  else  label var i_`var' "`lbl2'"			// Use appropriate label depending on multivariate or bivariate
+			   }
+			}
+			if `prx'  {
+				local lbl2 = "Proximity of `selfplace' to `miss' `var':`lbl'" 		// (this would be a gendist label)
+				if strlen("`lbl2'")>78  local lbl2 = substr("`lbl2'",1,78) + ".."	// (of no more than 78 chars)
+				label var x_`var' "`lbl2'"
+			}
+			capture label var m_`var' "Whether variable `var' was originally missing" // Label m_var if existence confirmed
+			if "`cmd'"=="gendist" label var p_`var' "`miss'-assessed plugging values that plug missing values for variable `var'"
+*					 		  						 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			if "`cmd'"=="geniimpute"  label var p_`var' "Imputed values that plug missing values for variable `var'"
+
+			if "`cmd'"=="genyhats"  {
+				if "`multivariate'"!=""  label var i_`var'  "Y-hat predictions of `depvar' on `var': `lbl'
+				else  label var d_`var'  "Y-hat predictions of `depvar' on indepvars"
+			}
+			if `prx'  label var x_`var' "`lbl2'"			// `prx' is a gendist option
+			
+			if "`cmd'"=="genmeanstats" & "`aprefix'"!=""  {	// For command genmeanstats if 'aprefix' was optioned
+			   foreach st of global stats  {				// Cycle thru each optioned stat
+				  local px = substr("`st'",1,2)				// Retrieve 2-char prefix string from list of optioned stats
+				  if strlen("`st' for var `var' `lbl'")>78  local lbl = substr("`st' for var `var' `lbl'",1,78) + ".."
+				  else  local lbl = "`st' for var `var' `lbl'"
+				  label var `px'_`var' "`lbl'"
+			   } //next `w'
+			} //endif
+						
+			if "`cmd'"=="genplace"  {
+			   errexit "missing code in wrapper(10)"		// WILL BE FILLED IN WHEN CODE FOR CMD genplace IS FINALIZED	***
+			   exit
+			}
+		  } //endelse
+			
+	   } //next 'var'						
+	   
+	   local non2missing = "`non2missing' `nonmissing'"		// Needed for diagnostic report
+
+    } //next 'nvl'											// Repeat for next varlist, if any
+	
+	
+
+	
+
+global errloc "wrapper(10.1)"
+
+pause (10.1)
+
+										// (10.1)  Create counts of nonmissing vars vs vars to be skipped
+	
+	
+	local nvars : list sizeof non2missing					// `non2missing' relates to vars across all varlists
+	local first = word("`non2missing'",1)
+	local last = word("`non2missing'",`nvars')
+	
+	foreach SMvar in SM`ic'misCount SM`ic'misPlugCount {	// Cycle thru the two summary measures
+															// (using initial char (`ic') to differentiate commands)
+		if "`SMvar'"=="SM`ic'misCount" local txt = "original " // Set text to be included in var label for input var
+		else {												// else set text for outcome var
+			if "`ic'"=="d" local txt = "mean-plugged"		// (i.e. mean-plugged, imputed or y-hatted)
+			if "`ic'"=="i" local txt = "imputed"
+			if "`ic'"=="y" local txt = "y-hat"
+		}
+		capture confirm variable `SMvar'					// See if variable exists from previous run
+		if _rc==0  {										// If that var already exists THIS ALREADY DONE EARLIER?		***
+			local msg = "Var `SMvar' already exists (left by some earlier stackMe command); replace?"
+*					       12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		    if strlen("`msg'")>80 local msg = "Var `SMvar' exists (left by earlier stackMe command); replace?"
+			display as error "`msg'{txt}"					// If needed, shorten 'msg' to fit in 80 columns
+			capture window stopbox rusure ///
+			"Var `SMvar' already exists (left by some earlier stackMe command); drop it?"
+			if _rc  {
+			   errexit, msg("Lacking permission to drop variable `SMvar'")	// _rc was non-zero so user is not 'OK'
+			   exit
+			}
+			else  capture drop `SMvar'						// Else user clicked 'OK'
+				
+		} //endif _rc										// Either way 'egen' the var now named by local SMvar
+		
+		quietly egen `SMvar' = rowmiss(`non2missing')		// Count of vars not all-missing for any varlist
+
+		if "`first'"=="`last'" capture label var `SMvar' "N of missing values for `txt'var (`first')"
+		else {
+			capture label var `SMvar' "N of missing values for `txt'vars (`first'..`last')"
+		}													// Contents of `txt' local was set above
+	
+	} //next SMvar
+	
+	if `limitdiag' noisily display " "						// Display a blank line to terminate per context diagnostics
+
+
+
+	
+	
+global errloc "wrapper(10.2)"
+
+pause (10.2)
+
+										// (10.2) Round outcomes if optioned
+												  
+	
+	if "`round'"!=""	 {									// If 'round' was optioned
+	   
+		if `limitdiag'  noisily display "Rounding outcome variables as optioned"
+
+		   forvalues nvl = 1/`nvarlsts'  {					// Cycle thru all varlists (derived from scalar VARLISTS in codeblk 10)
+	
+			  foreach var of local varlist  {				// Cycle thru all outcome vars for all varlists
+	   
+				if strpos("`skipvars'","`var'") continue	// Skip any that are all missing in all contexts
+
+				qui sum `var'
+				local max = r(max)
+				if "`cmd'"=="gendist'" | ("`cmd'"=="genyhats" & "`multivariate'"!="")  {
+					qui replace d_`var' = round(d_`var', .1) if `max'<=1
+					qui replace d_`var' = round(d_`var') if `max'>1
+				}
+															// If max value of var is >1, round to nearest integer
+				if "`cmd'"=="geniimpute" | ("`cmd'"=="genyhats" & "`multivariate'"=="")  {
+				   qui replace i_`var' = round(i_`var', .1) if `max'<=1
+				   qui replace i_`var' = round(i_`var') if `max'>1
+				}
+
+				if `prx'  {									// `prx' is set by a gendist option
+				   qui replace x_`var' = round(x_`var', .1) if `max'<=1
+				   qui replace x_`var' = round(x_`var') if `max'>1
+				}
+				
+		      } //next `var'
+			  
+		   } //next 'nv'
+	   
+	   } //endif `round'
+	
+	} //endif 'round'   	
+						
+
+		
+	
+global errloc "wrapper(10.3)"
+
+pause (10.3)
+
+											// (10.3)	Alter variable prefix strings if optioned (vars were labled in blk 10)
+
+	if "`cmd'"=="gendist"  local optnames = "dprefix mprefix pprefix xprefix"
+	if "`cmd'"=="geniimpute" | "`cmd'"=="genplace"  local optnames = "iprefix mprefix pprefix"
+	if "`cmd'"=="genyhats" local optnames = "dprefix iprefix"
+															// ('optnames' will be empty if no optnames were optioned) for this cmd
+	
+	if `limitdiag' & "`optnames'"!=""  noisily display "Altering/changing variable name prefix strings as optioned"
+		
+	foreach str in d m p x i  {								// Cycle thru string prefixes for relevent cmds (using v1 naming)
+	   if "``str'prefix'"!=""  {							// (gendummies and genmeanstats prefixes cannnot be changed)
+	   	  local `str'prefix = "``str'prefix''" 				// If `str'prefix is not empty, this is because user optioned it
+		  if substr("``str'prefix'",-1,1)!="_"  local `str'prefix = "``str'prefix'_"
+	   }													// Add "_" to end of optioned string unless already there
+	}
+	
+	forvalues nvl = 1/`nvarlsts'  {							// Cycle thru all varlists (derived from scalar VARLISTS in codeblk 10)
+	
+	   foreach v of local varlist  {						// Cycle thru all outcome vars for all varlists
+	   
+		  if strpos("`skipvars'","`v'") continue			// if var `v' is in list of vars to be skipped
+															
+		  foreach s  of  local optnames {					// Go thru non-'a' string prefxs for relevnt cmds (usng v1 naming)
+			
+			if "`aprefix'"!=""  {  							// If 'aprefix' was optd, must alter prfxs of all extant prfxd vars..
+			   rename `s'_`v'  `ic'`s'`aprefix'_`v'			// Place `aprefix' string after the initial char (ic) & current string (s)
+			}
+			else  {											// Else, for any other prefix option..
+			   if "``s'prefix'"!=""	 {						// If that prefix was optioned (is not empty)
+				  rename `s'_`v'  `ic'`s'``s'prefix'`v'		// Place optnd prfx string between `ic'`s' and `v' (`s' ends w' "_")
+															// (`s'prefix will end in "_", whether user included it or not (see above)
+			   }
+			   else rename `s'_`v'  `ic'`s'_`v'				// Failing an optioned prefix, use current string following initial char
+			   
+			} //endelse		
+			
+		  } //next 's'
+		
+	   } //next v
+	   
+	} //next nvl
+	
+	capture drop p_* 										// These will be vars with missing obs for all cases
+	capture drop m_*
+	capture drop d_*
+	capture drop x_*
+	capture drop i_*
+
+	
+		
 	
 	local skipcapture = "skip"								// In case there is a trailing non-zero return code
+															// (if this cmd executes there was no error anywhere above)
 	
 	
 * *************	
 } //end capture												// Close brace enclosing code, back to top, whose errors will be captured
 * *************
+	
+	
+	
 
-
-
-
-pause (10)
-										// (10) Handle any non-zero return codes from above (including called programs)
+pause (11)
+										// (11) Handle any non-zero return codes from above (including called programs)
 										// 		Drop all globals except those needed by caller ('multivarlst') & succeeding commands
 
 															
@@ -1701,6 +1998,8 @@ pause (10)
 	global exit = exit										// Ditto for $exit
 	global multivarlst = multivarlst						// Ditto for $multivarlst (used in many caller programs)
 	if SMreport !="initialized" global SMreport = SMreport	// And $SMreport, if its scalar's "initialized" flag has been replaced
+	
+	scalar drop _all										// Drop all scalars before exit
 	
   } //endif $SMreport 
 															// ABOVE DROPS scalars VARLISTS#, PRFXVARS# & PRFXSTRS BUT WE CAN KEEP
@@ -2029,7 +2328,8 @@ program define errexit							// THIS ERROR-REPORTING SUBPROGRAM WAS DESIGNED AS 
 												// (complexity is due to need to handle legacy code that used just two arguments)
 												// NOTE THAT, IF 'msg' IS "Error exit" THE LOCATION OF THE ERROR IS ADDED, FROM $errloc
 												// (check those names in case they match already extant varnames)
-* DON'T SET $errloc;WOULD BE MISLEADING!
+
+* DON'T SET $errloc								// WOULD BE MISLEADING! (We want to retain location from which 'errexit' was called)
 
 
 if "$SMreport"!=""  exit						// If the error was previously reported then the call on this program was redundant
@@ -2240,10 +2540,10 @@ local cmd = "$cmd"
 															// (and append to 'check' - only once no matter how many there are)
 															// NOTE: local 'list' was obtained 16 lines up
 			   foreach n of local list  {					// 'list' is the list of values (levels) that will suffix the stub
-		         local check = "`check' `prfx'`stub'`n'"	// Generate varnamess by adding numeric suffix to stubnames
+		         local check = "`check' `prfx'`stub'`n'"	// Generate varnames by adding numeric suffix to stubnames
 		       } //next n`'									// (inclusion of `prfx' adds no space beyond 1st if there's no 'prfx')
 															// (insurance in case we decide to use a 'du_-prefix)
-			   isnewvar `check', prefix(null)				// Subprogram 'isnewvar' will add to $exists list if already exists
+			   isnewvar `check', prefix("null")				// Subprogram 'isnewvar' will add to $exists list if already exists
 															// 'null' option signals no pre-stub prefix (may come for gendummies)
 			   local check = ""								// Empty this local preparatory to finding levels of next var, if any
 			 }	//next 'n'									// (permission to drop vars in that list will be sought after
@@ -2329,7 +2629,7 @@ local cmd = "$cmd"
 				local check = "`check' `pfx'_`var'"			// Add it to list of vars to be checked														
 			}
 		} //next var										// (program isnewvar, below, asks for permission to replace)
-		isnewvar `check', prefix(null)						// Check to see if relevant prefixed vars already exist
+		isnewvar `check', prefix("null")						// Check to see if relevant prefixed vars already exist
 	} //endif `cmd'=='genyhats'								// (and drop the prefixed vars if user responds with 'ok')
 			
 	
@@ -2337,7 +2637,7 @@ local cmd = "$cmd"
 	   local badvars = ""									// (this global was filled by subprogram 'isnewvar')
 	   foreach var of global badvars  {
 	   	  local badvars = "`badvars' " + lower(substr("$badvars",1,1)) + substr("$badvars",2,.)
-	   }
+	   }													// Make first char of such variable names lower case
 	   
 	   dispLine "Some vars seemingly left from earlier error exit: `badvars'; drop these?" "aserr"
 															// (produced by subprogram 'isnewvar', bi-product o code above)
@@ -2358,7 +2658,7 @@ local cmd = "$cmd"
 	
 	
 	if "$newprfxdvars"!=""  {								// This global was filled by subprogram 'isnewvar'  
-															// (bi-product of code in wrapper(5)
+															// (called from code in wrapper(5)
 		local newprfxdvars = "$newprfxdvars"				// Could avoid this line if '(global) newprfxdvars' is allowed
 		local dups : list dups newprfxdvars					// ***********************************************************
 		if "`dups'"!=""  {									// THIS CODEBLOCK ADDRESSES TWO PROBLEMS: (1) deal with dups
@@ -2372,7 +2672,7 @@ local cmd = "$cmd"
 			  if (`duplen'+ 28)<81  display as error "Duplicate outcome varnames: `dups'"
 			  else {										// Else too long for one-line display
 			  	local txt = "Duplicate outcome varnames: `dups'"
-			  	dispLine "`txt'" "aserr"
+			  	dispLine "`txt'" "aserr"					// Format long list of vars line-by-line and display as error
 			  }
 		   }
 		   if `duplen'>248  local txt = substr("Duplicate outcome varnames: `dups'",1,245) + "..."
@@ -2392,8 +2692,8 @@ local cmd = "$cmd"
 			  rename `var' `tempname'						// Make strupper first char of existing potentially conflicted name
 			  global namechange = "$namechange `tempname'"	// (name change will be reversed in caller, after prefixing)
 		   }
-			
-		}
+															// GLOBAL 'namechanGe' WILL GOVERN REPLACEMENT OF ORIGINAL NAMES IN 
+		}													//   WRAPPER CODEBLK (10)
 		
 	} //endif $newprfxdvars
 	
@@ -2511,6 +2811,9 @@ version 9.0
 	
 	if "`prefix'"=="null"  local prefix = ""				// No prefix will be prepended to anything-var if prefix is "null"
 	else local prefix = "`prefix'_"							// Else add underline to end of 'prefix'
+	if strpos("`prefix'","_")==3  {							// If this was a two-character prefix
+		
+	}
 	
 	local ncheck : list sizeof anything						// 'anything' may have several varnames
 	
@@ -2958,8 +3261,9 @@ global errloc "varsImpl"
    }
 														
   
+	
 end varsImpliedByStubs
 
 
-****************************************************** END OF SUBPROGRAMS *****************************************************
 
+****************************************************** END OF SUBPROGRAMS *****************************************************
