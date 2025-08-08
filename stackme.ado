@@ -1,4 +1,9 @@
 
+*! 														stackMe.ado
+
+*! THIS ado file CONTAINS THE VARIOUS 'utility programs' NEEDED BY USERS OF stackMe COMMANDS. See first paragraph of 'help stackMe'
+
+*! Written by Mark, Feb 2025.
 
 									// stackMe.ado contains stackMe utility programs (programs with names starting with 'SM) as follows:
 									//
@@ -9,14 +14,14 @@
 									//  
 									// SMsavefile: invoked to save the active file under a new name and/or directory location
 									//
-									// SMitemname: invoked to supply
+									// SMitemname: invoked to supply the name of a linkage variable, to be linked to varname SMitem
+									
+
 									
 capture program drop SMsetcontexts
 
-*! This ado file contains the various 'utility programs' needed by users of {cmd:stackMe} commands
-*! Written by Mark, Feb 2025.
 
-program define SMsetcontexts					// This program should be invoked after 'use'ing the datafile to be processed
+program define SMsetcontexts					// This program should be invoked after first 'use' of the datafile to be processed
 												// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 version 9.0
 
