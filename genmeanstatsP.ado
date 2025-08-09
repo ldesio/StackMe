@@ -10,14 +10,14 @@ program define genmeanstatsP
 
 global errloc "genmeanstatsP"					// Global that keeps track of execution location for benefit of 'errexit'
 
-********
-capture {										// Open capture braces mark start ot code where errors will be captured
-********	
+****************
+capture noisily  {								// Open capture braces mark start ot code where errors will be captured
+****************	
 
-    syntax varlist [aw fw pw/] , [ CONtextvars(varlist) STAckid(varname) ] STAts(string)		   ///
-	[ MNPrefix(name) SDPrefix(name) MIPrefix(name) MAPrefix(name) SKPrefix(name) KUPrefix(name) ]  ///
-	[ SWPrefix(name) MEPrefix(name) MOPrefix(name) LIMitdiag(integer -1) INCludemissing NOCONtextvars NOSTAcks ] ///
-	[ nvarlst(integer 1) ctxvar(string) nc(integer 0) c(integer 0) wtexplst(string) ]
+    syntax varlist [aw fw pw/] ,  [ CONtextvars(varlist) STAts(string) SWPrefix(name) MEAPrefix(name) MEDPrefix(name)  ] ///
+	[ MODPrefix(name) SDPrefix(name) MIPrefix(name) MAPrefix(name) SKPrefix(name) KUPrefix(name) LIMitdiag(integer -1) ] ///
+	[ INCludemissing NOCONtextvars NOSTAcks nvarlst(integer 1) ctxvar(str) nc(integer 0) c(integer 0) wtexplst(str) *  ] 
+
 
 
 															// Context-by-context processing IS used by genmeanstats
@@ -38,34 +38,42 @@ capture {										// Open capture braces mark start ot code where errors will b
 												
 	local count = `c'										// Count of contexts processed, as basis for limitdiag & initializtn
 
-	if `count'==1  {										// Put required stats & correspondng statvars into globals
-	
-	
+	while `count'==1  {										// Put required stats & correspondng statvars into globals
 	
 		global prfxlist = ""					// 'count'==1 CODE SHOULD ALL BE REMOVED TO genmeanstatsO						***
 		global statlist = ""
 
 		local 0 = ", `stats'"								// Local 0 is where syntx commnd expects to find user's command line
 															// ('stats' is name of option in which user placed desired stats)
-		syntax , [ N MEAn SD MIN MAX SKEwness KURtosis SUM SW MEDian MODe ] // Need this list to also be placed in 's0', below
+		syntax , [ N MEAn SD MIN MAX SKEwness KURtosis SUM SW MEDian MODe _all ] // List is also in 's0', differently formatted
 															// Command 'syntax' selects those actually optioned, in 's1' below
-		local s0 =     lower("N MEAn SD MIN MAX SKEwness KURtosis SUM SW MEDian MODe") // List of possible stats in lower case
-		local s1 = stritrim("`n' `mean' `sd' `min' `max' `skewness' `kurtosis' `sum' `sw' `median' `mode'") // r-names (excpt 'sw')
-		local s2 = stritrim( "N   mn     sd   mi    ma    sk         ku         su    sw   me       mo"   ) // Prefix initials
+		local s0 =     lower("N MEAn SD MIN MAX SKEwness KURtosis SUM SUOfwts MEDian MODe") // List of available stats in lower case
+		local s1 = stritrim("`n' `mean' `sd' `min' `max' `skewness' `kurtosis' `sum' `sumOfWts' `median' `mode'") // r-names
+		local s2 = stritrim( "N   me     sd   mi    ma    sk         ku         su    sw         md       mo"   ) // Prefix initials
 
+		if "`_all'"!=""  {									// if "_all" was optioned
+		   if wordcount("`s1'")>0 {							// if any other stats were optioned
+			  errexit "Cannot option any other stats along with '_all'"
+			  exit											// Invoke errexit
+		   }
+		   local s1 = "`s0'"								// Otherwise make like all stats were optioned
+		}													// Rest of "while `count'" is same whether '_all' was optioned or not
+		
 		local nstats : list sizeof s1						// N of optioned stats sitting in 's1' after 'syntax' was executed
 															// (same as names of r-returns, except that 'sw' should be 'sum_w'
 		forvalues i = 1/`nstats'  {							// Cycle thru list of optiond stats
 
 			local stat = word("`s1'",`i')					// Statistic `i' of optioned list (lower case if "n")
 			local statpos : list posof "`stat'" in s0		// Position of that stat in full list of possible stats (in 's0')
-			local px = word("`s2'",`statpos')				// (`px' now holds 2-char default prefix for calculated stat)
+			local px = word("`s2'",`statpos')				// (`px' now holds 2-char default prefix for generated stat)
 			global prfxlist = "$prfxlist `px'"				// Append to $prfxlist in `i'-order
-			if "`stat'" == "sw"  local stat = "sum_w" 		// If optioned stats include sum of weights, replace with r-name
+*			if "`stat'" == "sw"  local stat = "sum_w" 		// If optioned stats include sum of weights, replace with r-name
 			if "`stat'"=="n"  local stat = "N"				// If "n" was optioned, make that "N"			
 			global statlist = "$statlist `stat'"			// Append to $statlist, in i-order
 			
-		} //next s
+		} //next i
+		
+		local count = 0										// Ensure end of while loop
 		
 	} //endif `count'==1									// ALL count==1 CODE SHOULD BE MOVED TO genmeanstats0 when coded	***
 	
@@ -77,11 +85,11 @@ capture {										// Open capture braces mark start ot code where errors will b
 	local medmod = substr("$statlist",-4,4)					// Get last 4 chars of "$statlist"
 	if "`medmod'"=="dian" | "`medmod'"=="mode" {			// If they are the last four chars of "median" or "mode" ..
 	   local statlist = subinstr(subinstr("$statlist","median","",1),"mode","",1)
-	}												 		// Trims off last (pair of) stats if median or mode
+	}												 		// Trims off last (pair of) stats if median and/or mode
 	else local statlist = "$statlist"
 	
 	local detail = ""										// Determine if 'summarize' cmd needs ',detail'
-	if strpos("$prfxlist","sk") | strpos("$prfxlist","ku") local detail = ", detail"
+	if strpos("$prfxlist","sk") | strpos("$prfxlist","ku")  local detail = ", detail"
 	
 	
 	foreach var of local cmdvars  {							// Cycle thru all vars in user-supplied varlist
@@ -104,7 +112,7 @@ capture {										// Open capture braces mark start ot code where errors will b
 				
 	  if strpos("$statlist","median") quietly egen `prfx'`var' = median(`var')
 	  if strpos("$statlist","mode")   quietly egen `prfx'`var' = mode(`var')
-		
+															// DK WHY NOT GETTING THESE FROM summarize; SPEEDTEST??				***
 	} //next 'var'
 	
 															// Empty globals after final context has been processed
@@ -135,5 +143,8 @@ end genmeanstatsP
 
 
 
-*********************************************** END PROGRAM genmeanstatssP ****************************************************
+************************************************** END PROGRAM genmeans ****************************************************
+
+
+
 
