@@ -73,10 +73,6 @@ capture {													// Open capture braces mark start ot code where errors wil
 												// Pre-process multi-varlist, variables saved by iimpute, and contextvars
 
 	local postpipes = "`anything'"							// Pretend `anything' started with (already removed) pipes ("||")
-/*	local allPTVs = ""										// Will hold list of vars from which to generate imputd versns
-	√local imputedvars = ""									// Will hold list of variables to impute (in all multi-varlsts)
-	√local missingvars = ""									// Ditto list of vars  with cases where unimputd var was missng
-*/	
 	local allPTVs = ""
 	local totPTVs = 0										// Initialize count of max # of vars to be imputed
 	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
@@ -113,8 +109,10 @@ capture {													// Open capture braces mark start ot code where errors wil
 		local totaddv = `totaddv' + `nvars'
 		
 		tokenize `anything'
-		if `nvl'==1  local first `1'
-		if `nvl'==`nvarlst'  local last ``nvars''		
+		if `nvl'==1  {
+			local first `1'
+		}
+		if `nvl'==`nvarlst'  local last `nvars'
 		
 		foreach var of local thePTVs  {							// Faster than using (now redundant) varlist
 		
@@ -136,19 +134,6 @@ capture {													// Open capture braces mark start ot code where errors wil
 			
 		} //next var 											// (in this varlist)
 		  
-/*																// NOT SURE WE USE ANY OF THESE
-		local nptvs: list sizeof thePTVs						// Get length of (longest sub-)varlist
-		if `nptvs'>`maxPTVs'  local maxPTVs = `nptvs'								// NOT SURE WE USE THIS
-			
-		local naddv: list sizeof addvars						// Same for any additional vars in a multi-varlist
-
-		if `naddv'>`maxaddv'  local maxaddv = `naddv'
-		foreach var of varlist `addvars'  {
-		   if strpos("`alladdv'", "`var'")==0  {				// If this 'var' is not already in the list of 'addvars'
-			   local alladdv = "`alladdv' `var'"
-		   }
-		}
-*/		
 		local vlnvl = "vl`nvl'"
 		global `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
 		local alnvl = "al`nvl'"
@@ -208,5 +193,4 @@ end //geniimputeO
 
 
 ********************************************** END PROGRAM GENIIMPUTEO ********************************************************
-
 
