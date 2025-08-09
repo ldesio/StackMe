@@ -48,9 +48,9 @@ program define gendummies								// Called by 'gendu' a separate program defined
 											// *****************************
 											// On return from stackmeWrapper
 											// *****************************
-
-
- 
+											
+											
+					
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
@@ -98,5 +98,7 @@ end gendu
 
 
 ************************************************* END GENDU *******************************************************************
+
+
 
 
