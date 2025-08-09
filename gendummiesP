@@ -16,166 +16,185 @@ program define gendummiesP									// Called by 'stackmeWrapper'; calls subprogr
    // NOTE that codeblocks importd from genyhatsP, which should be common across`cmd'Ps, needed some tweekng (see lines flagged **)
 	
 	
-global errloc "gendummiesP"									// Global that keeps track of execution location for benefit of 'errexit'
+	
+global errloc "genduP(0)"									// Global that keeps track of execution location for benefit of 'errexit'
+
+
 
 ****************
 capture noisily {											// Open capture braces mark start ot code where errors will be captured
 ****************
 	
 	
-	syntax anything, [ STUbname(name) INCludemissing LIMitdiag(integer -1)  DUPrefix(str) NODuprefix ] ///
-					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
-															// `prfx' string and `isprfx' not used in gendummies
+	syntax anything, [ STUbname(name) INCludemissing RECordmissing LIMitdiag(integer -1)  DUPrefix(str) NODuprefix ] ///
+					 [ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
+															// `prfx' and `isprfx' options now transmitted by scalar variables
 
-															
-	local optprefix = "`prefix'"							// To disambiguate from prefix on varlist	
 															
 	quietly count 	
 	local numobs = r(N)										// N of observations (gendummies processes all contexts at once)
+	
 	if `limitdiag'==-1  local limitdiag = .					// Make that a very big number
 	display " "												// Display blank line at start of diagnostics
 
 															// GENDUMMIES TREATS THE WHOLE DATASET AS ONE CONTEXT
-	local pfx = "du_"										// And default stub-prefix is "du_"
-	if "`noduprefix'"!="" local pfx = ""					// If user optioned "noduprefix" override that with empty pfx
+	local pfx = "du_"										// And default stub-prefix is "du_", used to prefix all gendu outcomes
+	if "`duprefix'"!=""  {									// If user optioned a different prefix ..
+		if substr("`duprefix'",-1,1)!="_"  local duprefix = "`duprefix'_"
+		local pfx = "`duprefix'"							// Suffix optioned prefix with "_" if user did not
+	}														// (below we will see if even this is overridden by a string prefix to varlst)
+	if "`noduprefix'"!=""  local pfx = ""					// If user optioned "noduprefix" override that with empty pfx
 												
 	forvalues nvl = 1/`nvarlst'  {						 	// Cycle thru set of varlists with same options
 															// Any stubvar comes from option `(opt)stubname' or from `precolon'	
-		gettoken prepipes postpipes : anything, parse("||") //`postpipes' now starts with "||" or is empty at end of cmd
-		if "`postpipes'"=="" local prepipes = "`anything'"	// (if empty make like imaginary pipes follow at end of cmd)
-		
-		gettoken precolon postcolon : prepipes, parse(":") 	// See if varlist has stubname indicator at start of 'postcolon'
-															// `precolon' would have gotten head of anything, up to ":"
-		if "`postcolon'"==""  {
-		   local vars = "`prepipes'"						// If 'postcolon' is empty then prepipes contains just a varlist
-		   local stubname = "`stubprefix'"					// (and we get stubname, if any, from option 'stubprefix')
-		   gettoken preul postul : postcolon, parse("_")	// But 'postcolon' may contain a prefix parsing marker
-		   if "`postul'"!="" local pfx = substr("`postul'",2,.) // (in which case)
-		}
-		else  {												// Else 'postcolon' is not empty, so
-		   local vars = substr("`postcolon'",2,.)			// 'vars' are in `postcolon', following initial ":"
-		   gettoken preul postul : precolon, parse("_")		// And 'precolon' may contain a prefix parsing marker
-		   if "`postul'"!=""  {								// If 'postul' is not empty,
-		   	  local prefix = "`preul'_"						// Replace any optioned stubname with 'preul_'
-		      local stubname = substr("`postul'",2,.)		// And put into stubname the tail of 'postul' following initial "_"
-		   } 												// (it is a stubname only in gendummies; in general it is a prfxvar)
-		   else  {											// Else prefix is precolon
-			  local stubname = "`precolon'"
-		   }												// Otherwise there is no prefix
-		   
-		} //endelse 		   
-	   
+		local vars = VARLISTS`nvl'							// Stored in that scalar in wrapper (2.1)
+		local stubs = PRFXVARS`nvl'							// And put into stubname the tail of 'postul' following initial "_"
+		local strpfx = PRFXSTRS`nvl'						// Any prefix string was a prefix to that stubname
+															// (above comments regard origins of gendu varlist components parsed in wrapper)
 		unab varlist : `vars'
 		local notvar = ""
 				   
-		foreach var of local varlist  {				  		// Cycle thru varlist(s) in `anything'								
-															// WRAPPER SHOULD ENSURE ONLY ONE var PER STUBNAME					***
-		   capture confirm numeric variable `var'			
-		   if _rc!=0  local notvar = "`notvar' `var'"		// If variable is not numeric accumulate in local 'notvar'
-		   else  {
-			  quietly levelsof `var', local(values)			// Enumerate the category values for this variable
-
-			
-			
-			
- 
-												// (5) For each var, cycle thru all values
-												
-			  local notnum = ""
-			
-			  foreach val of local values  {
-				
-				capture confirm number `val'					// If `val' is not numeric
-				if _rc  {
-					local notnum = "`notnum' `val'"
-				}
-				
-				if "`stubname'"!=""  {							// If 'stubname' is was optioned or found as varprefix
-					local varname = "`pfx'`stubname'"			// Prepend outcome name with possibly empty 'pfx' prefix
-				}
-				else local varname = "`pfx'`var'"				// Else outcome varname name is (prefixed) input varname
-				
-*				**************************
-				gen `prefix'`varname'`val' = (`var'==`val') 	// This is the money cmd that creates a new var for each value
-*				**************************						// NOTE that input is 'var' but outcome includes 'varname'
-																// (could be [pfx]_stubname or [pfx]_var, as determined above)
-				/*if `limitdiag'*/ noisily display "."_continue
-
-				local label : label (`var') `val'				// Value label for each category of `var' 
-				local len = strlen("`label'")					// ('var' may also have a variable label referenced in genstacks)
-				capture confirm number `label'					// If `label' is all numeric then it was found unlabeled by numlabel
-				if _rc  {										// If _rc is non-0 then there is a proper label for this var
-					forvalues i = 1/`len'  {					// See if 'val' is repeated as label prefix
-						local j = `i'							// Store value of 'i', which has no value outside this loop
-						local k = substr("`label'",1,`j')		// Convert string to number if numeric
-						capture confirm number `k'				// Not numeric if last char is end-of-value character. ???		***
-						if _rc  continue, break					// Found non-numeric char signalling end of label prefix
-					} //next `i'								// (dk what value that is, but must be non-numeric)
-
-					local nprefix = substr("`label'", 1, `j'-1)	// Numeric prefix ends one char before end-of-prefix char
-					if `nprefix'==`val'  {						// If label prefix duplicates 'val' then 
-						local label =substr("`label'",`j'+1, .) // Strip 'labelprefix' & following char from start of 'label'
-						local label = strltrim("`label'")		// Strip any leading blanks following label prefix
-					}											// Ensures label does not end up with value repeated 3 times!
-					label variable `prefix'`varname'`val' "`varname'==`val' `label'"
-				} //endif 'len'>1								// (even twice, as happened with version 0.9, is arguably overkill)
-		
-
-				if ("`includemissing'"!="") {					// See if user optioned values of 0 for missing data
-					foreach newvar of varlist `prefix'`varname'*  {
-						if ("`newvar'"!="`var'") {				// Exclude the stub itself
-						   qui replace `prefix'`varname'`val' = 0 if `var'>=.
-						}
-					} //next `newvar'
-				} //endif
-			
-				else {											// Otherwise make the new dummy missing if original value missng
-					qui replace `prefix'`varname'`val'=. if `var'>=.
-				} //end else
-				
-*				order `prefix'`varname'`val', last				// (SHOULD PUTS VALUES THAT WERE MISSING LAST, BUT) 			***
-																// (GET 'options not allowed" error)
-			  } //next val
-			  
-			  if "`notnum'"!=""  {
-				 local txt = "For variable `var', found non-integer value(s) `notnum'. Ignore?
-			  	 display as error "`txt'{txt}"
-*                		  	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				 window stopbox rusure "`txt'"
-				 if _rc  {
-					errexit "Without permission to ignore non-integer values"
-				 }
-			  }
-			
-		   } //endelse (not a variable)
+		foreach var of local vars  {				  		// Cycle thru varlist(s) in `anything' (wrapper ensures 1 stub per var)
+		   capture confirm numeric variable `var'			// (also the default name of the outcome stub)
+		   if _rc  local notvar = "`notvar' `var'"			// If variable is not numeric, accumulate in local 'notvar'
 		   
-		} //next `var'
-		
-		if "`notvar'"!=""  {
-			local txt = "Gendummies found non-numeric variables: `notvar'" ?
-			dispLine "{err}`txt'{txt'}"
-			errexit, msg("`txt'")								 // Option-format errexit only sends 'txt' to stopbox
-			if _rc  {
-			  errexit "Without permission to ignore non-integer values"
-			}
-		}
+		   else  {
+															// ELSE CLAUSE FOLLOWS IN CODEBLK (5)
+			
+			
+			
+global errloc "genduP(5)"									// Global that keeps track of execution location for benefit of 'errexit'
+
+
+
+ 
+											// (5) For each var, cycle thru all values
+												
+												
+		   local varname = "`var'"								// Default varname in case no stubnames were optioned
+		   if "`stubname'"!=""  local varname = "`stubname'"	// User-optioned stubname, if any
+		   if "`stubs'"!="" local varname = "`stubs'"			// (trumped by user-supplied stublist as prefix to varlist)
+		   
+		   if "`strpfx'"!="null"  {								// If varlist holds a string prefix, that trumps any prefix established earlier
+		   	  if "`noduprefix'"==""  local pfx = "`strpfx'_"	// Overridden, in turn, by strpfx to stubnames, if any & not suppressed
+		   }													// (no question about trailing "_" since varlist prefix already assumes that)
+		   else  local pfx = ""									// Else empty the prefix in case it holds a left-over string
+		   
+		   quietly levelsof `var', local(values) missing		// Enumerate the category values for this (soon to be) outcome variable
+		   local notnum = ""									// (the same variable provides the categoriesm, no matter the stubname)		   
+			  
+		   foreach val of local values  {						// Cycle thru all levels of `var'
+				
+			  capture confirm number `val'						// If `val' is not numeric..
+			  if _rc  {
+				 local notnum = "`notnum' `val'"				// Record it in list of non-numeric suffixes (DK WHY WE DO THIS)
+			  }
+
+*			  **************************
+			  gen `varname'`val' = (`var'==`val') 				// This is the money cmd that creates a new var for each value		***
+*			  **************************						// NOTE that, while outcome includes 'varname', input is still 'var' 
+																// (could be [pfx]_stubname or [pfx]_var, as determined above)
+
+			  local label : label (`var') `val'					// Value label for each category of `var' 
+			  local len = strlen("`label'")						// ('var' may also have a variable label created in genstacks)
+			  capture confirm number `label'					// If `label' is all numeric then it was found unlabeled by numlabel??	***
+			  if _rc  {											// If _rc is non-0 then there is a proper label for this var
+				 forvalues i = 1/`len'  {						// See if 'val' is repeated as label prefix
+					local j = `i'								// Store value of 'i', which has no value outside this loop
+					local k = substr("`label'",1,`j')			// Convert string to number if numeric
+					capture confirm number `k'					// Not numeric if last char is end-of-value character. ???				***
+					if _rc  continue, break						// Found non-numeric char signalling end of label prefix
+				 } //next `i'									// (dk what value that is, but must be non-numeric)
+
+				 local nprefix = substr("`label'", 1, `j'-1)	// Numeric prefix ends one char before end-of-prefix char
+				 if `nprefix'==`val'  {							// If label prefix duplicates 'val' then 
+					local label =substr("`label'",`j'+1, .) 	// Strip 'labelprefix' & following char from start of 'label'
+					local label = strltrim("`label'")			// Strip any leading blanks following label prefix
+				 }												// Ensures label does not end up with value repeated 3 times!
+				 label variable `pfx'`varname'`val' "`varname'==`val' `label'"
+			  } //endif _rc										// (even twice, as happened with version 0.9, is arguably overkill)
+			  
+			  
+			  
+			  
+global errloc "genduP(5.1)"										// Global keeps track of execution location for benefit of 'errexit'
 
 		
+																// Recordmissing OPTION NOT FINALIZED IN THIS stackMe VERSION
+			  if "`recordmissing'"!=""  local includemissing = "includemissing" // The former requires the latter
+			  if ("`includemissing'"!="") {						// See if user optioned values of 0 for missing data
+			  
+				  qui replace `pfx'`varname'`val' = 0 if `pfx'`varname'`val'>=.
+																// FIRST DECIDE HOW TO CODE MISVAL FOR NEW VARS (HERE TEXTUAL)		***
+					  if "`recordmissing'"!=""	 {				// See if user requested additional vars for each missing value
+						  local nm = 0							// Initialize count of different missing values
+						  preserve  
+							 drop if `var'<.					// Drop all non-missing observations
+							 sort `var' 						// Sort `var' in order of its missing values
+							 while _N>0  {						// While there are any remaining observations
+								local nm = `nm'+1				// Increment `nm'
+								local val`nm' = min(`var')		// Put value of lowest missing value in val`nm'
+								drop if `var'<= val`nm'			// Drop observations with missing values less than this
+							 } //nextwhile
+						  restore								// Restore working data
+						  forvalues i = 1/`nm'  {				// Cycle thru all seperate missing values found
+							gen `pfx'`var''misi' = val`nm'	// Generate a new var for each missval filled with that value
+							qui replace `newvar'mis`i' = `newvar' if `newvar'<.
+						  }										// Replace that value with original value for non-missing obs
+						  
+					  } //endif `recordmissing'
+					  
+			  } //endif `includemissing
+			  
+		  } //next `val'
+				 
+				
+*		  order `prefix'`varname'`val', last					// (SHOULD PUT VALUES THAT WERE MISSING LAST, BUT) 					***
+																// (GET 'options not allowed" error)
+			  
+		  if "`notnum'"!=""  {
+			  local txt = "For variable `var', found non-integer value(s) `notnum'. Ignore?"
+*                		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			  if strlen("`txt'")>80  local text = substr("txt",1,78) + ".."
+			  display as error "`txt'{txt}"
+			  window stopbox rusure "`txt'"
+			  if _rc  {
+				  errexit "Failing permission to ignore non-integer values"
+				  exit
+			  }
+			  
+		  } //endif 'notnum'
+
+		} //endelse (not a variable)
+		   
+	  } //next `var'
+		
+	  if "`notvar'"!=""  {
+		 local txt = "Gendummies found non-numeric variables: `notvar'" ?
+		 dispLine "{err}`txt'{txt'}"
+		 errexit, msg("`txt'")								 	  // Option-format errexit only sends 'txt' to stopbox
+		 if _rc  {
+			errexit "Without permission to ignore non-integer values"
+		 }
+		 
+	  } //endif 'notvat'
+
+		
+		
+global errloc "genduP(6)"										  // Global that keeps track of execution location for benefit of 'errexit'
+
 	  
 											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
-											// 	   (or pre-process syntax for next varlist)
+											// 	   (or pre-process syntax for next varlist) ALL THIS NOW DONE IN WRAPPER
 											
 
-		if "`postpipes'"==""  continue, break 					  // Break out of `nvl' loop if `postpipes' is empty
-																  // POSTPIPES COMMENTED OUT 'COS
-		local anything = strltrim(substr("`postpipes'",3,.))	  // Strip leading PIPES from head of `postpipes'
-																  // (`anything' now contains next varlist and any later ones)
-		local isprfx = ""										  // Switch off the prefix flag if it was on
+	  local isprfx = ""										  	  // Switch off the prefix flag if it was on
 
 	} //next `nvl' 												  // (next list of vars having same options)
 	
  
 	local skipcapture = "skip"									  // Local, if set, prevents capture code, below, from executing
+	
 	
 * *************
 } //end capture													  // Endbrace for code in which errors are captured
@@ -184,12 +203,13 @@ capture noisily {											// Open capture braces mark start ot code where erro
 
 if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
 	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	if _rc  errexit "Stata reports program error in $errloc"
 	exit
 }
 
    
 end //gendummiesP
+
 
 
 ******************************************************* END gendummiesP ***************************************************************
