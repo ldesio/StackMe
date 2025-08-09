@@ -31,9 +31,9 @@ program define genstacksP								// Called from 'stackmeWrapper', makes no calls
 
 global errloc "genstacksP(1)"								// Global that keeps track of execution location for benefit of 'errexit'
 
-********
-capture noisily {													// Open capture braces mark start ot code where errors will be captured
-********	
+***************
+capture noisily {											// Open capture braces mark start ot code where errors will be captured
+***************	
 
 
 
@@ -88,9 +88,8 @@ global errloc "genstacksP(2)"
 
 		if "`list'"!=""  {
 			display as error	"Not in varlist: optioned fe var(s) `list'"
-	`		window stopbox note "Optioned fe variables not among vars to be processed (see list)"
-			global exit = 1
-			exit 1
+	`		errexit, msg("Optioned fe variables not among vars to be processed: `list'")
+			exit
 		}
 	
 		if "`feprefix'"==""  {
@@ -155,7 +154,9 @@ global errloc "genstacksP(3)"
 	 }
 	   
   } //endif keep misstacks | fe
-		  	 
+  
+																	// THIS WOULD BE WHERE TO INSERT CODE FROM GENDUMMIES TO FIND
+																	// MAX N OF NON-EMPTY STACKS FOR THIS CONTEXT						***
   noisily display "." _continue
 		
   local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
@@ -169,8 +170,8 @@ global errloc "genstacksP(3)"
 
 if "`skipcapture'"==""  {										  	// If not empty we did not get here due to stata error
 	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ
-	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	exit
 }
 																	// Much post-processing of stacked data is in genstacks caller																
 end genstacksP
