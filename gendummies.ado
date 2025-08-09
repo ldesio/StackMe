@@ -13,23 +13,23 @@ program define gendummies								// Called by 'gendu' a separate program defined
 										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
 										// that end with "**" need to be tailored to specific stackMe commands
 										
-														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		//	**
-	local optMask = "STUbname(name) DUPrefix(string) LIMitdiag(integer -1) INCludemissing REPlace NODuprefix NOSTUbname"
+														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		//		**
+	local optMask = "STUbname(name) DUPrefix(string) LIMitdiag(integer -1) INCludemissing RECordmissing REPlace NODuprefix NOSTUbname"
 
 														// Ensure stubname for this stackMe command is placed first and its 
 														// negative is placed last; ensure options with arguments preceed toggle 
 														// (aka flag) options for this command. Options (apart from limitdiag) 
 														// common to all stackMe `cmd's will be added in stackmeWrapper.
-														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**
+														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)	**
 
-	local prfxtyp = /*"var"*/"othr"	/*"none"*/			// Nature of varlist prefix – var(list) or other. (`stubprefix' will	**
+	local prfxtyp = /*"var"*/"othr"	/*"none"*/			// Nature of varlist prefix – var(list) or other. (`stubprefix' will		**
 														// be referred to as `opt1', the first word of `optMask', in codeblock 
 														// (0) of stackmeWrapper called just below). `opt1' is always the name 
 														// of an option that holds a varname or varlist (which must be referred
 														// using double-quotes). Normally the variable named in `opt1' can be 
 														// updated by the prefix to a varlist, but not in genyhats.
 		
-	local multicntxt = ""/*"multicntxt"*/				// Whether `cmd'P takes advantage of multi-context processing			**
+	local multicntxt = ""/*"multicntxt"*/				// Whether `cmd'P takes advantage of multi-context processing				**
 	
 	local save0 = "`0'"									// Seems necessary, perhaps because called from gendi
 
@@ -48,82 +48,25 @@ program define gendummies								// Called by 'gendu' a separate program defined
 											// *****************************
 											// On return from stackmeWrapper
 											// *****************************
-					
-					
-**********************														
-if "$SMreport"!=""  {										// If this re-entry follows an error report (reported by program errexit)
-															// ($SMreport is non-empty so error has been reported)
-	if "$abbrevcmd"==""  {									// If the abbreviated command (next program) was NOT employed
-															// (so user invoked this command by using the full stackMe cmdname)
-		global multivarlst									// Clear this global, retained only for benefit of caller programs
-		capture erase $origdta 								// Erase the 'origdta' tempfile whose name is held in $origdta
-		global origdta										// Clear that global
-		global SMreport										// And this one
-
-		if "$SMrc"!="" {									// If a non-empty return code accompanies the error report
-			local rc = $SMrc 								// Save that RC in a local (often the error is a user error w'out RC)
-			global SMrc										// Empty the global
-			exit `rc' 										// Then exit with that RC (the local will be cleared on exit)
-		} //endif $SMrc										// ($SMrc will be re-evaluated on re-entry to abbreviated caller) 
-	} //endif $abbrevcmd
-	exit													// If got here via 'errexit' exit to gendi or Stata
-															// (skip any further codeblocks, below, for this command)
-} //endif $SMreport
-************************									// ($SMreport non-empty so error has been reported)
-		
-		
-
-	global errloc "gendu"
-
-		
-		
-		
-	***************		
-	capture noisily {										// Begin new capture block in case of errors to follow)
-	***************
 
 
-		local 0 = "`save0'"									// On return from stackmeWrapper estore what user typed
+ 
+  
+  capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
+  capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
+  if _rc==0  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
+  else scalar RC = 98765									// Else stash an unused return code
+  if $limitdiag !=0 & RC == 98765 noisily display _newline "done." // Display "done." only if no error reported, by Stata or by stackMe
+  macro drop _all											// Drop all macros (including $SMrc, if extant)
+  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
+  scalar drop _all 											// Drop all scalars, including RC
 
+  
 
-*		***************	
-		syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) APRefix(str) NODiag *  ]
-*		***************
+  exit `rc'													// Local 'rc' will be dropped on exit
 
-		if "`aprefix'"!=""  {									
-			rename du_`var' du`aprefix'`var'				// Note that 'all-prefix' replaces the "_", not the 'd_'
-		 }
-		
-		if "`nodiag'"!=""  local limitdiag = 0				// THE ONLY FUNCTION OF THIS CODEBLK1
-	
-*		if "`stubprefix'"!="" 								// SEEMINGLY NO POST-PROCESSING FOR THIS 'cmd'							***
-	
-		if `limitdiag'!=0  noisily display _newline _newline "done."
-		
-*		local skipcapture = "skip"							// SO NO NEED TO skipcapture
-		
-
-*	  **************
-	} //end capture											// Close braces that delimit code skipped on return from error exit
-*	  **************  
-
-	
-	global multivarlst										// Clear this global, retained for caller but unused above
-	capture erase $origdta 									// Erase the `origdta' tempfile whose name is held in $origdta
-	global origdta											// Clear that global
-	global SMreport											// And this one
-	
-	if "$abbrevcmd"==""  {									// If the abbreviated command (next program) was NOT employed
-															// (so user invoked this command by using the full stackMe cmdname)
-	  if "$SMrc"!="" {										// If a non-empty return code was flagged anywhere in the program chain
-		local rc = $SMrc 									// Save that RC in a local (often the error is a user error w'out RC)
-															// (if not numeric will report same error as had it been used as cmd)
-		global SMrc											// Empty the global
-		exit `rc' 											// Then exit with that RC (the local will be deleted on exit)
-	  }
-	} //endif $abbrevcmd									// Else $SMrc can still be evluated on re-entry to abbreviated caller 
-
-	
+  
+  
 end gendummies			
 
 
