@@ -10,16 +10,17 @@ program define genmeanstats
 										// that end with "**" need to be tailored to specific stackMe commands
 										
 														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		
-	local optMask = "DUMmyprefix(name) CONtextvars(varlist) STAckid(varname) STAts(string) MNPrefix(name) SDPrefix(name) " ///  **
-				  + "MIPrefix(name) MAPrefix(name) SKPrefix(name) KUPrefix(name) SWPrefix(name) " 					   	   ///  **
-				  + "LIMitdiag(integer -1) INCludemissing NOCONtextvars NOSTAcks NODUMmyprefix"											//  **
+	local optMask = "PLAceholder(name) STAckid(varname) STAts(string) MEAnprefix(name) MEDianprefix(name) "	/// **
+				  + "MODeprefix(name) SDPrefix(name) MINprefix(name) MAXprefix(name) SKPrefix(name) KUPrefix(name) " /// 					   	   ///  **
+				  + "SUMprefix(name) SUOfwts(name) LIMitdiag(integer -1) INCludemissing NOPLAceholder"								 // **
 
-														// This command has no prefixvar so its place is taken by a dummy opt; its 
-														// negative is placed last; ensure options with arguments preceed toggle 
-														// (aka flag) options; limitdiag should folloow last argument, followed
-														// by any flag options for this command. Options (apart from limitdiag) 
-														// common to all stackMe `cmd's will be added in stackmeWrapper.
-														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**
+														// This commnd has no prefixvar so its place is taken by a placehoder
+														// whose negative is placed last; ensure options with arguments preceed 
+														// toggle (aka flag) options; final argument should be 'limitdiag(#)'.
+														// Options common to all stackMe commands (apart from limitdiag) will 
+														// be added in stackmeWrapper. CHECK THAT NO OTHER OPTIONS, BEYOND THE 
+														// FIRST 3, NAME ANY VARIABLE(S) (THE ABOVE RESTICTIONS SIMPLIFY THE
+														// PROGRAM CODE FOR PARSING A STACKME COMMAND WITHOUT AFFECTING USERS)	**
 
 	local prfxtyp = "none"/*"var" "othr"*/				// Nature of varlist prefix – var(list) or other. (`depvarname will		**
 														// be referred to as `opt1', the first word of `optMask', in codeblock 
@@ -43,37 +44,22 @@ program define genmeanstats
 *														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 	
 	
+	
+*								*****************************	
 								// On return from wrapper ...
+*								*****************************
 								
-*	*****************								
-	if "$SMreport"!="" {									// If return does not follow an errexit report
-*	*****************
+	
+	
+	capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
+	capture confirm existence $SMrc 						// Confirm whether $SMrc holds a return code
+	if _rc==0  scalar RC = $SMrc 							// If return code indicates that it does, stash it in scalar RC
+	else scalar RC = 98765									// Else stash an unused return code
+	if $limitdiag !=0 & RC==98765  noisily display _newline "done." // Display "done." if no error was reported, by Stata or by stackMe
+	macro drop _all											// Drop all macros (including $SMrc, if extant)
+	if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
+	scalar drop _all 										// Drop all scalars, including RC
 
-								
-	if $exit  exit 1									// No post-processing if return from wrapper was an error return
-	
-								
-	local 0 = "`save0'"									// Restore what the user typed
-	
-	
-	syntax anything, [ LIMitdiag(integer -1) NODiag *  ]
-	
-	if "`nodiag'"!=""  local limitdiag = 0
-	
-	if `limitdiag'!=0  noisily display _newline "done." _newline
-	
-	
-	
-	global multivarlst									// Clear this global, retained only for benefit of caller programs
-	global SMreport										// And these, retained for error processing
-	global SMrc												
-	capture erase $origdta 								// (and erase the tempfile in which it was held, if any)
-	global origdta
-
-	
-*	*******************
-    } //endif $SMreport
-*	*******************
 
 
 end genmeanstats			
@@ -95,6 +81,5 @@ end genme
 
 
 **************************************************** END genme ****************************************************************
-
 
 
