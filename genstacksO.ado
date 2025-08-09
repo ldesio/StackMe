@@ -69,6 +69,7 @@ capture noisily {											// Open capture braces mark start ot code where erro
 
 *			******************
 			varsImpliedByStubs `reshapeStubs'				// Call on appended program
+			if "$SMreport"!="" exit							// See if error was reported by cmd above
 *			******************
 
 			local impliedVars = r(keepv)					// Implied by the stubs actually specified by user	
@@ -88,6 +89,7 @@ capture noisily {											// Open capture braces mark start ot code where erro
 															// `multivarlst' unchanged since codeblk (0)
 *			 ******************
 			 stubsImpliedByVars `multivarlst'				// Program (appended) generates list of stubnames
+			 if "$SMreport"!="" exit						// See if error was reported by cmd above
 *			 ******************
 				
 			 local stublist = r(stubs)						// (one stubname per varlist in genstacks syntax 1)
@@ -96,6 +98,7 @@ capture noisily {											// Open capture braces mark start ot code where erro
 			 
 			 ******************
 			 varsImpliedByStubs `stublist'					// See if both varlists have same vars (in any order)
+			 if "$SMreport"!="" exit						// See if error was reported by cmd above
 			 ******************
 			
 			 local impliedVars = r(keepv)					// 'Implied' by the variables actually specified by user
@@ -105,11 +108,11 @@ capture noisily {											// Open capture braces mark start ot code where erro
 *		
 			 if ! `same'  {
 				
-				display as error "Variables in dataset dont match vars implied by varlist(s). Use existing vars?{txt}"
+				display as error "Variables in dataset don't match vars implied by varlist(s). Use existing vars?{txt}"
 *               		  		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 				local msg = "Variables in dataset are not an exact match for vars implied by varlist(s) – "
 				capture window stopbox rusure ///
-								"`msg'maybe some contexts have fewer variables; use existing vars?"
+								"`msg'maybe some contexts have fewer variables; use vars that do exist?"
 				if _rc   {									// Exit with error if user says "no" 
 					errexit "`Absent permission to use existing vars"
 					exit
@@ -158,7 +161,7 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		}													// Vars in 'varsImpliedByStubs' need to be kept in working data
 															// (no SM.. variables in unstacked data)
 															
-		local impliedvars = "`impliedVars' `itemname'"	// (genstacks does need SMitem, provided in wrapper codeblk (6)										
+		local impliedvars = "`impliedVars' `itemname'"		// (genstacks does need SMitem, provided in wrapper codeblk (6)										
 														    // Most codeblcks from here on will end with a list of vars to keep
 
 															
@@ -281,7 +284,7 @@ pause (0.4)
 
 	
 * *************
-*} //end capture												// Endbrace for code in which errors are captured
+  } //end capture											// Endbrace for code in which errors are captured
 * *************												// Any such error would cause execution to skip to here
 															// (failing to trigger the 'skipcapture' flag two lines up)
 
