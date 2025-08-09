@@ -24,9 +24,11 @@ program define geniimputeP
 global errloc "geniimputeP"										// Global that keeps track of execution location for benefit of 'errexit'
 
 
-********
+*if "$SMreport"!=""  {											// COMMENTED OUT 'COS REDUNDANT (exit FOLLOWS CALL ON errexit)			***
+	
+***************
 capture noisily {												// Open capture braces mark start ot code where errors will be captured
-********	
+***************
 	
 	local cmd = "geniimpute" 
 	
@@ -103,13 +105,13 @@ capture noisily {												// Open capture braces mark start ot code where err
 			local usedPTVs "`usedPTVs' `var'"					// Store only if some but not all ditto
 			local miscnts = "`miscnts' " + string(`missing')
 		}
-		local countPTVs = `countPTVs' + 1							// N of vars specified by user in varlist
+		local countPTVs = `countPTVs' + 1						// N of vars specified by user in varlist
 			
 	  } //next `var'
 		
 
 	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
-	     if `showDiag' noisily display /*_newline*/ "   Context `lbl' has `numobs' observations " _continue
+	     if `showDiag' noisily display  "   Context `lbl' has `numobs' observations " _continue
 	  }
 	  else  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
 		
@@ -212,7 +214,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 			
 		foreach var in `varlist' {
 			
-			quietly summarize `var' /*if m_`var'==0*/ 					// Get stats for just non-missing values
+			quietly summarize `var' 				 					// Get stats for just non-missing values
 			scalar omi = r(min)
 			scalar oma = r(max)											// Determine N of chars needed to display max value
 			local oM = string(r(max))									// Note that different vars have different max
@@ -317,4 +319,3 @@ end //geniiP_body
 
 
 ****************************************************** END PROGRAM geniimputeP ***************************************************
-
