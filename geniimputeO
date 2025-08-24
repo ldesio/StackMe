@@ -19,13 +19,13 @@ global errloc "geniimputeO"									// Global that keeps track of execution loca
 
 
 ********
-capture {													// Open capture braces mark start ot code where errors will be captured
+capture noisily {												// Open capture braces mark start ot code where errors will be captured
 ********	
 	
 	syntax anything  ,   ///		
 		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) IPRefix(name) MPRefix(name) ROUndedvalues BOUndedvalues SELected ] ///	**
 		[ LIMitdiag(integer -1) NODIAg EXTradiag KEEpmissing REPlace NOInflate FASt MINofrange(integer 0) MAXofrange(integer 0) ]	///	**
-		[ RANgeofvalues NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) ] *		//	**
+		[ RANgeofvalues(str) NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) * ] //	**
 		
 		// contextvars, nocontexts, stackid, nostacks handled in wrapper; rounded, bounded, range, keep & replace in caller; 
 		// addvars, selected, noinflate, fast, nvarlst, ctxvar nc, c, & wtexplst are only optiones handled here
@@ -39,7 +39,19 @@ capture {													// Open capture braces mark start ot code where errors wil
 
 	
 	
-												// Convert original default options (or revised defaults) for piped syntax)
+												// Convert original default options (or revised defaults) for piped syntax
+	
+	if "`rangeofvalues'"!=""  {									// If user optioned a range of values ..
+	  gettoken precomma postcomma : rangeofvalues, parse(",")	// See if there is a comma
+	  if "`postcomma'"!=""  {
+		local minofrange = "`precomma'"							// If so, put `precomma' into `minofrange'"
+		local maxofrange = strtrim(substr("`postcomma'",2,.))	// (and trimmed `postcomma', shorn of comma, into `maxofrange')
+	  }
+	  else  {													// Else there is no comma
+		local minofrange = word("`rangeofvalues'",1)			// (so range values are in successive words)
+		local maxofrange = word("`rangeofvalues'",2)
+	  }
+	} //endif `rangeofvalues'									// Else min & max may still be optioned
 
 	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
 	local missingflagprefix = "m_"	
@@ -73,6 +85,10 @@ capture {													// Open capture braces mark start ot code where errors wil
 												// Pre-process multi-varlist, variables saved by iimpute, and contextvars
 
 	local postpipes = "`anything'"							// Pretend `anything' started with (already removed) pipes ("||")
+/*	local allPTVs = ""										// Will hold list of vars from which to generate imputd versns
+	√local imputedvars = ""									// Will hold list of variables to impute (in all multi-varlsts)
+	√local missingvars = ""									// Ditto list of vars  with cases where unimputd var was missng
+*/	
 	local allPTVs = ""
 	local totPTVs = 0										// Initialize count of max # of vars to be imputed
 	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
@@ -134,6 +150,19 @@ capture {													// Open capture braces mark start ot code where errors wil
 			
 		} //next var 											// (in this varlist)
 		  
+/*																// NOT SURE WE USE ANY OF THESE
+		local nptvs: list sizeof thePTVs						// Get length of (longest sub-)varlist
+		if `nptvs'>`maxPTVs'  local maxPTVs = `nptvs'			// NOT SURE WE USE THIS
+			
+		local naddv: list sizeof addvars						// Same for any additional vars in a multi-varlist
+
+		if `naddv'>`maxaddv'  local maxaddv = `naddv'
+		foreach var of varlist `addvars'  {
+		   if strpos("`alladdv'", "`var'")==0  {				// If this 'var' is not already in the list of 'addvars'
+			   local alladdv = "`alladdv' `var'"
+		   }
+		}
+*/		
 		local vlnvl = "vl`nvl'"
 		global `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
 		local alnvl = "al`nvl'"
@@ -169,8 +198,12 @@ capture {													// Open capture braces mark start ot code where errors wil
 		exit
 	}
 	
-	local keepvars = "`allPTVs' `alladdv' `prfxdPTVs' `SMimisCount'"
+	local keepvars = "`allPTVs' `alladdv' `prfxdPTVs' `SMimisCount' `SMimisImpCount'"
 	return local keepvars `keepvars'							// Return unabbreviated un-hyphenated vars in r(checked)
+	
+	local minmax = "`minofvalues' `maxofvalues'"				// Either originally optioned or derived from `rangeofvalues'
+	if "`minmax'"==" "  local minmax = ""
+	return local minmax `minmax'								// Return minmax in two-word string
 
 	
  
