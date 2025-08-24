@@ -21,27 +21,28 @@ input variable holding self-placements for each respondent
 {p 9}or
 
 {p 6 14 2}
-{cmdab:gendi:st} [{help varname:selfplace}:] {varlist} [if][in][weight] [ {bf:||} [{help varname:selfplace}:] 
-				 {varlist} [weight] [ || ... ] || [{help varname:selfplace}:] {varlist} [weight]{cmd:,} {it:options}
+{cmdab:gendi:st} [{help varname:selfplace1}:] {help varlist:varlist1} [if][in][weight] [ {bf:||} [{help varname:selfplace2}:] 
+				 {help varlist:varlist2} [weight] [ || ... ] || [{help varname:selfplace{it:k}}:] {help varlist:varlist{it:k}} 
+				 [weight]{cmd:,} {it:options}
 
 {p 9 9 2}generates distances for multiple  batteries (separated by "||"), each of which can be 
 prefixed by a matching respondent self-placement and each of them applying the same options.
 
 	
-{p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. 
-Each can be used with either stacked or unstacked data. {bf:Speed of execution} can be much increased by grouping 
-together varlists that employ the same options (especially useful if the variables in each battery are being 
-individually enumerated as described below). In that case 'if/in' expressions should suffix the first varlist and 
-', options...' should suffix the final {varlist}. Weights can be specified after any or all {varlist}s.
+{p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. Each can be used 
+with either stacked or unstacked data (see below for details). {bf:Speed of execution} can be much increased by grouping 
+together varlists that employ the same options (especially useful with unstacked data). In that case 'if/in' expressions should 
+suffix the first varlist and ', options...' should suffix the final {varlist}. Weights can be specified after any or all 
+{varlist}s.{p_end}
 
 {p 6 8 2}{bf:If the data are not yet stacked:} each varlist should enumerate the battery members for which distances 
 will be calculated, as illustrated by the second syntax.{p_end}
-{p 6 8 2}{bf:If the data are already stacked:} each variable should name the battery whose observations had been 
-battery members before stacking (and whose unstacked stubnames now name the stacked battery). Distances are 
+{p 6 8 2}{bf:If the data are already stacked:} each varlist should be replaced by the name of the stacked variable whose individual 
+stacks had been battery members before stacking (and whose unstacked stubnames now name the stacked battery). Distances are 
 calculated separately for each stack and context (unless otherwise optioned).{p_end}
 
-{p 4 4 2}Names of resulting distance measures for each member of each {varlist} are constructed by prefixing (by 
-"dd_" or such other prefix as might be set by option {opt dpr:efix}) the name of the variable for which distances 
+{p 4 4 2}Names of resulting distance measures for each member of each {varlist} are constructed by prefixing (by "dd_" 
+or "d" followed by such other prefix as might be set by option {opt dpr:efix}) the name of the variable for which distances 
 to the {it:selfplacement} measure are calculated.
 
 {p 4 4 2}aweights, fweights, iweights, and pweights are allowed; see {help weight}.
@@ -61,8 +62,7 @@ parties) have been placed.{p_end}
 {p2colset 4 19 21 2}{synopt :{opt plugall}}replace all values of each reference variable with plugging values calculated 
 according to option {opt mis:sing}, thus yielding values that are constant across respondents. See the SPECIAL NOTE ON 
 {help gendist##referencevalues:REFERENCE VALUES}.{p_end}
-{synopt :{opt pro:ximities}}generate proximity measures instead of distances (includes a check on missing data 
-handling).{p_end}
+{synopt :{opt pro:ximities}}generate proximity measures instead of distances.{p_end}
 {synopt :{opt rou:ndedvalues}}rounds calculated distances/proximities to the nearest integer (to nearest 0.1 if data are 
 proportions).{p_end}
 
@@ -86,22 +86,23 @@ variables (default is "dp_").{p_end}
 "dd_").{p_end}
 {synopt :{opt xpr:efix(string)}}replacement for 2nd char of prefix identifying generated proximity measures (default is 
 "dx_").{p_end}
-{synopt :{opt apr:efix(string)}}one or more text characters to replace the "_" character following the (dm, dp, dd or dx) 
-initial characters in ALL of the default prefixes mentioned above (should end with a "_" character).{p_end}
+{synopt :{opt apr:efix(string)}}one or more text characters to preceed the "_" character following the (dm, dp, dd or dx) 
+initial characters in ALL of the default prefixes mentioned above.{p_end}
 {p2colset 4 21 21 2}{synopt :{opt mcountname(name)}}if specified, name for a generated variable reporting the original 
 number of missing items (default is to generate a variable named SMdmisCount).{p_end}
 {synopt :{opt mpluggedcountname(name)}}if specified, name for a generated variable reporting the number of missing 
-items after mean-plugging (default is to generate a variable named SMdmplugcount.{p_end}
+items after mean-plugging (default is to generate a variable named SMdplugMisCount.{p_end}
 {p2colset 4 19 21 2}{synopt :{opt kee:pmissing}}keeps all generated variables indicating original missingness, even if 
-{opt rep:lace} (see below) is optioned.{p_end}{synopt :{opt rep:lace}}drop original party location variables, party 
-placements and missing indicators (unless {opt keep:missing} – see above – was also optioned).{p_end}
+{opt rep:lace} (see below) is optioned.{p_end}
+{synopt :{opt rep:lace}}drop original party location variables, party placements and missing indicators (unless 
+{opt keep:missing} – see above – was also optioned).{p_end}
 
 {p 2}{ul:Diagnostics options}
 
 {synopt :{opt lim:itdiag(#)}}limit progress reports to first # contexts for which distances are being calculated.{p_end}
 {synopt :{opt nod:iag}}suppress progress reports; equivalent to 'limitdiag(0)'.{p_end}
 
-{p 5}Specific options all have default settings unless described as "required"
+{p 5}Specific options all have default settings unless described as "required".{p_end}
 
 
 {synoptline}
