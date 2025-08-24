@@ -244,8 +244,6 @@ pause (0.1)
 	if "`cmd'"=="gendummies" | "`cmd'"=="genmeanstats" local needopts = 0 // These two stackMe commands do not require an options-list
 															// ADD ANY OTHER EXCEPTIONS, AS DISCOVERED 									***
 	gettoken cmdstr mask : rest, parse("\")					// Split rest' into the command string and the syntax mask
-	
-	global mask = "`mask'"									// Make a copy to share with getprfxdvars and any other program needing it
 						
 	gettoken preopt rest : cmdstr, parse(",")				// Locate start of option-string within 'cmdstr' (it follows a comma)
 															// ('preopt' will be prepended to 'postopt', below, to make 'multivarlst)
@@ -310,7 +308,7 @@ pause (0.2)
 	else  {													// Else first word is not "multicntxt"
 		local mask = "`istwrd'" + "`mask'"					// So re-assemble mask by prepending whatever was in 1st word to rest
 	}														//  of mask, but with "multicntxt" flag and leading "\" removed
-	global mask = "`mask'"									// Make a global copy for subprograms (e.g.'getprfxdvars') that need it
+
 	gettoken preparen postparen : mask, parse("(")			// Identify the option-name for critical 1st option by parsing on "("
 	local opt1 = lower("`preparen'")						// Deal with any capitalized initial chars in this option name
 															// (leaves the lower case version of 1st optn in 'opt1', needed below)
@@ -370,15 +368,18 @@ pause (1)
 														// Initial `mask' (coded in the wrapper's calling `cmd' was pre-processed
 														//  in codeblock 0.2 above); options added here apply to all stackMe commnds
 *		***************									// (except that genstacks cannot have NOCONtexts or NOSTAcks)
+		global mask = "`mask'  NODiag EXTradiag REPlace CONtextvars(varlist) NOCONtextvars NOSTAcks prfxtyp(string) SPDtst"
+														// Need a copy of full mask, established as below, for subprogram syntax stmt
 		syntax , [ `mask'  NODiag EXTradiag REPlace CONtextvars(varlist) NOCONtextvars NOSTAcks prfxtyp(string) SPDtst * ] 
 *	    ***************	  							  	// `mask' was establishd in caller `cmd' and preprocessd in codeblk (0.2)
 														// (Option SPDtst uses supposedly slower but simpler append file code)
 														// (Final asterisk in 'syntax' places unmatched options in `options')
-		if "`options'"!=""  {							// (So here check for user option(s) that don't match one listed above)
-		
-		   if "cmd'"!="genstacks"  {					// Except for command 'genstacks', for which ...
-		   
-			  foreach opt  in  nosta  {					// 'nostacks' (perhaps more – hence 'foreach') is optional for all but genstacks
+		if "`options'"!=""  {							// (So here check for user option(s) that don't match any listed above)
+
+/*														// COMMENTED OUT 'COS CHECK SHOULD BE IN 'genstacks', NOT HERE					***
+		   if "cmd'"!="genstacks"  {					// Except for command 'genstacks', for which ...		   
+			  local tail = "`options'"
+			  foreach opt  in  nostacks  {				// 'nostacks' (perhaps more – hence 'foreach') is optional for all but genstacks
 				 gettoken head tail : tail, parse("(")	// Put each options string in turn, up to the first/next "(", into 'head"
 				 if substr("`head'",1,5)=="`opt'"  {	// If 'head' is "(nocon'" (minimum version of "(nocontexts)")
 					local tail = substr("`tail'",1,strpos(")"))				  // `tail' has whatever else the user typed, up to ")"
@@ -389,13 +390,12 @@ pause (1)
 		   } //endif `genstacks'
 		   
 		   if "`options'"!=""  {						// If, after removing the above 'options'-string still has any options remaining
-			  display as error "Option(s) invalid for this cmd: `options'"
+*/			  display as error "Option(s) invalid for this cmd: `options'"
 			  errexit, msg("Option(s) invalid for this cmd: `options'")
 														// Call on 'errexit' with optioned msg suppresses display, done just above
 			  exit										// 'exit' cmd returns to caller, skipping rest of wrapper incldng skipcapture
-		   }
-		   
-		} //endif 'options'												
+*		   }
+		}
 
 
 		local lstwd = word("`opts'", wordcount("`opts'"))	// Extract last word of `opts', placed there in 0.2 & parsed above
@@ -1042,6 +1042,17 @@ pause (2.1)
 *	 ********************											***********************************************************																
 																
 	global limitdiag = `limitdiag'									// (first point at which this global can be set by all commands)
+	
+	
+	if substr("`multivarlst'",-2,2)=="||" {							// See if varlist ends with "||" (user must have done this)
+		local len = strlen(strtrim("`multivarlst'"))
+		local multivarlst = strtrim(substr("`multivarlst'",1,`len'-2)) 
+	}																// Strip those pipes if so
+
+	global multivarlst = "`multivarlst'"							// Make it accessible to caller programs and subprograms
+																	// (`multivarlst' has list of all varlists including ":" and "||")
+
+
 
 				
 				
@@ -1368,9 +1379,10 @@ pause (6)								//		 **********************************************************
 		  
 		else  {												// Else for the other cmds currently having cmd'O programs
 		  local temp = r(keepvars)
-		  local temp = subinstr("`temp'",".","",.) 			// Remove any missing variable symbols
-															//																*******
+		  local temp = subinstr("`temp'",".","",.) 			// Remove any missing variable symbols							*******
 		  local keep = "`keepvars' `temp'"					// And from `temp'' to 'keep'							   		OR HERE		
+		  local minmax = r(minmax)							// Only relevant to 'geniimpute' for now
+		  if "`minmax'"=="."  local minmax = ""
 		  if `limitdiag'  local fast = "fast"				// Only relevant to geniimpute; limits per context diagnostics  *******
 		}
 					
@@ -1464,14 +1476,6 @@ pause (6.1)								//		 ********************************************************
 	  if "`multiCntxt'"==""  local nc = 1					// If "`multiCntxt' is empty then there is only 1 context
 															// ('multiCntxt' was initialized in `cmd'.ado)
 																	  
-	  if substr("`multivarlst'",-2,2)=="||" {				// See if varlist ends with "||" (user must have done this)
-		local len = strlen(strtrim("`multivarlst'"))
-		local multivarlst = strtrim(substr("`multivarlst'",1,`len'-2)) 
-	  }														// Strip those pipes if so
-
-	  global multivarlst = "`multivarlst'"					// Make it accessible to caller programs and subprograms
-															// (`multivarlst' has list of all varlists including ":" and "||")
-
 															
 
 															
@@ -1849,7 +1853,7 @@ pause (10)
 *		*******
 		cleanUp ,  cmd(`cmd') self(`selfplace') dep(`depvarname') apr(`aprefix') dpr(`dprefix') ipr(`iprefix') mpr(`mprefix')  	   ///
 /*		*******/  `boundedvars' ppr(`pprefix') xpr(`xprefix') ypr(`yprefix') sta(`stats') mis(`missing') lim(`limitdiag') `nodiag' ///
-				  `roundedvars' `keepmissing' `makemisvar'`proximities' `replace' `noduprefix' `wtprefix' *			 
+				   minmax(`minmax') `roundedvars' `keepmissing' `makemisvar'`proximities' `replace' `noduprefix' `wtprefix'			 
 					 
 	}						
  
@@ -2222,8 +2226,8 @@ pause cleanUp(10)
 	
 	
 	syntax , [ cmd(str) SELfplace(name) DEPvarname(name) APRefix(str) DPRefix(str) IPRefix(str) MPRefix(str) PPRefix(str) ]	///
-			 [ XPRefix(str) YPRefix(str) MISsing(str) LIMitdiag(integer -1) PROximities NODiag ROUnd BOUnd KEEpmissing ] 	///
-			 [ MULtivariate MAKemisvars REPlace NOReplace NODuprefix WTPrefix * ]	
+			 [ XPRefix(str) YPRefix(str) MISsing(str) LIMitdiag(integer -1) minmax(str) PROximities NODiag ROUnd BOUnd ] 	///
+			 [ KEEpmissing MULtivariate MAKemisvars REPlace NOReplace NODuprefix WTPrefix * ]
 
 										
 										
@@ -2500,7 +2504,7 @@ pause cleanUp(10.2)
 
 
 
-										// (10.2) Round outcomes if optioned
+										// (10.2) Round/bound outcomes if optioned
 												  
 	
 	  if "`round'"!=""	 {									// If 'round' was optioned
@@ -2535,6 +2539,35 @@ pause cleanUp(10.2)
 		} //next 'nvl'
 	
 	  } //endif 'round'   			
+	  
+	  
+	  if "`bound'"!="" | "`minmax'"!=""  {					// SHOULD CHECK EARLY IN WRAPPER THAT DON'T HAVE BOTH								***
+	  	
+		 if "`minmax'"!="" {
+		 	local minval = word("`minmax'",1)
+			local maxval = word("`minmax'",2)
+		 }
+	  	 if `limitdiag'  noisily display "Bounding outcome variables (limiting outcome value ranges) as optioned"
+
+		 forvalues nvl = 1/`nvarlsts'  {					// Cycle thru all varlists (derived from scalar VARLISTS in codeblk 10)
+	
+			foreach var  of  local varlist  {				// Cycle thru all outcome vars for all varlists
+	   
+			   if strpos("`skipvars'","`var'") continue		// Skip any that are all missing in all contexts
+
+			   if "`bound'"!=""  {							// If bounded values were optioned, get min & max of var
+				  qui sum `var'
+				  local minval = r(min)
+				  local maxval = r(max)
+			   }
+			   if `minval'>`var' qui replace `var' = `minval'
+			   else  {
+			   	  if `maxval'<`var' qui replace `var' = `maxval'
+			   }
+			} //next `var'
+		 } //next `nvl'
+		 
+	  } //endif `bound' | `minmax'
 		
 
 
@@ -2721,7 +2754,7 @@ capture program drop dispLine
 
 program define dispLine							// This program was written to overcome an apparent error when Stata refused to
 												//   display text 'display'ed by a subprogram called from within capture braces. 
-args msg aserr									// A better solution was to put the 'display' command itself within capture braces, 
+args msg aserr									// A better solution was to capture noisily and noisily display, 
 												//   but this subprogram then became a means of displaying text with >80 colums
 												
 *global errloc "dispLine"						// COMMENTED OUT BECAUSE IT COULD BE MISLEADING IF DISPLINE WAS CALLED FROM errexit
@@ -2934,7 +2967,7 @@ local cmd = "$cmd"
 * *****************											//   brace will cause jump to command following that close brace
 
 * *****************											// 2nd appearance is cluge to avoid "} is not a valid command at end
-  capture noisily {											// (Syntax etc) errors in captured codeblks to up to matching close  
+*  capture noisily {											// (Syntax etc) errors in captured codeblks to up to matching close  
 * *****************											//   brace will cause jump to command following that close brace
 
   	
