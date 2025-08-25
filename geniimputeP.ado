@@ -35,7 +35,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	syntax anything, [ LIMitdiag(integer -1) EXTradiag NOInflate SELected ROUndedvalues BOUndedvalues MINofrange(integer 0) ] ///
 			 [ MAXofrange(integer 0) FASt ctxvar(varname) NVArlst(integer 1) nc(integer 0) c(integer 0) WTExplst(string) * ]
 			 
-			 // rangeofvalues used in geniimputeO to initialize 
+			 // rangeofvalues used in geniimputeO to initialize minofrange & maxofrange (executed in subprogram 'cleanup'
 	
 																 // varlist is passed in a set of globals, one for each nvl
 
@@ -79,7 +79,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	
 	
 	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
-	  
+																// MAYBE REVISE THIS USE EXISTING SCALARS TO REPLACE GLOBALS			***
 	  local vlnvl = "vl`nvl'"
 	  local varlist = "$`vlnvl'" 								// Varlist for each nlv was stored in global by geniimputeO
 *	  global `vlnvl' = ""										// Empty that global after transferring contents to local `varlist'
@@ -111,7 +111,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 		
 
 	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
-	     if `showDiag' noisily display  "   Context `lbl' has `numobs' observations " _continue
+	     if `showDiag' noisily display /*_newline*/ "   Context `lbl' has `numobs' observations " _continue
 	  }
 	  else  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
 		
@@ -214,7 +214,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 			
 		foreach var in `varlist' {
 			
-			quietly summarize `var' 				 					// Get stats for just non-missing values
+			quietly summarize `var' /*if m_`var'==0*/ 					// Get stats for just non-missing values
 			scalar omi = r(min)
 			scalar oma = r(max)											// Determine N of chars needed to display max value
 			local oM = string(r(max))									// Note that different vars have different max
@@ -294,7 +294,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 				
 
 
-	  if !`showDiag' & "`fast'"==""  noisily display "." _continue				// Only show progress dots if diagnostics not optioned
+	  if !`showDiag' & "`fast'"==""  noisily display "." _continue		// Only show progress dots if diagnostics not optioned
 		  
 
 	} // next nvl
