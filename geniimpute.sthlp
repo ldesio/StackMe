@@ -62,8 +62,8 @@ undocumented alternatives{p_end}
 {p 2}{ul:Data-structure options}
 
 {synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the different electoral 
-contexts within missing values will be separately imputed (required if the default contextvars, recorded as a 'data 
-characteristic' by command {help stackme##SMcontextvars:{ul:SMcon}textvars}, is to be overriden){p_end}
+contexts within missing values will be separately imputed (required if the default contextnames, recorded as a 'data 
+characteristic' by command {help stackme##SMcontextnames:{ul:SMcon}textnames}, is to be overriden){p_end}
 {synopt :{opt nocon:texts}}override the default behavior that generates distances within each context separately.{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context (has 
 no effect if data are not stacked){p_end}
