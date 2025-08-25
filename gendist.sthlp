@@ -69,8 +69,8 @@ proportions).{p_end}
 {p 2} {ul:Data-structure options}
 
 {p2colset 4 25 21 2}{synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the 
-different contexts within which distances will be separately generated (required if the default contextvars, recorded 
-as a 'data characteristic' by command {help stackme##SMcontextvars:{ul:SMcon}textvars}, is to be overriden).{p_end}
+different contexts within which distances will be separately generated (required if the default contextnames, recorded 
+as a 'data characteristic' by command {help stackme##SMcontextnames:{ul:SMcon}textnames}, is to be overriden).{p_end}
 {p2colset 4 19 21 2}{synopt :{opt nocon:texts}}override the default behavior that generates distances within each context 
 separately (has no effect if contexts have not been defined).{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context (has no effect if data 
