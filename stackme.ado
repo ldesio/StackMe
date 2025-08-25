@@ -16,16 +16,16 @@
 									//
 									// SMitemname: invoked to supply the name of a linkage variable, to be linked to varname SMitem
 									
-
+									// THE HELPFILE FOR THIS ADOFILE IS NAMED SMutilities.sthlp
 									
-capture program drop SMsetcontexts
+capture program drop SMcontextnames
 
 
-program define SMsetcontexts					// This program should be invoked after first 'use' of the datafile to be processed
+program define SMcontextnames					// This program should be invoked after first 'use' of the datafile to be processed
 												// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 version 9.0
 
-global cmd = "SMsetcontexts"
+global cmd = "SMcontextnames"
 
 												// SEE IF THIS IS INITIAL CALL on stackMe utility for a new dataset
 															
@@ -903,5 +903,4 @@ end SMfil
 
 
 **************************************************** END OF stakMe UTILITIES ***************************************************
-
 
