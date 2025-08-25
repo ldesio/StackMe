@@ -13,27 +13,27 @@
 {title:Syntax}
 
 {p 8 16 2}
-{opt genii:mpute} {it:stacked} {bf:{varlist}} {ifin}{weight} {bf:, options}
+{opt genii:mpute} {bf:{varlist}} {ifin}{weight} {bf:, options}
 
 {p 8}
 or
 
 {p 8 16 2}
-{opt genii:mpute} {it:unstacked} {it:[addvars:]{varlist}} {ifin}{weight}}{cmd:,} {opt options} {cmd:[ ||} {it:unstacked} {it:[addvars:]}{varlist}  ... {bf:]}
+{opt genii:mpute} {it:[addvars:]}{varlist} {ifin}{weight} [ || {it:[addvars:]}{varlist} {weight} [ ...
+				  {it:[addvars:]}{varlist} {weight} {bf:, options} ] ]
 
-
-{p 4 4 2}
-where a stacked {varlist} consists of {varname}s constructed from the stubs of unstacked {varname}s when 
-those were {help reshape}d by the {help StackMe} command {help genstacks}. Syntax 2 applies the same 
-options to multiple varlists and permits a list of additional variables (see option {opt add:vars}), 
-followed by a colon, to optionally precede each {varlist}.  See {bf:Description}, below, for details.
 	
 {p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. 
 Each can be used with either stacked or unstacked data. {bf:Speed of execution} can be much increased by grouping 
-together varlists that employ the same options.
+together varlists that employ the same options, as illustrated by the second syntax example. That format also 
+permits a list of additional variables (see option {opt add:vars}) to be named as a prefix to each varlist. See 
+{bf:Description}, below, for details.
 
-{p 4 4 2}Names for imputed versions of {varlist} are constructed by prefixing (by "ii_" or "i" followed by some 
-other prefix set by option {opt ipr:efix}) the name of the variable for which missing values are imputed.
+{p 4 4 2}If the second syntax is being employed 'if/in' expressions should suffix the first varlist and ', options...' 
+should suffix the final {varlist}; weights can follow any or all {varlist}s.
+
+{p 4 4 2}Names for imputed versions of {varlist} are constructed by prefixing with "ii_" (or with "i" followed by 
+some other prefix set by option {opt ipr:efix}) the name of the variable for which missing values are imputed.
 
 {p 4 4 2}aweights, fweights, iweights, and pweights are allowed; see {help weight}.
 
@@ -169,7 +169,7 @@ of being found empirically. If this is not considered adequate, it is possible t
 datasets, each one separately saved to be later imported into Stata's {help mi}. Alternatively, Stata's 
 {help mi} suite of commands can be employed with data that have been pre-processed by {cmd:StackMe}; but 
 this would result in an (arguably unnecessary) m-fold increase (where `m' is the number of replications 
-produced by Stata's {help mi}) in the size of an already very large dataset.
+produced by Stata's {help mi}) in the size of an (often) already very large dataset.
 
 {pstd} NOTE that, if the data need to be replicable, each dataset to be used in 
 multiple imputation will need to be produced by a separate invocation of {cmd:geniimpute} that would follow 
