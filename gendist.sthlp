@@ -31,9 +31,11 @@ prefixed by a matching respondent self-placement and each of them applying the s
 	
 {p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. Each can be used 
 with either stacked or unstacked data (see below for details). {bf:Speed of execution} can be much increased by grouping 
-together varlists that employ the same options (especially useful with unstacked data). In that case 'if/in' expressions should 
-suffix the first varlist and ', options...' should suffix the final {varlist}. Weights can be specified after any or all 
-{varlist}s.{p_end}
+together varlists that employ the same options (especially useful with unstacked data). This also permits a different self-placement 
+measure to prefix each varlist (see option {opt sel:fplace}). See {bf:Description}, below, for details.{p_end}
+
+{p 4 4 2}When using the second syntax, 'if/in' expressions should suffix the first varlist and ', options...' should suffix the 
+final {varlist}. Weights can be specified after any or all {varlist}s.{p_end}
 
 {p 6 8 2}{bf:If the data are not yet stacked:} each varlist should enumerate the battery members for which distances 
 will be calculated, as illustrated by the second syntax.{p_end}
@@ -86,13 +88,13 @@ variables (default is "dp_").{p_end}
 "dd_").{p_end}
 {synopt :{opt xpr:efix(string)}}replacement for 2nd char of prefix identifying generated proximity measures (default is 
 "dx_").{p_end}
-{synopt :{opt apr:efix(string)}}one or more text characters to preceed the "_" character following the (dm, dp, dd or dx) 
-initial characters in ALL of the default prefixes mentioned above.{p_end}
+{synopt :{opt apr:efix(string)}}one or more text characters (often a single numeric character) to preceed the "_" character 
+following the (dm, dp, dd or dx) initial characters in ALL of the prefixes mentioned above.{p_end}
 {p2colset 4 21 21 2}{synopt :{opt mcountname(name)}}if specified, name for a generated variable reporting the original 
 number of missing items (default is to generate a variable named SMdmisCount).{p_end}
 {synopt :{opt mpluggedcountname(name)}}if specified, name for a generated variable reporting the number of missing 
 items after mean-plugging (default is to generate a variable named SMdplugMisCount.{p_end}
-{p2colset 4 19 21 2}{synopt :{opt kee:pmissing}}keeps all generated variables indicating original missingness, even if 
+{p2colset 4 19 21 2}{synopt :{opt kee:pmissing}}keeps the generated variable indicating original missingness, even if 
 {opt rep:lace} (see below) is optioned.{p_end}
 {synopt :{opt rep:lace}}drop original party location variables, party placements and missing indicators (unless 
 {opt keep:missing} – see above – was also optioned).{p_end}
@@ -167,7 +169,7 @@ self-placements are calculated (often the left-right or policy positions of poli
 assigned by experts or derive from some other external source. Alternatively, respondents might themselves 
 be performing as "experts" in regard to the locations of the reference items in specific contexts. In that 
 case it will generally be appropriate to use the {opt plu:gall} option to produce a constant value across all 
-respondents in each context, based on the expertise of respondents deemed particularly expert. {opt mis:sing(mean)} 
+respondents in each context, based on the expertise of respondents deemed particularly expert. {opt mis:sing(all)} 
 plugging values are calculated across all (non-missing) responses (the same mean as produced by {help genmeanstats} 
 or {help genplace}); but {opt mis:sing(diff)} plugging values are each calculated across the subset of respondents 
 that, for each reference item, placed that item elsewhere than they placed themselves. So {opt plu:gall}-processed 
@@ -219,7 +221,7 @@ if the maximum value of the item position is no greater than 1).{p_end}
 {phang}
 {opt con:textvars(varlist)} (generally unspecified) a set of variables identifying the different contexts within 
 which distances will be separately generated. By default, context information is taken from a Stata .dta file 
-{help char:characteristic} established by {cmd:stackMe}'s command {help stackme##SMcontextvars:{ul:SMcon}textvars} 
+{help char:characteristic} established by {cmd:stackMe}'s command {help stackme##SMcontextnames:{ul:SMcon}textnames} 
 (which can also establish that the datafile does not distinguish between contexts) the first time this file was 
 opened for {help use} by a {cmd:stackMe} command; so this option is required if the default is to be overriden.{p_end}
 
@@ -254,10 +256,10 @@ subsequent) character(s) preceeding the end-of-prefix symbol ("_") of a prefix i
 (default is "dx_").{p_end}
 
 {phang}
-{opth apr:efix(string)} if present, provides one or more text characters that replace(s) the end-of-prefix symbol ("_") 
+{opth apr:efix(string)} if present, provides one or more text characters to preceed the end-of-prefix symbol ("_") 
 following the (dm, dp, dd or dx) initial characters (or their replacements) in ALL (hence the chosen prefix designation 
-character) of the default prefixes mentioned above (should end with a "_" character). This makes it easy to distinguish 
-(for example) different treatments in terms of mean-plugging, weighting, subsetting, or the like.{p_end}
+character) of the prefixes mentioned above. This final prefix component (often a single numeric character) makes it easy 
+to distinguish (for example) different treatments in terms of mean-plugging, weighting, subsetting, or the like.{p_end}
 
 {phang}
 {opth mco:untname(name)} if specified, name for a generated variable reporting original number of missing items (default 
@@ -271,7 +273,7 @@ SMdplugMisCount). NOTE that missing respondent self-placements can by plugged by
 {help geniimpute:{ul:genii}mpute} command.{p_end}
 
 {phang}
-{opt kee:pmissing} if specified, keeps all generated variables indicating original missingness, even if {opt rep:lace} 
+{opt kee:pmissing} if specified, keeps the generated variable indicating original missingness, even if {opt rep:lace} 
 (see below) is optioned.{p_end}
 
 {phang}
