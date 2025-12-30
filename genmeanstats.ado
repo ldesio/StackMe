@@ -101,7 +101,10 @@ if "$SMreport"=="" {										// If there is a non-zero return code not already 
   if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
   scalar drop _all 											// Drop all scalars, including RC
 
+
   exit `rc'
+
+
 
 end genmeanstats			
 
@@ -109,7 +112,6 @@ end genmeanstats
 
 
 ************************************************** PROGRAM genme ****************************************************************
-
 
 
 capture program drop genme
@@ -123,3 +125,5 @@ end genme
 
 
 **************************************************** END genme ****************************************************************
+
+
