@@ -329,6 +329,12 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
 		
 											// (5) Deal with any Stata-diagnosed errors unanticipated by stackMe code
 											
+	if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	   errexit  "Program error while post-processing"
+	   exit _rc
+
+	}
 															
 	local err = "Stata reports a likely program error during post-processing"
 	display as error "`err'; retain (partially) processed dta?""
@@ -361,12 +367,9 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
   if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
   scalar drop _all 											// Drop all scalars, including RC
 
-
   exit `rc'
-
 	
 end // geniimpute			
-
 
 
 ************************************************** PROGRAM genii *********************************************************
