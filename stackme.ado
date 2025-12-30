@@ -1,31 +1,30 @@
-
-*! 														stackMe.ado
+*! 							stackMe.ado
 
 *! THIS ado file CONTAINS THE VARIOUS 'utility programs' NEEDED BY USERS OF stackMe COMMANDS. See first paragraph of 'help stackMe'
 
 *! Written by Mark, Feb 2025.
 
-									// stackMe.ado contains stackMe utility programs (programs with names starting with 'SM) as follows:
+									// stackMe.ado contains stackMe utility programs (programs with names starting with 'SM' as follows:
 									//
 									// SMsetcontexts: invoked, after opening a file, to establish or update context-defining vars as 
-									//  characteristics of that dataset. It also establishes the filename and filepath for the file 
-									//  being initialized. File characteristics can be updated by using SMsavefile to save the (possibly 
-									//  renamed) file in a new location (see below)
+									//   characteristics of that dataset. It also establishes the filename and filepath for the file 
+									//   being initialized. File characteristics can be updated by using SMsavefile to save the (possibly 
+									//   renamed) file in a new location (see below)
 									//  
 									// SMsavefile: invoked to save the active file under a new name and/or directory location
 									//
 									// SMitemname: invoked to supply the name of a linkage variable, to be linked to varname SMitem
 									
-									// THE HELPFILE FOR THIS ADOFILE IS NAMED SMutilities.sthlp
+
 									
-capture program drop SMcontextnames
+capture program drop SMsetcontexts
 
 
-program define SMcontextnames					// This program should be invoked after first 'use' of the datafile to be processed
+program define SMsetcontexts					// This program should be invoked after first 'use' of the datafile to be processed
 												// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 version 9.0
 
-global cmd = "SMcontextnames"
+global cmd = "SMsetcontexts"
 
 												// SEE IF THIS IS INITIAL CALL on stackMe utility for a new dataset
 															
@@ -903,4 +902,3 @@ end SMfil
 
 
 **************************************************** END OF stakMe UTILITIES ***************************************************
-
