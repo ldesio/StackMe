@@ -69,9 +69,9 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 								
 								
 								
-global SMreport = "skip"									//*****************************************************************
-															// HAS EFFECT OF SKIPPING ENTIRE ENSUING CODE, NOW FOUND IN WRAPPER
-*********************										*******************************************************************
+global SMreport = "skip"									//*******************************************************************
+															// HAS EFFECT OF SKIPPING ENTIRE ENSUING CODE, NOW FOUND IN 'cleanup'
+*********************										*********************************************************************
 if "$SMreport"==""  {
 *********************										// If this re-entry follows an error report (reported by program errexit)
 
@@ -470,6 +470,14 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
   } //endif _rc & 'skip..' & 'report'						// End brace-delimited error-capture handling
   *********************************
 
+  
+  
+  if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	 errexit  "Program error while post-processing"
+	 exit _rc
+
+  }
   
 
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
