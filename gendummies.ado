@@ -51,6 +51,57 @@ program define gendummies								// Called by 'gendu' a separate program defined
 											
 											
 					
+					
+  global SMreport = "skip"									//*****************************************************************
+															// HAS EFFECT OF SKIPPING ENTIRE ENSUING CODE, NOW FOUND IN WRAPPER
+  *******************										*******************************************************************
+  if "$SMreport"==""  {										// If this re-entry follows an error report (reported by program errexit)
+  *******************										// ($SMreport being non-empty means error has been reported)
+		
+		
+
+	global errloc "gendu"
+
+		
+		
+		
+	***************		
+	capture noisily {										// Begin new capture block in case of errors to follow)
+	***************
+
+
+		local 0 = "`save0'"									// On return from stackmeWrapper restore what user typed
+
+
+*		***************	
+		syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) APRefix(str) NODiag *  ]
+*		***************
+
+		if "`aprefix'"!=""  {								// Ensure aprefix, if any, has trailing "_"	
+			if substr("`aprefix'",-1,1) !="_"  local aprefix = "`aprefix'_"
+			rename du_`var' du`aprefix'`var'				// Note that 'all-prefix' replaces the "_", not the 'du_'
+		 }
+		
+		if "`nodiag'"!=""  local limitdiag = 0				// THE ONLY FUNCTION OF THIS CODEBLK1
+	
+*		local skipcapture = "skip"							// SO NO NEED TO skipcapture
+		
+
+*	  **************
+	} //end capture											// Close braces delimit code skipped on return from error exit
+*	  **************  
+
+*	***************
+  } //end $SMreport
+*	*************** 
+  
+  if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	 errexit  "Program error while post-processing"
+	 exit _rc
+
+  }
+
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
@@ -61,14 +112,9 @@ program define gendummies								// Called by 'gendu' a separate program defined
   if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
   scalar drop _all 											// Drop all scalars, including RC
 
-  
-
   exit `rc'													// Local 'rc' will be dropped on exit
-
-  
   
 end gendummies			
-
 
 
 
@@ -96,9 +142,4 @@ global abbrevcmd											// Clear the global
 end gendu
 
 
-
 ************************************************* END GENDU *******************************************************************
-
-
-
-
