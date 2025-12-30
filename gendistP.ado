@@ -50,7 +50,7 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	local stkd = 0
 	capture confirm variable SMstkid
 	if _rc == 0  local stkd = 1								// This versn makes no distinctn between stacked and unstkd dta
-	if "`nostacks'"!="" local stkd = 0						// Idiucates whether context includes stack #
+	if "`nostacks'"!="" local stkd = 0						// Indicates whether context includes stack #
 
 	
 	
@@ -85,7 +85,7 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	  
 	  if "`wtexplst'"!=""  {
 	    local weight = subinstr(word("`wtexplst'",`nvl'),"$"," ",.) 
-															// Replace any "$" by " " (substd to ensure 1 word per wt)		 		**
+															// Replace any "$" by " " (substituted to ensure 1 word per wt)		 	**
 	    if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper program			***
 	  }
 
@@ -95,7 +95,7 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 
 	  
 global errloc "gendistP(3)"	  
-
+pause gendistP(3)
 
 
 											// (3) Diagnostics are displayed only for 1st context SHOULD BE IN 'gendistO'`			***
@@ -103,24 +103,24 @@ global errloc "gendistP(3)"
 	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
  	
 	    if ("`pprefix'"!="" & "`missing'"=="") {			// Redundant 'cos already substituted "all" for empty
-	      display as error "Option {bf:pprefix} requires option {bf:missing} – exiting gendist"
+	      display as error "Option {bf:pprefix} requires option {bf:missing} – exiting gendist{txt}"
 		  errexit, msg("Option pprefix requires option 'missing'")
 	    }
 
 		if ("`missing'"=="dif2" & "`plugall'"=="")  {
-	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – exiting gendist"
-		  errexit, msg("Option missing(dif2) requires option plughall")
+	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – exiting gendist{txt"
+		  errexit, msg("Option missing(dif2) requires option plughall{txt}")
 		}
 
 		gettoken precolon postcolon : anything, parse(":")	// See if varlist contained prefix var & remove it if so
 		if "`postcolon'"!="" local anything = substr("`postcolon'",2,.)
 	    if `limitdiag' !=0 & `c'<`limitdiag'  {				// If diagnostics were not silenced, display 1st diagnostic
-		  noisily display _newline "{p}Computing distances between R's position ({result:`selfplace'}) " _continue
+		  noisily display _newline "{p}{txt}Computing distances between R's position ({result:`selfplace'}) " _continue
 		  noisily display "and their placement of objects: ({result:`varlist'}) {p_end}{txt}"
 		}
 
-		capture drop SMmisCount
-		capture drop SMplugMisCount
+*		capture drop SMmisCount
+*		capture drop SMplugMisCount
 		
 		
 	  } //endif`c'==1
@@ -144,16 +144,17 @@ global errloc "gendistP(4)"
 	 	local i = 0											// THIS CODEBLK SHOULD BE CONDUCTED ON WHOLE DATASET					***
 		while `i'<`nvars'  {
 		   local i = `i' + 1
+		   
 		   local var = word("`varlist'",`i')
-
+		   
 		   qui gen m_`var' = missing(`var')					// Code m_var =0, or =1 if missing
 		   scalar skip`i' = 0
 		   qui count if ! m_`var'							// Yields r(N)==0 if var does not exist
 
 		   if r(N)==0  {									// If there are no observations for this var in this context
 			 scalar skip`i' = 1								// Flag used in next codeblock to skip this var
-			 continue										// Skip any vars with no obs by continuing w next var
-		   }
+*			 continue										// Skip any vars with no obs by continuing w next var
+		   }												// COMMENTED OUT AS EXPERIMENT TO SEE IF SOLVES MISSING VAR PROBLEM		***
 
 		   if "`missing'"=="all"  qui sum `var' `weight', meanonly	// Use all obs to derive mean only for option missing(all)			
 		   if "`missing'"=="sam"  qui sum `var' `weight'  if `selfplace'==`var', meanonly
@@ -161,7 +162,7 @@ global errloc "gendistP(4)"
 		   if "`missing'"=="dif2" qui sum `var' `weight'  if `selfplace'!=`var', meanonly  // (distinction from dif is made below)
 
 		   scalar mean`i' = r(mean)
-		   gen p_`var' = mean`i'							// Store that mean as plugging value to replace miss val
+		   gen p_`var' = mean`i'							// Store that mean in p_`var' as plugging value to replace miss val
 
 		} //next var
 		
@@ -179,15 +180,15 @@ global errloc "gendistP(5)"
 	
 	    local i = 0
 		while `i'<`nvars'  {								// Process each var separately
+		
 		  local i = `i' + 1
 		  local var = word("`varlist'",`i')
 		  if skip`i'  {										// scalar skip`i' was set in previous codeblock
-		    qui gen p_`var' = .								// Put relevant mean into p_`var' for all obs on each var
-			qui gen d_`var' = .
-		  	continue										// If var was skipped above, skip it here as well
-		  }													// (continue with next var)
+		    qui replace p_`var' = .							// Put relevant mean into p_`var' for all obs on each var
+*		  	continue										// If var was skipped above, skip it here as well
+		  }													// (continue with next var) COMMENTED OUT FOR SAME REASON AS ABOVE		***
 
-		  if "`plugall'"!="" qui gen d_`var' =abs(`selfplace'-p_`var') // Subtract same mean value for all obs if plugall
+		  if "`plugall'"!="" qui gen d_`var' = abs(`selfplace'-p_`var') // Subtract same mean value for all obs if plugall
 		
 		  else  {											// Else plug only missing values (more if mis=="dif" optned)
 		
@@ -200,10 +201,17 @@ global errloc "gendistP(5)"
 			 if "`missing'"=="dif2" qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var' | `selfplace'==`var'
 															// dif2 treats `selfplace'==`var' as equivalent to missing
 		  } //endelse										// (requires `plugall'!="" 'cos otherwise variance is truncated)
+													
+		  if "`proximities'"!=""  qui gen x_`var' = .		// (if optioned, x_`var' will be processed in subprogram 'cleanup')
 		
 	    } //next var
 
 
+/*	    if `limitdiag'>=`c' /*"`smstkid'"*/ {				// `c' is updated for each different stack
+	  	  local lbl : label lname `c'
+	  	  noisily display "Vars in context `lbl' have at least `minN' and at most `maxN' valid obs"
+	    }
+*/		 
 				 
 				 
 				 
@@ -289,7 +297,4 @@ end //createActive copy
 
 
 ************************************************** END SUBPROGRAM **********************************************************
-
-
-
 
