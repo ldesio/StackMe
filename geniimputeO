@@ -219,11 +219,9 @@ if "`skipcapture'"==""  {										  // If not empty we did not get here due to 
 	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
 	exit
 }
-
 	
 			
 end //geniimputeO
 
 
 ********************************************** END PROGRAM GENIIMPUTEO ********************************************************
-
