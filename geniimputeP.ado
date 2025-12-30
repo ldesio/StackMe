@@ -35,7 +35,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	syntax anything, [ LIMitdiag(integer -1) EXTradiag NOInflate SELected ROUndedvalues BOUndedvalues MINofrange(integer 0) ] ///
 			 [ MAXofrange(integer 0) FASt ctxvar(varname) NVArlst(integer 1) nc(integer 0) c(integer 0) WTExplst(string) * ]
 			 
-			 // rangeofvalues used in geniimputeO to initialize minofrange & maxofrange (executed in subprogram 'cleanup'
+			 // rangeofvalues used in geniimputeO to initialize minofrange & maxofrange
 	
 																 // varlist is passed in a set of globals, one for each nvl
 
@@ -313,7 +313,6 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 	exit
 }
 
-	
 		
 end //geniiP_body
 
