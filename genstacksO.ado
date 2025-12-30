@@ -300,5 +300,4 @@ if "`skipcapture'"==""  {									// If not empty we did not get here due to sta
 end genstacksO
 
 
-
 ********************************************** END OF PROGRAM *************************************************************************
