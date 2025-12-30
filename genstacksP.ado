@@ -1,5 +1,4 @@
 
-
 capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
 program define genstacksP								// Called from 'stackmeWrapper', makes no calls on other subprograms
