@@ -1,4 +1,3 @@
-
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
 program define gendistP										// Called by 'stackmeWrapper'; calls subprograms 'errexit'
@@ -192,7 +191,7 @@ global errloc "gendistP(5)"
 		
 		  else  {											// Else plug only missing values (more if mis=="dif" optned)
 		
-		     qui gen d_`var' = abs(`selfplace' - `var')		// Default distance, missng when either component is missng
+		     qui gen d_`var' = abs(`selfplace' - `var')		// Default distance, missing when either component is missing
 															// These vars will be renamed before merging in case already
 															//  exist, in which case gendist caller will adjudicate
 			 if "`missing'"=="all"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
