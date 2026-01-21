@@ -30,6 +30,9 @@ capture noisily {											// Open capture braces mark start ot code where erro
 															// `prfx' and `isprfx' options now transmitted by scalar variables
 
 															
+															
+	global interims = ""									// Global will hold list of outcomenames with default prefix
+	
 	quietly count 	
 	local numobs = r(N)										// N of observations (gendummies processes all contexts at once)
 	
@@ -106,8 +109,8 @@ global errloc "genduP(5)"									// Global that keeps track of execution locati
 			  gen du_`out'`val' = (`var'==`val') 				// This is the money cmd that creates a new var for each value			***
 *			  **************************						// NOTE that, while outcome is stubname `out', input is still 'var' 
 																// REPLACED, IN 'cleanup', WHERE `val'	SUFFIX IS REMOVED				***
-*			  global inpvar = "`inpvar' `var'"					// 'inpvar' will be used in 'cleanup' to supply correspndng varnames
-																// (don't need this: can get it from `var')
+			  global interims = "$interims du_`out'`val'"		// Add to global list of interim varnames, fur use in 'cleanup'
+			  
 			  local label : label (`var') `val'					// Value label from each value of `var' 
 			  local label = strtrim("`label'")					// Remove any leading/trailing blanks
 			  local istchar = ""
@@ -151,11 +154,11 @@ global errloc "genduP(5.1)"										// Global keeps track of execution location
 			  if "`recordmissing'"!=""  local includemissing = "includemissing" // The former requires the latter
 			  if ("`includemissing'"!="") {						// See if user optioned values of 0 for missing data
 			  
-				  qui replace du_`out'`val' = 0 if du_`varname'`val'>=.
+			  qui replace du_`out'`val' = 0 if du_`varname'`val'>=.
 																// FIRST DECIDE HOW TO CODE MISVAL FOR NEW VARS (HERE TEXTUAL)			***
-					  if "`recordmissing'"!=""	 {				// THIS USER OPTION NOT DOCUMENTED AS YET
-						  local nm = 0							// Initialize count of different missing values
-						  preserve  							// (DATA NOT OTHERWISE PRESERVED FOR GENDUMMIES)
+					if "`recordmissing'"!=""	 {				// THIS USER OPTION NOT DOCUMENTED AS YET
+						local nm = 0							// Initialize count of different missing values
+						preserve  								// (LUCKILY, FOR 'gendummies', DATA ARE NOT OTHERWISE PRESERVED)
 							 drop if `var'<.					// Drop all non-missing observations
 							 sort `var' 						// Sort `var' in order of its missing values
 							 while _N>0  {						// While there are any remaining observations
@@ -163,15 +166,15 @@ global errloc "genduP(5.1)"										// Global keeps track of execution location
 								local val`nm' = min(`var')		// Put value of lowest missing value in val`nm'
 								drop if `var'<= val`nm'			// Drop observations with missing values less than this
 							 } //nextwhile
-						  restore								// Restore working data
-						  forvalues i = 1/`nm'  {				// Cycle thru all seperate missing values found
+						restore									// Restore working data
+						forvalues i = 1/`nm'  {					// Cycle thru all seperate missing values found
 							gen du_`var'`mis'`i' = val`nm'		// Generate a new var for each missval filled with that value
 							qui replace `newvar'mis`i' = `newvar' if `newvar'<.
-						  }										// Replace that value with original value for non-missing obs
+						}										// Replace that value with original value for non-missing obs
 						  
-					  } //endif `recordmissing'
+					} //endif `recordmissing'
 					  
-			  } //endif `includemissing
+			   } //endif `includemissing
 			  
 			} //next `val'
 				 
@@ -207,13 +210,15 @@ global errloc "genduP(5.1)"										// Global keeps track of execution location
 			errexit "Lacking permission to ignore non-integer variables"
 		  }
 		 
-	    } //endif 'notvat'
+	    } //endif 'notvar'
 
-		
+	
+	
+	
 		
 global errloc "genduP(6)"										  // Global that keeps track of execution location for benefit of 'errexit'
 
-	  
+
 											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
 											// 	   (or pre-process syntax for next varlist) ALL THIS NOW DONE IN WRAPPER
 											
@@ -222,6 +227,9 @@ global errloc "genduP(6)"										  // Global that keeps track of execution loc
 
 	} //next `nvl' 												  // (next list of vars having same options)
 	
+*pause on
+pause end genduP	  
+pause off
  
 	local skipcapture = "skip"									  // Local, if set, prevents capture code, below, from executing
 	
@@ -243,4 +251,3 @@ end //gendummiesP
 
 
 ******************************************************* END gendummiesP ***************************************************************
-
