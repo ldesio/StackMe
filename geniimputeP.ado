@@ -15,13 +15,13 @@ program define geniimputeP
 	//    Lines terminating in "**" should be inspected if this code is adapted for use in a different `cmd'							**
 	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								**
 	 
-
+*pause on
 
 
 	version 11													// geniimputeP version 2.0
 
 	
-global errloc "geniimputeP"										// Global that keeps track of execution location for benefit of 'errexit'
+global errloc "geniiP"											// Global that keeps track of execution location for benefit of 'errexit'
 
 
 *if "$SMreport"!=""  {											// COMMENTED OUT 'COS REDUNDANT (exit FOLLOWS CALL ON errexit)			***
@@ -110,10 +110,10 @@ capture noisily {												// Open capture braces mark start ot code where err
 	  } //next `var'
 		
 
-	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
+/*	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
 	     if `showDiag' noisily display /*_newline*/ "   Context `lbl' has `numobs' observations " _continue
 	  }
-	  else  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
+	  else*/  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
 		
 	  if `countUsedPTVs' > 0  {										// Further pre-processing only if more useable PTVs		
 		  local missingCounts ""
@@ -299,7 +299,8 @@ capture noisily {												// Open capture braces mark start ot code where err
 
 	} // next nvl
 	
-	
+*pause end genii	
+pause off
 	local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
 	
 * *************
@@ -313,6 +314,7 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 	exit
 }
 
+	
 		
 end //geniiP_body
 
