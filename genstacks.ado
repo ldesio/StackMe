@@ -6,7 +6,7 @@ capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (s
 program define genstacks									// Called by 'genst' a separate program defined after this one
 															// Calls subprogram stackmeWrapper and subprogram 'errexit'
 
-*!  Stata versn 9.0; stackMe version 2, updated May'23 from major re-writes in June'22 and May'24 to include post-wrapper code
+*!  Stata versn 9.0; stackMe version 2, updated Jan'26 from major re-writes in June'22 and May'24 to include post-wrapper code
 *!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
 
 	version 9.0							// SEE HEAD OF PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
@@ -90,7 +90,7 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 										
 														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY								***
 										
-	local namelist = "$multivarlst"						// Global saved in codeblock (5) of stackmeWrapper
+	local namelist = "`anything'"						// Put user-supplied varlist into `namelist' 
 														// (genstacks only has a single varlist; so no "||", no ":")	
 	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
 	local response = 0									// Local at top level to register responses within if or foreach		
