@@ -107,8 +107,5 @@ if "`skipcapture'"==""  {									// If not empty we did not get here due to sta
 end genmeanstatsP
 
 
+
 ************************************************** END PROGRAM genmeanstatsP ****************************************************
-
-
-
-
