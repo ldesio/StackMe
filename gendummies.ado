@@ -112,9 +112,14 @@ program define gendummies								// Called by 'gendu' a separate program defined
   if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
   scalar drop _all 											// Drop all scalars, including RC
 
+  
+
   exit `rc'													// Local 'rc' will be dropped on exit
+
+  
   
 end gendummies			
+
 
 
 
@@ -142,4 +147,6 @@ global abbrevcmd											// Clear the global
 end gendu
 
 
+
 ************************************************* END GENDU *******************************************************************
+
