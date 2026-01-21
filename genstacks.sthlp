@@ -1,543 +1,294 @@
-
-capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
-
-										 // SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-
-program define genstacks									// Called by 'genst' a separate program defined after this one
-															// Calls subprogram stackmeWrapper and subprogram 'errexit'
-
-*!  Stata versn 9.0; stackMe version 2, updated May'23 from major re-writes in June'22 and May'24 to include post-wrapper code
-*!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
-
-	version 9.0							// SEE HEAD OF PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-
-
-global errloc "genstacks(0)"								// Records which codeblk is now executing, in case of Stata error
-
-
-
-
-										// (0)  Here set stackMe command-specific options and call the stackMe wrapper program  
-										// 		(lines that end with "**" need to be tailored to specific stackMe commands)
-									
-															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
-															// prefixvar (here ITEmname) is first and its negative, if any, is last.	
-															
-	local optMask = " ITEmname(varname) FE(namelist) FEPrefix(string) LIMitdiag(integer -1) KEEpmisstacks NOCheck " //					**
-
-*					EXTradiag NODIAg NOREPlace NOCONtexts NOSTAcks APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most
-															//  stackMe cmds and are added to 'optMask' in wrapper's codeblk (1)
-															// (NOTE that options named 'NO??' are not returned in a macros named '??')
-	
-															// For this `cmd', the first option does not have a corrspnding negative
-															// counterpart, and no varlist/stublist prefixes are allowed.
-*															
-	local prfxtyp = /*"var" "othr"*/"none"					// Nature of varlist prefix – var(list) or other. (NOTE that, except for	**
-															//  this command, a varlist	may itself be prefixd by a varlist or string
-		
-	local multicntxt = "multicntxt"							// Whether `cmd'P takes advantage of multi-context processing (resulting 	**
-															// macro morphes into `noMultiContxt' in 'stackmeWrapper')
-															
-	local save0 = "`0'"										// Save what user typed, to be retrieved on return to this caller program
-										
-
-*	************************
-	stackmeWrapper genstacks `0' \prfxtyp(`prfxtyp') `multicntxt' `optMask' 	// Space after "\" must go from all calling progs		**			
-*	************************								// `0' is what user typed; `prfxtyp' & `optMask' strings were filled	
-															//  above; `prfxtyp', placed for convenience, will be moved to follow 
-															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1)
-															// `multicntxt', if empty, sets stackmeWrapper flag 'noMultiContxt'
-
-set trace on															
-
-							// **************************	// 'genstacks' IS THE ONLY CALLER THAT STILL DOES ITS OWN POST-PROCESSING
-							// On return from wrapper...*	// (does not use 'cleanup'). Hence we do not set $SMreport to "skip" on
-							// **************************	// this return).
-								 
-******************											 **********************************************
-if "$SMreport"==""  {										 // If return does not follow an errexit report
-******************											 // (else skip all until end of program) 
-*															 **********************************************
-
-
-* **********
-  capture noisily {											 // Puts rest of command within capture braces, in case of Stata error	
-* **********												 // Capture processing code is at the end if this adofile.
-
-
-
-								// Here deal with possible errors that might follow
-								
-								
-	global errloc "genstacks(1)"							 // Records which codeblk is now executing, in case of Stata error
-									
-	local 0 = "`save0'"									     // On return from wrapper, re-create local `0', restoring what user typed
-															 // (so syntax cmd, below, can initialize option contents, not done above)
-															
-	
-*	***************
-	syntax anything ,  [ LIMitdiag(integer -1) ITEmname(varname) CONtextvars(varlist) NOStacks NOContexts NODiag REPlace * ]									
-*	***************										    
-											
-	/*if `limitdiag'==0*/  noisily display " "				// No 'continue' for final busy dot
-
-	
-	
-	
-										// Next codeblocks post-process new variables created in genstacksP
-
-										// (2) Make labels for reshaped vars, based on first var in each battery ...
-										
-														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY								***
-										
-	local namelist = "`anything'"						// Put user-supplied varlist into `namelist' 
-														// (genstacks only has a single varlist; so no "||", no ":")	
-	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
-	local response = 0									// Local at top level to register responses within if or foreach		
-														// (apparently unused)														***
-	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
-	
-		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
-		
-			if real(substr("`var'",-1,1))==.  continue	// If final char is NOT numeric (real version IS missing)..
-														// ('continue' skips rest of foreach block, continues w' next var)
-			local label : variable label `var'			// See if that variable has a label		
-			if "`label'"=="" {							// If this var has no label, provide dummy label
-			   local varlabel = "stkd `var'"			// Use varname as label 
-			   continue, break							// Break out of varlist loop because have label for stub
-			}
-
-			local loc = strpos("`label'", "==")			// Otherwise see if the label contains "==" (from gendummies)
-														// (meaning it starts with the associated varname)
-			if `loc'>0  & `loc'<14 {					// If contains varname, placed by 'gendummies' recover it
-				
-				local varname = strtrim(substr("`label'", 1,`loc'-1)) // Assume "==" follows end of varname
-				capture confirm variable `varname'		// See if gendummies kept original varname at start of label			
-				if _rc == 0  {							// If this word was previously a variable ...
-					local label : variable label `varname' // See if that variable was labeled
-					if "`label'"!=""  {
-						local varlabel = "stkd `label'"
-						continue, break					// Break out of foreach `var' because we found a generic label	
-					}
-				}										// (from the var whose categories became dummy variables)
-														// Either never labeled or was renamed during gendummies
-				local label : variable label `var'		// So proceed as above, providing
-				if "`varlabel'"=="" {					// If this var has no label, provide dummy label
-					local varlabel = "stkd `var'"		// Use varname as label 
-					continue, break						// Break out of varlist loop because have label for stub
-				}
-				
-			} //endif 'loc'	
-			
-
-			
-global errloc "genstacks(2)"
-			
-
-			
-			else {										// No "==" so is not from a gendummies-built battery
-			
-				if strpos("`label'", "`var'") > 0	{	// If it has an embedded varname ...
-					local loc = strpos("`label'", "`var'")
-					local label = substr("`label'",`loc'+strlen("`var'"), .)
-					local cc = (substr("`label'", 1, 1))
-					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
-
-					while (strpos("<=>?@[\/]_{|}~", "`cc'") < 1) & ("`cc'" != "") & ( (a<45 & a!=41) | a>126 )  {
-					   local label = substr("`label'", 2, .) // (strpos & 41 are good; a<45 & a>126 are not)
-					   local cc =(substr("`label'"),1,1) // Trim chars other than "good" above from front of label
-					   mata: st_numscalar("a", ascii("`cc'"))
-					}									// (the above doesnt include " " so leading spaces get trimmed)
-					local varlabel = "stkd " + strtrim("`label'")
-					continue, break						// Break out of foreach 'var' because 1st var is all we need
-				}
-				else  {									// Else no embedded varname
-					local varlabel ="stkd " + strtrim("`label'") 
-					continue, break						// Otherwise use label of first var, unmodified
-				}
-			} //end else
-			
-		} //next `var'									// Will break out of loop when processd 1st var w' numeric suffx
-		
-		
-		if "`varlabel'"!=""  {							// If we found a varlabel
-		
-		   local varlabel = strrtrim("`varlabel'")		// Trim off any trailing blanks
-
-		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric
-			  local varlabel = strtrim(substr("`varlabel'",1,strlen("`varlabel'")-1)) // shorten varlabel by one char
-		   }											// Exit 'while' when last char of label is not numeric
-
-		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
-		   quietly label var `stub' "`varlabel'"
-		   
-		} //endif 'varlabel'
-	
-	} //next `stub'										// Find next now-reshaped var needing a label
-	 
-
-	 
-	 
-	label var SMstkid "stkid for vars `namelist'"		// Label var SMstkid with list of stubnames that were stacked
-		 
-	label var SMunit "Sequential ID of observations that were units of analysis in the unstacked data"
-*					  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-
-	local contexts = "`_dta[contextvars]'"				// Get contextvars as basis for generating SMnstks and SMaxtk
-	
-	if "$dblystkd"==""  {								// If this was the primary genstacks operation
-/*		tempvar rank
-		qui egen `rank' = rank(SMstkid), field by(contexts) // Unique values taken on by SMstkid
-		qui egen SMnstks = max(`rank'), by(contexts) 	// Max rank (which is the number of different ranks) NOT WORKING		***
-		label var SMnstks "Number of stacks identified by SMstkid per context"
-*/		qui egen SMnstks = max(SMstkid)
-		label var SMnstks "Maximum value of SMstkid in any context"
-
-	}
-	else  {												// Else this genstacks run doubly-stacked the data
-		tempvar rank
-/*		qui egen `rank' = rank(S2stkid), field by(contexts) // Unique values taken on by SMstkid		   NOT WORKING		***
-		qui egen S2nstks = count(`rank'), by(contexts) // Max rank (which should be the number of different ranks)
-		label var S2nstks "Number of stacks identified by S2stkid per context"
-*/		qui egen S2nstk = max(SMstkid)
-		label var SMnstks "Maximum value of S2stkid in any context"
-	}
-
-	 
-
-	 
-global errloc "genstacks(3)"
-		  
-									// (3) Drop unstackd versns of now stackd vars if 'replace' optiond; process any `itemname'
-									
-									
-	if "`replace'"=="replace" {							// If  commandline contains option "replace" (or allowed abbreviation)
-		varsImpliedByStubs `namelist'					// Program can be found at end of `stackmeWrapper' adofile
-		local varlist = r(impliedvars)
-
-		if `limitdiag'  noisily display _newline "As 'replace' was optioned, dropping original versions of now stacked variables"
-*								                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-
-		drop `varlist'									// 'varlist' is list of variables corresponding to syntax 2 stubs
-	}													// (in syntax 1 for genstacks these would have identified each batery)
-	
-*														***********************************	
-														// Here deal with SMitem and S2item
-*														***********************************
-	local act = 0										// By default take no action			
-															
-	if "$dblystkd"=="" {								// Data have not been doubly-stacked
-		local act = 1
-		local S_ = "SM"									// These substitutions may be made in 2 locations below
-	}
-	else  {												// else the data are double-stacked
-		local act = 2
-		local S_ = "S2"									// These substitutions may be made in 2 locations below
-	}	
-	
-															
-	if "`itemname'"!=""  {								// Was there an optioned itemname (name of var that will be SMitem)
-														// 'itemname' was already checked to confirm it names a var
-	  if "`S_'"=="SM"  local item : char _dta[SMitem]	// Retrieve name of var stored in SMitem, if any
-	  else local item : char _dta[S2item]
-		
-	  if "`item'"=="`itemname'" noisily display "NOTE: redundant option `itemname' duplicates established `S_'item : `item'"
-*				 			                     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	  else  {											// Else `itemname' is different from established characteristic
-		 if "`item'"!=""  {								// If characteristic is not empty
-			display as error "Replace establshed `S_'item: `item' with optioned `itemname'?"
-*				 			  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window stopbox rusure "Replace `S_'item characteristic `item' with `itemname'?"
-			if _rc  {
-				errexit "No permission to replace `S_'item characteristic" // Exit with errexit
-				exit
-			}
-			else  {
-				char define _dta[`S_'item] `itemname' // Replace the characteristic
-				noisily display "With previous `S_`item replaced by optioned itemname, execution continues..."
-			} //endelse
-		 } //endif `item'
-
-		 else  noisily display "genstacks is defining optioned itemname `itemname' as the established `S_'item"
-*				 				   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		local act = 0									// Take no further action
-			
-		} //endelse
-		
-	} //endif
-
-
-
-	
-global errloc "genstacks(4)"
-
-
-
-
-	else  {													// Else `itemname' was not optioned ...	
-	
-	  if `limitdiag' {
-
-		 forvalues i = 1/1  {								// Dummy loop provides 'continue' exit from midst of 'if's
-		
-			display as error "NOTE: With no 'itemname' option, battery items are identfied only by var SMstkid{txt}"
-			display as error "Is there a variable in this dataset that labels the battery items appropriately?{txt}"
-*                        	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window rusure ///
-			"If there is a variable in this dataset that labels the battery items appropriately, can you name it?"
-			if _rc==0  {
-			  noisily display ///
-			  "Enter the `S_'item variable name (you could have done that using the 'itemname' option)" _request(txt)
-			  if "$txt"!=""  {
-				capture confirm variable $txt
-				if _rc==0  {
-				  char define _dta[`S_'item] $txt 			// Put "`itemname'" variable name as str into S_ _dta char
-				  noisily display "Variable $txt saved as `S_'item linkage variable"
-				  continue, break							// Break out of dummy loop
-				  
-				} //endif _rc
-				else  {										// Name user typed is not a valid varname
-				  display as error "You can establish an `S_'item variable by using the {help SMitemname} utility program"
-*                        	  		12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				  errexit "What you typed does not name an existing variable"  	// subprogram errexit exits the command
-				  exit
-				}
-			  } //endif $txt								// Else there was an empty response from the user
-			  if "$txt" =="" errexit "Null response does not provide a variable" // subprogram errexit exits the command
-			  else  capture confirm variable $txt
-			  if _rc  {
-			  	errexit "Variable $txt does not exist"
-				exit
-			  }
-			} //endif _rc
-			
-		    else {											// Else there is no suitable `S_' variable
-			  noisily display "Failing that you can treat SMstkid as if it named the items it enumerates"
-*                        	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			} //endelse
-			
-	     } //next `i' (ie exit the quasi-loop)
-		 
-	  } //endif 'limitdiag'
-	  
-	} //endelse
-	
-
-
-
-global errloc "genstacks(5)"
-/*															// COMMENTED OUT SINCE ALREADY DID THIS IN CODEBLK 2				***
-									// (5) Tidy & rename stackMe special vars if optioned ...
-									
-	local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-	
-	if "$dblystkd"==""  {									// If this dataset has just been stacked for first time
-	   label var SMstkid "Sequential ID of stacks that were battery items in the unstacked data"
-	   egen SMnstks = max(SMstkid), by(`contexts')			// Tidy the SM variables created while stacking
-	   label var SMnstks "Number of stacks for each context in the single-stacked data"
-
-	   egen SMaxstk = max(SMstkid), by(`contexts')
-	   label var SMxstks "Maximum N of stacks for any context in the single-stacked data"
-	   drop `SMmxstks'
-	}
-	
-	else {													// If this dataset has just been doubly-stacked
-	   label var S2stkid "Sequential ID of secondary stacks in the double-stacked data"
-	   egen S2nstks = max(S2stkid), by(`contexts')
-	   label var S2nstks "Number of secondary stacks for each context in the double-stacked data"
-	   tempvar S2axstk
-	   egen `S2axstk' = max(S2stkid)
-	   qui replace S2xstks = `S2mxstks'
-	   label var S2xstks "Maximum N of stacks for any context in the double-stacked data"
-	   drop `S2mxstks'
-	}
-*/	
-	
-	
-	
-									// (6)  Name the stacked (or doubly-stacked) file
-	  	   
-	
-global errloc "genstacks(6)"								  // Store message locating source of any reported error
-
-	   
-	local report = "not saved."								  // Default is to save nothing
-	
-	if "$dblystkd"==""  {
-	   noi display as error _newline "Stacked dataset needs a filename that starts with STKD_{txt}"															
-	   capture window stopbox rusure "Stacked dataset needs a filename that starts with STKD_ ; OK?"
-*              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	}														 // return code is consulted below
-
-	else  {													 // Data were doubly-stacked
-	    noi display as error _newline "Doubly-stacked dataset needs filename that starts with S2KD_{txt}"															
-	    capture window stopbox rusure "Doubly-stacked dataset needs filename that starts with S2KD_ ; OK?"
-*              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890	
-	}
-	
-	if _rc  {												// How did user respond?
-		errexit "Absent user permission to save a new file" // User responded with 'cancel' so exit after message
-		exit
-	}
-															// Otherwise get filename and dirpath from dataset characteristics
-					
-	local filename : char _dta[filename]					// Filename established by setcontexts
-	local dirpath  : char _dta[dirpath]						// Dirpath established by setcontexts
-															// (dirpath ends with dirsep – "/" or "\")
-	gettoken prefix rest : filename, parse("_")		  		// If file was already stacked, get prefix preceeding "_"
-
-	if "`prefix'" != "STKD" & "`prefix'" != "S2KD"  {		// Avoid identifying doubly-stacked dataset as "S2KD_STKD_'"
-	   global newfile = "`dirpath'" + "STKD_"+ "`filename'"	// Prepend chars 'STKD_' to filename)
-	}
-	if "`prefix'"=="STKD"  {								// WRAPPER SHOULD HAVE ENSURED CONSISTENCY WITH $dblystkd				***
-	   global newfile = "`dirpath'" + "S2KD_" +"`filename'" // (by prepending chars 'S2KD_' to filename)
-	   global dblystkd = "dblystkd"							// In case that global had lost its content
-	}														// window fsave expects new filename to be a global
-
-	capture window fsave newfile "Edit name and choose folder for file in which to save stacked data" "Stata Data (*.dta)|*.dta" dta
-*              		              12345678901234567890123456789012345678901234567890123456789012345678901234567890	
-	
-	if _rc  {												// Non-zero RC means user did not supply a filename
-		
-		local nofile = "nofile"								// Deal with this below
-	}
-	
-	else {													// Else user supplied a filename
-	
-	   capture save $newfile
-	
-	   if _rc!=0  {											// If file already exists..
-
-		   noi display as error _newline "Overwrite existing file?{txt}" 
-*              		         		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		   capture window stopbox rusure "Overwrite existing file?"
-		   
-		   if _rc==0  {										// If user responded with 'OK'
-			   if "$dblystkd"=="" {
-				  noi display "Newly-stacked file replaces existing $newfile"
-*              		        12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			   }
-			   else  noi display "New doubly-stacked file will replace $newfile"	
-			
-			   save "$newfile", replace
-			   
-			   local nameloc = strrpos("$newfile","`c(dirsep)'") +1 // Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
-			   global SMdirpath = substr("$newfile",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-			   global SMfilename = substr("$newfile",`nameloc',.)	// Update filename with latest filename saved or used by Stata
-
-			   char define _dta[filename] "$SMfilename"		// Establish this filename as characteristic of dataset			   
-			   char define _dta[dirpath] "$SMdirpath"		// And the directory path to that name
-			
-			   local report = "file $newfile saved."
-			
-		   } //endif _rc
-		   
-		   else local nofile = "nofile"						// Another type of failure to supply a filename
-		
-	   } //endif _rc!=0
-	  
-	} //endelse 											// File was not saved if this return code was not zero
-	
-	
-	
-	if "`nofile'"!=""  {									// If no new file has been established with stacked data
-	
-		display as error "Restore unstacked datafile?"
-		capture window stopbox rusure "Restore unstacked datafile? (click 'cancel' to retain stacked file in memory)"
-		if _rc  local report = "Stacked datafile has been retained in memory but not saved."
-		else   {
-			use $origdta, clear
-			local report = "Original unstacked datafile has been restored to active memory."
-	    }
-
-	} //endif 'nofile'
-	
-	noisily display _newline "`report'" _newline
-	
-	
-	
-	
-	local skipcapture = "skip"								// Set flag to indicate no errors were found in captured codeblocks
-															// (this line of code only executes if no errors in capture block)
-	
-*	************
-  } //end capture											// The capture braces enclose just codeblocks since return from wrappr
-*	************ 
-  
-
-
-  if _rc & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported
-															// (user errors should have been caughte in wrapper pre-processing)
-	global SMrc = _rc										// Save _rc which will be re-used below
-															
-	local err = "Stata reports error $SMrc during post-processng"
-	display as error "`err'; retain dta in memory?"
-*              	12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	capture window stopbox rusure "`err'; retain partially post-processed data in memory and clean it up yourself – ok?"
-	
-	if _rc  {
-		display as err "Absent ok for retaining data to post-process, unstacked data will be restored"
-*              		    12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox note "Absent ok for retaining data to post-process, on 'OK' unstacked data will be restored before exit"
-		use $origdta, clear
-		exit $SMrc
-	}
-	
-	else {													// Else 'ok' was clicked
-		errexit "(Partially) post-processed data is retained in memory."
-		exit $SMrc
-	}
-
-  } //endif _rc & ! `skipcapture'
-  
-
-
-  *****************
-} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
-  ****************
-
-  global multivarlst										// Clear this global, retained only for benefit of caller programs
-  capture erase $origdta 									// (and erase the tempfile in which it was held, if any)
-  global origdta											// Drop the global holding its name
-  capture confirm number $SMrc 								// See if $SMrc is numeric
-  if _rc  {													// If not a number..
-  	 if "$SMrc"==""  global SMrc = ""						// Initialize an empty textual global
-  }															// (leave unchanged if not empty)
-  else   {													// Else it is numeric
-  	 local rc = $SMrc
-  }
-  global SMreport											// And these, retained for error processing
-  global SMrc
-  exit `rc'
- 
-end genstacks	
-
-
-
-************************************************** program genst *********************************************************
-
-
-capture program drop genst									// Short command name for 'genstacks'
-
-program define genst
-
-genstacks `0'
-
-if _rc  exit _rc
-
-end genst
-
-
-*************************************************** END PROGRAMS **********************************************************
-
-
-/*
-		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-		sum `contexts'
-		tempvar rank
-		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
-		tab1 `rank'
-		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
-		label var SMnstks "Number of stacks identified by SMstkid per context"
-																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
-*/
+{smcl}
+{cmd:help {cmdab:genst:acks}}
+{hline}
+
+{title:Title}
+
+{p2colset 5 18 18 2}{...}
+{p2col :{cmdab:genst:acks} {hline 2}}Stacks a dataset for analysis in {help reshape}d (long) format (be sure 
+you are familiar with concepts introduced in StackMe's {help stackme##Datastacking:Data stacking} 
+help-text before proceeding){p_end}
+{p2colreset}{...}
+
+
+{title:Syntax}
+
+{p 6 28 2}
+{opt genst:acks} (unstacked) {varlist} [  {space 2}|| {break}
+{varlist} ]  [      ||  ... ]   || {break}
+{varlist} , options{p_end}
+{space 4}	or
+
+{p 6 32 2}
+{opt genst:acks} (stacked) {it:{help varlist:namelist}}{cmd:,} {it:options} 
+
+
+{p 2 2 2}where {varlist} in syntax 1 lists the names of variables constituting one or more 
+so-called {it:batter(ies)} of items, each {help stackMe##Datastacking:battery} delimited by "||", 
+whereas {help varlist:namelist} in syntax 2 lists the textual "stubs" that will name the same variables 
+after reshaping – one stub in Syntax 2 for each varlist in Syntax 1. So syntax 2 involves less 
+typing and provides less opportunity for error.
+
+{p 2 2 2}
+Stubnames must be the same for all variables in a battery. If a battery's 
+variables do not have consistent stubnames with numeric suffixes then they need 
+to be {help rename}d before invoking {cmd:genstacks}. See {help rename group}, especially rule 17.
+
+{p 2 2 2}
+{cmdab:genst:acks} does not support {ifin} or {weight} expressions. Reshaping applies to an entire dataset 
+as it stands when reshaped. The batteries listed in successive varlists (or equivalent stubnames) 
+{bf:must all relate to batteries that concern the same items} (schools, political parties, issues, etc.) 
+so that each battery derives from a series of essentially identical questions that were asked in the same 
+sequence regarding each school, party, etc.  Because the command is focused on a specific set of items, 
+it may be necessary to stack the same dataset more than once (either {help stackme##Doublydtackeddata:double-stacking} 
+the dataset or saving stacked data for each set of items in a different .dta file, each named for the items 
+that are its focus).
+
+   
+{synoptset 22 tabbed}{...}
+{synopthdr}
+{synoptline}
+{p2colset 5 26 24 2}
+{synopt :{opt con:textvars(varlist)}}{bf:THERE IS NO SUCH OPTION} for command {cmdab:genst:acks}. The variables 
+identifying different contexts within which batteries will be separately reshaped should have been identified 
+by the {cmdab:SMcon:textvars} utility which should be the first {cmd:stackMe} command issued by a user 
+intending to employ {cmd:stackMe} to reorganize what is still a conventional Stata .dta dataset. See under 
+{help stackme##Quickstart:Quickstart} in the {cmd:stackMe} help text for details.{p_end}
+{synopt :{opt stackid(varname)}}{bf:THERE IS NO SUCH OPTION} for any {cmd:stackMe} command. When the data are 
+stacked {cmdab:genst:acks} will supply a {cmd:stackMe} variable, {it:{cmd:SMstkid}}, that will identify each 
+stack with a sequential ID number, starting at 1 and running up to the number of stacks.
+(see {help genstacks##Generatedvariables:Generated variables}, below).{p_end}
+{synopt :{opt ite:mname(varname)}}If available to supplement the {cmdab:genst:acks}-generated {it:{cmd:SMstkid}} 
+variable for linking battery items with stack-level data. The named variable will be added to those being 
+reshaped.{p_end}
+{synopt :{opt noc:heck}}Do not check for batteries of equal size in each context.{p_end}
+{synopt :{opt kee:pmisstacks}}Keep stacks consisting only of missing values (by default these are dropped).{p_end}
+{synopt :{opt lim:itdiags(#)}}Limit displayed diagnostics to those deriving from the first # contexts (default 
+is to produce diagnostics for all contexts).{p_end}
+{synopt :{opt no:diagnostics}}Equivalent to limitdiags(0).{p_end}
+
+{synoptline}
+
+
+{marker Description}
+{title: Description}
+
+{pstd}
+{cmd:genstacks} {help reshape}s the current dataset to a stacked (what Stata calls "long") format 
+for further analysis.{p_end}
+                                       Long      
+                                   +–––––––––––+
+            Wide                   | i  j  plr |       Reshaping left-right position (plr) of
+   +–––––––––––––––––––+           |–––––––––––|      political parties from "wide" to "long"
+   | i  plr1 plr2 plr3 |           | 1  1  4.1 |      format. Note that what, in wide format,
+   |–––––––––––––––––––|   stack   | 1  2  4.5 |      was a numeric suffix to the 'plr' stub  
+   | 1   4.1  4.5  6.5 |  ––––––>  | 1  3  6.5 |      becomes, in long format, a variable 'j'
+   | 2   3.3  3.0  4.4 |           | 2  1  3.3 |      and values of plr are stacked on top of
+   +–––––––––––––––––––+           | 2  2  3.0 |      each other instead of being listed next 
+                                   | 2  3  4.4 |      to each other. The unit identifier 'i' 
+                                   +–––––––––––+      is repeated for each j.
+
+{smcl}
+{pstd}
+Sets of variables (aka batteries), each battery consisting of variables named by adding a numeric 
+suffix to one of the identifying stubs that might otherwise be specified in {help:varlist:namelist} (in 
+Syntax 2), will be reshaped into what Stata 
+calls a "long" format (see {help reshape:reshape}). Suffixes identifying the individual variables in 
+each set are retained as stack identifiers in the reshaped data. Typically these are numbers running 
+from 1 to the number of variables in the set. However Stata's {cmdd:reshape} (invoked by {cmdab:genst:acks}) 
+permits variables to be omitted if the corresponding item (eg. political party) is missing in some contexts, 
+in which case variables omitted from a battery are treated as though a variable had been supplied whose 
+values were all missing. The numeric suffixes are retained as identifiers for each stack (each row in the 
+reshaped data) and held in the generated variable {it:{cmd:SMstkid}}. Command {cmdab:genst:acks} permits 
+the user to name a linkage variable (using option {opt ite:mname}) whose values provide a supplementary 
+means of identifying each stack.{break}
+
+{pstd}To be clear, there is one stack (row) in the stacked battery for each variable (column) in the 
+unstacked battery; the generated variable {it:{cmd:SMstkid}} contains, for each stacked row (each so-called 
+"stack"), the numerical suffix associated with the corresponding unstacked column.{break}
+
+{pstd}All other variables (those not identified by battery {varlist}s in Syntax 1 or by corresponding 
+stubnames in syntax 2) are duplicated onto all stacks associated with a specific unit (observation), 
+filling out the stacked data matrix with these duplicates (it is advisable to drop unwanted variables before 
+stacking as the dataset can expand up to K-fold, where K is the largest {it:{cmd:SMstckid}} value found in 
+any battery).{break}
+
+{pstd}
+{bf:IT IS IMPORTANT} to keep track of whether your dataset is stacked or not and, if stacked, what 
+is the "stack identification variable" – see below). We recommend you stack your data using 
+{help stackMe}'s {help genstacks:{ul:genst}acks} command (the command documented here), which will help with 
+this task in a number of ways, and that you not change the names of variables created by {cmdab:genst:acks} 
+(all starting with the letters SM) in pursuit of this goal. {cmdab:genst:acks} will suggest an 
+appropriate filename (the original name preceeded by the characters "STKD_") for any dataset it 
+{help reshape}s, distinguishing it as such. Similarly, the names of variables stacked by {cmdab:genst:acks} 
+will have the characters "Stkd" (or "S2kd" if doubly-stacked) prepended to their names.{p_end}
+
+{marker Watershed}{pstd}{cmd:genstacks} constitutes something of a watershed within the {cmd:stackMe} 
+package, since it reshapes the data from having a single stack per unit (observation) to having 
+multiple stacks per unit. No provision is made within {cmd:stackMe} for unstacking a dataset once it 
+has been stacked, but other stackMe commands can be used with either stacked or unstacked data. 
+Stata's {bf:reshape} command can be used (taking advantage of the generated variable {it:{cmd:SMunit}}  
+to switch back to "wide" format, but the result may not reproduce exactly the same dataset as the one 
+that was stacked, because of changes outlined above.{break}
+
+{pstd}See {cmd:stackMe}'s help text for a description of the {help stackMe##Workflow:workflow} 
+inherent in these commands.
+
+{pstd}
+SPECIAL NOTE ON MULTIPLE BATTERIES. Data to be stacked often consists of multiple batteries of variables that 
+were asked regarding the same objects. In the disciplines for which stackMe was originally designed those 
+objects would generally be either political parties or political issues; but other relevant objects such as 
+schools or manufacturers or hospitals readily come to mind. The important thing in regard to stacking 
+the data for such objects is that each battery of variables (variables resulting from questions about the 
+same battery topic) {ul:must} relate to the {ul:same} objects. Batteries of questions regarding other 
+objects would need to be stacked separately (see {cmd:stackMe}'s introductory {help stackMe}, especially 
+regarding {help stackme##Doublydtackeddata:double-stacking}).{p_end}
+{pstd}
+{space 3}{cmd:genstacks} identifies the items in a battery with variable names consisting of a "stub" string 
+of text that is the same for all variables in a battery, but with numeric suffixes appended to that stub that 
+identify the object (party or school or manufacturer or hospital, etc.) about which those questions were asked. 
+It is thus essential that those numeric suffixes consistently relate to the same objects for each separate battery. 
+However {cmdab:genst:acks} cannot check that these numeric suffixes are correct. It is important to be aware that, 
+in datasets emanating from election studies (and perhaps elsewhere), it is quite common for some questions 
+(e.g. about party stances on certain issues) to be asked only for a subset of the objects being investigated 
+(eg. parties). Moreover, those objects and questions relating to those objects may not always be listed in the 
+same order with consistent question numbers. So relying on the relative position of each item to retain the same 
+meaning across batteries may lead to grievous errors. Command {cmd:stackMe} can alleviate one aspect of this 
+problem if the user employs {cmd:stackme}'s {help gendummies:{ul:gendu}mmies}, in preference to Stata's 
+{help tab1}, to generate batter(ies) of dummy variables identified according to values actually found in the 
+data rather than according to the sequential order of those values. But those values do need to be correct, 
+which only the user can check. See also the special note on reference values in the help text for 
+{help gendist:{ul:gendi}st}.
+
+
+
+{title:Options}
+{synoptset}
+{synopthdr:Options}
+{synoptline}
+
+{phang}
+{opt con:textvars(varlist)} {bf:THERE IS NO SUCH OPTION} for command {cmdab:genst:acks}. The variables 
+identifying different contexts within which batteries will be separately reshaped should have been identified 
+by the {help contextvars:{ul:SMcon}textvars} command which should be the first {cmd:stackMe} command issued by 
+a user intending to employ {cmd:stackMe} commands with what is still a conventional Stata .dta dataset. See under 
+{help stackme##Quickstart:Quickstart} in the help text for {cmd:stackMe} for details.{p_end}
+
+{phang}
+{opt ite:mname(name)} if available. The name of a variable that supplements the {cmdab:genst:acks}-generated 
+{it:{cmd:SMstkid}} and {it:{cmd:S2stkid}} variables (see {help genstacks##Generatedvariables:below}) for linking 
+{help stackMe##Datastacking:battery} data with stack-level data. The data values for this variable should be 
+codes that uniquely identify each individual stack across all contexts: codes that might, for example, identify 
+appropriate Stata value labels naming each stack within all contexts. That real variable will be added to those 
+being reshaped by {cmdab genst:acks}, often providing a key for merging additional variables to the stacked 
+data (variables found in expert surveys or archives of party platforms/manifestos, for instance). The variable 
+name provided by this option is kept in a data characteristic named either {it:{cmd:SMitem}} or {it:{cmd:S2item}}, 
+depending on whether {cmdab:genst:acks} is undertaking a conventional (first-stage) stacking operation or whether the 
+operation is a second-stage {help stackme##Doublydtackeddata:double-stacking} of the data. The link to an alternative 
+set of values that uniquely identify the same stacks is provided for convenience and to ensure that such linkage variables 
+are appropriately reshaped. Occasionally there may be additional linkage variables that will need to be reshaped by being 
+included as additional batteries among those in a {cmdab:genst:acks} {varlist} or implied by a {cmdab:genst:acks} namelist 
+(see above). It will be up to the user to keep track of any such variables, reshaping them as needed and documenting their 
+usage with appropriate variable labels. NOTE that the labels and values linked to by {it:{cmd:SMitem}} will be applied to 
+all variables stacked by the same {cmdab genst:acks) command, so it is well worth the trouble of labeling the categories of 
+such a variable. {it:{cmd:SMitem}} and {it:{cmd:S2item}} can be temorarily renamed by employing the {opt ite:mname(name)} 
+option fpr any {cmd:stackMe} command that offers such an option (all except {cmdab:gendummies}). The associated variable 
+named in the relevant characteristic can be changed or cleared by {cmd:stackMe}'s {cmdab:SMite:mname} utility or its 
+counterpart for doubly-stacked data.{p_end}
+
+{phang}
+{opt rep:lace} ensures that all original batteries of variables, identified as such in a Syntax 1 {cmdab:gendi:st} 
+command or implied by the stubs listed in a Syntax 2 {cmdab:gendi:st} {it:namelist}, are be dropped after stacking, 
+saving considerable filespace and somewhat reducing execution time. The default is to keep all original variables 
+on grounds that it is hard to be sure they will never be needed. See the helpfile for {help genplace:{ul:genpl}ace} 
+for examples of variables that need to be retained in their original form after stacking.{p_end}
+
+{phang}
+{opt noc:heck} skips the check for batteries of equal size within context, made by default, in case that check is 
+meaningful in particular dtasets. The check will not be meaningful in many circumstances where the data are 
+nevertheless coherent and consistent (for example because a battery question was omitted from the questionnaire 
+fielded in a country where that question was not meaningful for a given battery item.)
+
+{phang}
+{opt kee:pmisstacks} cancels default treatment of dropping stacks with all-missing values, saving (sometimes considerable) 
+filespace for the resulting stacked dataset. Note that the numbering of stacks held in variable {it:{cmd:SMstkid}} remains 
+unchanged when missing stacks are dropped.
+
+{phang}
+{opt lim:itdiag(#)} supresses warning messages for batteries with unequal #s of vars and messages reporting progress 
+through stacking stages after processing # batteries.{p_end}
+
+{phang}
+{opt nod:iagnostics} equivalent to {opt limitdiag(0)}.{p_end}
+
+{p 4 4}Specific options all have default settings, but option {opt rep:lace} is commonly employed to remove 
+variables that are redundant after stacking (which they are not if {cmd:stackMe}'s command {help genplace} 
+is to be employed}.{p_end}
+
+
+
+{title:Examples}
+
+{phang2}{cmd:. genstacks rsym1-rsym7 || rsyml1-rsyml7 || lrdpty1-lrdpty7,}{cmd: replace}{p_end}
+
+{pstd}Reshape three batteries of items, involving sympathy for parties, sympathy for party 
+leaders, and left-right distances from the same 7 parties. The only option directs that the 
+originals of reshaped variables be dropped. Note that, with this syntax, if some variables 
+are missing from certain contexts the user will need to respond to a relevant warning.{p_end} 
+
+{phang2}{cmd:. genstacks rsym rsyml lrdpty, replace}{p_end}
+
+{pstd}Achieves exactly the same result as the first example but with less typing and avoiding 
+the risk that some of the variables might not be present in all contexts. Indeed this is the 
+command created internally by {cmd: genstacks}, translating the first format into the (less 
+risky) second syntax (and warning the user if the two do not match).{p_end}
+
+
+{marker Generatedvariables}
+{title:Generated variables}
+
+{p2colset 4 14 14 2}{...}
+{synopt:{it:SMstkid}}a generated variable identifying each primary stack in a conventionally 
+stacked dataset. It is recommended that the name of this variable not be changed. The variable 
+label for this variable lists the stubnames corresponding to batteries of variables that were 
+stacked by the same {cmdab genst:acks} command. These names are also known as "battery names" 
+or "stacknames". The order of these names is the same as the order in which stubnames were 
+presented in the command's varlist or namelist. If one of the batteries has some sort of 
+logical priority (perhaps being expected to serve as a {depvar} for other batteries in the 
+stacked data) then, for documentary purposes, that battery should be the first battery (or 
+provide the first stubname) in the {cmdab genst:acks} {varlist} or {namelist}.{p_end}
+
+{synopt:{it:S2stkid}}a generated variable identifying each secondary stack in a 
+{help stackme##Doublydtackeddata:doubly-stacked} dataset. It is recommended that the name of this 
+variable not be changed. Stubnames for doubly-stacked data do not have numeric suffixes (since 
+they are stack-names not variable names). {cmdab genst:acks} instead checks that all the 
+named variables listed in the commandline are contained in the list of stubnames contained in 
+the first-stage {it:{cmd:SMstkid}} generated variable (see above).{p_end}
+
+{synopt:{it:SMunit}}a generated variable identifying the overall unit number (might correspond 
+to a respondent ID) uniquely identifying the units that were observations before stacking. This 
+identifier will be required if ever a user wants to unstack a dataset using Stata's {help reshape} 
+{bf:wide} command. It is recommended that this variable name not be changed.{p_end}
+
+{synopt:{it:SMnstks}}a generated variable identifying, for each context in a conventionally stacked 
+dataset, the maximum number of stacks in the battery after stacking (which is also the number of 
+variables in the battery before stacking) – often more than the number stacks in certain contexts if 
+some of those stacks are entirely missing in those contexts) and hence dropped from the portion of 
+the stacked dataset relating to that context.{p_end}
+
+{synopt:{it:SMitem}}a quasi-variable that takes up no space in the dataset but, instead, points to 
+(one could say it is "linked" to) a real variable whose name it stores as a "characteristic" (an 
+obscure feature of Stata datasets). When this quasi-variable is named in a {cmd stackme} {varlist} 
+the varlist name will be changed internally to the name of the real variable that will be treated 
+exactly as though it was the variable named by the user.
+
+{p 3 3}{cmd:NOTE:} When double-stacking a dataset, additional secondary ID vars (not shown above) 
+are generated for units, items and nstacks, deriving their names just as does {it:S2stkid}. In a 
+doubly-stacked dataset, by default the two {it:{cmd:stkid}} variables will be used in conjunction 
+to identify the combination of stacks defining each doubly-stacked unit. But the user can override 
+and clarify this default by using option {opt ite:mname} (see above) to name a variable (perhaps 
+present in the original data, perhaps specially {help generate}d by the user) that uniquely 
+identifies individual stacks across the entire doubly-stacked dataset. Command {cmdab:genst:acks} 
+determines whether to doubly-stack the data based on whether the data are already stacked and the 
+manner in which the {opt S2u:nit} option is operationalized takes account of the same 
+considerations.{p_end}
