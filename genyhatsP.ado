@@ -7,7 +7,7 @@ program define genyhatsP
 *set trace off
   
 *! gendyhatsP version 2 for Stata version 9.0 (2/23/23 by Mark) has options cumulating as extra varlists are processed 
-*! Minor tweaks Nov'24 to handle revised weighting strategy.
+*! Minor tweaks Nov'24 to handle revised weighting strategy. Minor tweaks Jan'26 to re-align the interface with wrapper.
 
 	// This is a rewrite of the version 1.5 genyhats (the version that processed multiple varlists, using byable code), 
 	// renamed genyhatsP to make it callable from the version 2.0 stackMe wrapper (itself called from genyhats.ado).
@@ -469,7 +469,10 @@ if _rc & "`skipcapture'"!=""  {
 }
 
 	
+	
+	
 end predcent
+
 
 
 ***************************************************** END SUBROUTING predcent **************************************************
