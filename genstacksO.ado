@@ -1,6 +1,7 @@
 
 capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
 
+*! Updated Jan'26
 
 program define genstacksO, rclass							// Called by 'stackmeWrapper'; calls subprograms varsImpliedByStubs
 															// stunsImpliedByVars and subprogram 'errexit'
@@ -53,15 +54,15 @@ capture noisily {											// Open capture braces mark start ot code where erro
 				display as error ///
 					"Variable(s) already exist with stubname(s): `errlist';" _newline "drop them from stacked dataset?{txt}"
 *               		  	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				if wordcount("`errlist'")>1 local msg = "drop these from stacked dataset?"
-				else local msg = "drop this from stacked dataset?"
+				if wordcount("`errlist'")>1 local msg = "drop these from dataset to be stacked?"
+				else local msg = "drop this from dataset to be stacked?"
 				window stopbox rusure "Variable(s) already exist with stubname(s) `errlist'; `msg'"
 				if _rc  {
 					errexit "Will exit on 'ok'"
 					exit
 				}
 				foreach `var' of local errlist  {
-					quietly drop `var'
+					quietly capture drop `var'				// Include "capture" 'cos stubnames may not name existing variables
 				} //next 'var'
 				noisily display "Dropping offending variable(s), execution continues..."
 			}
@@ -298,6 +299,7 @@ if "`skipcapture'"==""  {									// If not empty we did not get here due to sta
 
 		
 end genstacksO
+
 
 
 ********************************************** END OF PROGRAM *************************************************************************
