@@ -6,8 +6,8 @@
 
 {p2colset 4 16 16 2}{...}
 {p2col :{ul:genpl}ace {hline 2}}Generates customizable battery placements (e.g. averages) of lower-level 
-scores for variables constituting each named stack or other indicator (also providing an interface for 
-utility and user-written programs). See {help genplace##Placements:What are placements?}, below.{p_end}
+scores for variables constituting each named stack or other indicator (also providing an interface to 
+other Stata and user-written programs). See {help genplace##Placements:What are placements?}, below.{p_end}
 {p2colreset}{...}
 
 
@@ -70,9 +70,12 @@ unit-level data as a basis for battery-level placements (by default {cmdab:genpl
 to be constent across battery items).{p_end}
 {synopt :{opt noplu:g}}disregard the expectation that battery-level placements will be made on the 
 basis of mean values that have been rendered constant across respondents.{p_end}
-{synopt :{opt cal:l(SMsubprogram [, options])}}invoke a user-written subprogram by specifying its name 
-followed by optional components of a standard Stata command-line. See under {help genplace##Options:Options}, 
+{synopt :{opt SMc:all(SMsubprogram [varlist] [, options])}}invokes a (generally) user-written subprogram by specifying 
+its name followed by optional components of a standard Stata command-line. See under {help genplace##Options:Options}, 
 below, for further details.{p_end}
+{synopt :{opt gen:call(StataCommand [varlist] [, options])}}repeatedly invokes a (generally) existing Stata 
+command, once for each established context, for which it generates outcome variables with names determined by 
+the Stata command concerned.{p_end}
 
 {p 2}{ul:Data-structure options}{p_end}
 
@@ -87,8 +90,9 @@ special variable {it:{cmd:SMstkid}}, cannot be disregarded by {cmdab:genpl:ace})
 
 {p 2}{ul:Output and naming options}{p_end}
 
-{synopt :{opt mpr:efix(string)} THIS OPTION DOES NOT EXIT for genplace, since pm_-prefixes are only used 
-for first-step variables needed in an optioned twostep {cmdab:genpl:ace} procedure.{p_end}
+{synopt :{opt mpr:efix(string)}} THIS OPTION DOES NOT EXIST for genplace, since pm_-prefixes are only used 
+for first-step variables needed in an optioned twostep {cmdab:genpl:ace} procedure; so variables with these 
+prefixes must already exist (if necessary having been previously {opt rename}d).{p_end}
 {synopt :{opt ppr:efix(string)}}optional string used to replace the default (pp_) string prefix for {varlist} 
 (input) names when those prefixed names are used for generated outcome variables holding the estimated (mean) 
 placements of those inputs (default name should not be changed if var might be used in further genplaoce commands).{p_end}
@@ -126,13 +130,13 @@ for data organized at the stack level of aggregation. Because it places stacks i
 characteristics, {cmdab:genpl:ace} requires access to the data at the contextual level, where it can determine the 
 characteristics of individual stacks. Many user-written programs will, however, call for data organized at the level 
 of the individual stack as is customary and, to that end, {cmdab:genpl:ace} provides the option {opt stk:level} to 
-meet that need. Indeed the {cmdab:genpl:ace} command might be referred to as the "Swiss army knife" of {cmd:stackMe} 
+meet that need. The {cmdab:genpl:ace} command might be referred to as the "Swiss army knife" of {cmd:stackMe} 
 commands. Because it serves as the repository for all procedures not specifically provided by {cmd:stackMe}'s other 
 '{cmd:gen...}' commands, {cmdab:genpl:ace} is by far the most intricate of all {cmd:stack:me} commands.{p_end}
 {pstd}{space 3}Just as {help genyhats:{ul:genyh}ats} has two different modes of operation, distinguished by the 
-use made of a prefix variable, so {cmdab:genpl:ace} also has two modes of operation distinguished in analageous 
-manner: placement of batteries according to the means of constituent (lower level) variables and placement of 
-higher-level indicators according to the means of constituent battery-level variables (stacked variables). The 
+use made of a prefix variable, so {cmdab:genpl:ace} also has more than one mode of operation, two of them distinguished 
+in analageous manner: placement of batteries according to the means of constituent (lower level) variables and placement 
+of higher-level indicators according to the means of constituent battery-level variables (stacked variables). The 
 level of aggregation of means used for placements is established by the level of aggregation of the variable(s) 
 in the {cmdab:genpl:ace} command-line {varlist} (all of which must be measured at the same level). The level of 
 aggregation of the variable being placed is also subject to user option, defined by whether an indicator variable 
@@ -148,8 +152,8 @@ follows.
           |                                       '
           |    ,---- >  Outcome variable or indicator at level 2 (e.g. Party left-right stance)
           |    |                                  ^
-          |    | pp-prefix if placing level-2     | pm-prefix if generating level-2 means 
-          |    | battery var(s); pi-prefix if     | (summarizing level-1 assessments)  to
+          |    | pp-prefix if placing level-2     | pm-prefix if generating level-2 means
+          |    | battery var(s); pi-prefix if     | (averaging level-1 assessments)  to
           |    | placing a level-2  indicator     | use in placing  a  level-3  indicator
           |    |                                  | 
           '    '                                  '
@@ -183,6 +187,7 @@ related to each other and to stacked battery items.{p_end}
           3        3      lib      4.0     4.0      1      3.25      =(2.5+4.0)/2
        -----------------------------------------------------------
 
+
 {smcl}
 {pstd}
 The first two columns tell us we have three respondents each of whom provided information about three 
@@ -194,10 +199,11 @@ respondents. The 'pm_lr' column appears to contain the left-right positions of t
 respondents as though the respondents were being treated as experts regarding party positions, with their 
 different judgements being averaged across respondents). Moving on, we find a column of 0 and 1 codes that 
 is labeled 'govpty'. The codes evidently indicate, for each party, whether it is a member of the government 
-(=1) or not (=0). Those codes serve as a sort of sieve, determining whether 'ptlrpo' is allowed to pass through 
-to the final column, 'pi_gov'. We can see that, wherevar the sieve is blocked by a 0 code, 'pi_gov' is also 
-zero. Only where 'govpty' is coded 1 does 'pi_gov' get a value based on the ('pm_lr') means of the parties that 
-are indicated by 1's. The logic is straightforward if not entirely obvious.{p_end}
+(=1) or not (=0) – the hallmark of an indicator variable. Those codes serve as a sort of sieve, determining 
+whether 'ptlrpo' is allowed to pass through to the final column, 'pi_gov'. We can see that, wherevar the sieve 
+is blocked by a 0 code, 'pi_gov' is also zero. Only where 'govpty' is coded 1 does 'pi_gov' get a value based 
+on the ('pm_lr') means of the parties that are indicated by 1's. The logic is straightforward if not entirely 
+obvious.{p_end}
 
 {pstd}To add to this complexity, an indicator variable might already be present in a dataset containing variables 
 whose means will provide that variable's placements (for example if that indicator had been obtained from an 
@@ -215,15 +221,15 @@ obtained from the first step of a two-step {cmdab:genpl:ace} procedure (optioned
 so long as {opt noplu:g} was not also optioned).{p_end}
 
 {pstd}But wait: there's more! {cmdab:genpl:ace} can be used not only to place the locations of higher-level 
-variables in terms of the mean values of lower-level variables but also as an interface to user-written 
-subprograms that can place batteries in terms of statistical measures other than the mean (perhaps party 
-polarization), or can place stack-level components of those batteries in terms of stack-level concepts 
+variables in terms of the mean values of lower-level variables but also as an interface to Stata-provided or 
+user-written subprograms that can place batteries in terms of statistical measures other than the mean (perhaps 
+party polarization), or can place stack-level components of those batteries in terms of stack-level concepts 
 (perhaps the yield in terms of votes that parties receive from the stances they take on specific issues). 
-These two examples already exist as callable programs (see the two {opt call} options) below.{p_end}
+These two examples already exist as callable programs (see the {opt SMc:all} option) below.{p_end}
 {pstd}{space 3}NOTE (1): The battery-level placements being processed by {cmd:genplace} should generally 
-themselves be constant across observations/respondents. Often they will derive from expert judgements or 
-external documents (perhaps party manifestos/platforms). If the placements derive from unit-level variables 
-(perhap respondent assessments – see {cmd:help stackme}'s {help stackme##Vocabulary:vocabulary} discussion), 
+themselves be constant across observations/respondents, as already mentioned. Often they will derive from expert 
+judgements or external documents (perhaps party manifestos/platforms). If the placements derive from unit-level 
+variables (perhap respondent assessments – see {cmd:help stackme}'s {help stackme##Vocabulary:vocabulary} discussion), 
 and those have not already been averaged across battery items, then {cmd:genplace} can, in a first step, 
 generate (weighted) means across observations within batteries (perhaps pupils within classrooms) before 
 generating battery (perhaps classroom) placements in a second step.{p_end}
@@ -241,28 +247,33 @@ that command, except that each input {varlist} can be prefixed by a list of {opt
 number will determine how many outcome placements will be generated for each {varlist} variable. Those 
 outcome variables will be given compound names derived by prefixing the name of the input variable with 
 the name of the weight variable, separated by an underscore character. Any such optional prefix will override 
-any corresponding {opt cwe:ight} option. See that {help genplace##Options:option} (below) for more details. The 
-number and nature of these weights can be varied from varlist to varlist, depending on
-those outcome variables will be named by prefixing, with the relevant cweight varname, the name of the 
-input variable placed while using that weight. So the user might place a government in terms of its position 
-regarding each of a number of policies that are given different weights in that placement. 
-This means that the battery-names listed in {it:varlist} must be batteries of items that pertain to the 
-same object. Only the user can verify that this is the case.
+any corresponding {opt cwe:ight} option. See {help genplace##Options:Options} (below) for more details. So the 
+user might place a government in terms of the position it takes regarding each of a number of policies, with 
+each policy creating as many variables as there are weight variables prefixing that policy varname. This 
+means that the battery-names listed in {it:varlist} must be batteries of items that pertain to the same 
+object. Only the user can verify that this is the case.{p_end}
+
+{pstd}Finally, genplace provides an interface to existing Stata (or user-written) commands that provide for 
+predicting outcome variables (or {bf:return}ing outcome values) to the calling – {cmdab:genpl:ace} – program 
+(see option {opt gen:call},below). In contrast to the {opt SMc:all} option mentioned above, which uses the 
+{bf:outcome}(s) from a {cmdab:genpl:ace} command as material to be further manipulated before exiting 
+{cmdab:genpl:ace}, the {opt SMc:all} option invokes a command that will itself process the dataset, context 
+by context, generating variables whose values are context-specific – just like any other {bf:stackMe} {bf:gen...} 
+command. This last feature of command {cmdab:genpl:ace} facilitates the use of existing Stata estimation 
+commands for generating quasi-affinity measures to fill out the repetoire of such measures provided by {bf:stackMe}.{p_end}
 
 {pstd}
 SPECIAL NOTE COMPARING {help genplace:{ul:genpl}ace} WITH {help genmeans:{ul:genme}anstats}: The data 
 processing performed by the first step of a two-step {cmdab:genpl:ace} command (see NOTE 2 above) is 
-computationally identical to that performed by command {cmdab:genme:ans} but conceptually very 
-different. The command {cmdab:genme:ans} generates means and other statistics for numeric variables 
+computationally identical to that performed by command {cmdab:genme:anstats} but conceptually very 
+different. The command {cmdab:genme:anstats} generates means and other statistics for numeric variables 
 without regard to any conceptual grouping of variables inherent in batteries that might contain (some 
 of) those variables. The command {cmdab:genpl:ace} can do the same for variables that are conceptually 
 connected by being members of a battery of items but then proceed to a second step in which those means 
 (or some other indicator values, weighted according to option {bf:cweight}) are used to average the 
 item placements into a (weighted) mean placement regarding the battery as a whole (for example a 
 legislature placed in left-right terms according to the individual placements of parties that are 
-members of that legislature). Use of the standard [{help if}] component of the {cmdab:genpl:ace} 
-command line can focus the generic placement on certain members of the battery (perhaps government 
-parties, thus placing a government in left-right terms).
+members of that legislature).{p_end}
 
 {pstd}
 SPECIAL NOTE ON WEIGHTING. The {help genplace:{ul:genpl}ace} command places higher level objects in terms 
@@ -274,13 +285,11 @@ the party placements themselves are averaged across a legislature so as to place
 same left-right terms, it will generally be more appropriagte to use weights measured at a higher level of 
 aggregation: perhaps the proportion of legislative seats controlled by that party. And if the party placements 
 did not derive from respondents but from some external source (experts or manifestos or election outcomes, 
-perhaps) then respondent weights will be irrelevant. Thus, if survey responses are used to place a 
-government in left-right terms then the appropriate weight might be the proportion of ministries received 
-by each party comprising that government. This is why {cmdab:genpl:ace} uses two different types of weight 
-variable: one named in the {cmdab:genpl:ace} command line's [{help weight}] expression for weighting 
+perhaps) then respondent weights will be irrelevant. This is why {cmdab:genpl:ace} uses two different types 
+of weight variable: one named in the {cmdab:genpl:ace} command line's [{help weight}] expression for weighting 
 (generally) unit-level items and the other named in {cmdab:genpl:ace}'s {help genplace##Options:cweight} 
-option for weighting higher-level items. More than one cweight variable can be listed, resulting in more 
-than one outcome variable for each input variable being placed.
+option for weighting higher-level items. More than one cweight variable can be listed in that option, 
+resulting in more than one outcome variable for each input variable being placed.
 
 {pstd}
 {bf:USING MULTIPLE INDICATORS OR CWEIGHTS:} As with {cmd:stackMe}'s command {cmdab:genii:mpute}, the optional 
@@ -306,8 +315,7 @@ parties =1 and other parties =0). Alternatively, the keyword {bf:if} followed by
 generate a singe {help tempvar}coded 1 if the expression is true and 0 otherwise. {bf:NOTE} that any indicator 
 variable(s) established by this option is overridden by corresponding variable(s) named in a prefixvar list 
 prepended to the {cmdab:genpl:ace} {varlist}. In the absence of any such indicator(s) the stacks themselves 
-are placed on the basis of mean values of indicated stacks. No indicator vars can be optioned if cweight vars 
-are optioned.{p_end}
+are placed on the basis of mean values of indicated stacks.{p_end}
 {p 8 8 2}{space 3}If desired indicator variables do not yet exist (and more than just the one indicator is wanted 
 than can be coded by this option's logical expression) those variables need to be generated or produced using 
 Stata's {cmd:recode} command before invoking {cmdab:genpl:ace}. To take an example from electoral studies, such 
@@ -317,8 +325,7 @@ support given to parties that are members of that government.{p_end}
 {phang}
 {opth cwe:ight(varlist)} if present, a (list of) weight variable(s), constant across battery units (hence the 
 initial letter 'c'), used to place each stack or higher-level indicator according to the context-specific 
-placements provided by experts or other outside sources (in voting studies perhaps party platforms/manifestos). 
-No cweight vars can be optioned if indicator vars are optioned.{break}
+placements provided by experts or other outside sources (in voting studies perhaps party platforms/manifestos).{break}
 {space 3}These weight variable(s) will often have been merged with the current dataset by using Stata's {help merge} 
 command before invoking command {cmdab:genpl:ace}. {bf:NOTE} that any weight variable established by use of this 
 option is overridden by corresponding variable(s) named in a prefix-list prepended to the {cmdab:genpl:ace} {varlist} 
@@ -327,7 +334,8 @@ option is overridden by corresponding variable(s) named in a prefix-list prepend
 {phang}
 {opt wtp:refixvars} if present, a signal for {cmdab:genpl:ace} to interpret any prefixvars (preceeding the 
 {cmd:genplace} varlist as naming a (set of) cweight variable(s) instead of naming a (set of) indicator variable(s) 
-– the default.
+– the default. To be clear, both {opt cwe:igt} and {opt ind:cators} can be optioned, but only one or the other 
+can be provided as {varlist} prefixes.
 
 {phang}
 {opt stk:level} if present, a signal for {cmdab:genpl:ace} to ensure that working data passed to the command for 
@@ -348,27 +356,23 @@ the original responses, perhaps so as to facilitate research into consequences o
 (e.g. projection/assimilation effects) on the resulting placements.
 
 {phang}
-{opth call(SMsubprogram [args] | [, options])} invoke a user-written program by specifying, in the first 
-argument, the name of the subprogram and, in subsequent arguments, either the the names of locals to be 
-passed to that program as positional arguments or, following a comma, a standard Stata optionslist. See 
-help {help genWriteYourOwn} for details and a model program that calculates polarization measures for a 
-battery of position variables. NOTE that the program called can be {help SMmeanstats:{ul:SMmea}nstats}, 
-a version of {cmd:stackMe}'s {cmdab:genme:anstats} command that has been tailored to handle a call from 
-{cmdab:genpl:ace} in order to provide {cmdab:genpl:ace} with a range of alternative statistics with which 
-to replace all of what would otherwise have been mean values.{p_end}
+{opth SMc:all(subprogramname [args] | [, options])} invoke a (generally) user-written subprogram by specifying, 
+in the first argument, the name of the subprogram and, in subsequent arguments, either the the names of locals 
+to be passed to that program as positional arguments or, following a comma, a standard Stata optionslist. See 
+help {help genWriteYourOwn} for details and two model programs, one of which calculates polarization measures 
+for a battery of position variables and the other of which calculates "issue yield" index values that, for 
+each of a number of listed political parties, estimates the yield in votes to be expected when that party 
+gives to that issue the maximum possible amount of emphasis.{p_end}
 
 {phang}
-{opth call(SMiyield iyprefix iysupport iycred)} invokes another model for a user-written program – this one 
-assuming the presence of set(s) of issue support variables, presemably merged with the stacked data before this 
-command was invoked. One of these sets is required and measures, for each issue for each respondent for each 
-party, the extent to which the respondent prefers that party's position regarding that issue. A second set 
-(desirable but not essential) measures the credibility of that party regarding that issue for each respondent. 
-The command calculates the 'yield' in votes gained by party emphasis on each of a number of issues. It saves 
-the resulting index in variables with {varname}s constructed by prepending (with "iy_" or another prefix 
-provided in the second argument) the {it:iysupport} varlist. Issue yield index values are generated in the same "wide" format as the 
-issue variables from which those yields are derived. They can be summarized in various ways for ensuing 
-analyses or doubly-stacked so that issues become nested within parties within respondents. See help 
-{help SMwriteYourOwn} for details.{p_end}
+{opth gen:call(commandname [, options])} invoke a (generally) existing Stata command by placing, in the string 
+argument, a complete Stata commandline, including any relevant options needed by that command, to which can 
+be added any additional options common to all {bf:stackMe} {bf:gen...} commands (such as {opt nocon:texts} 
+and {opt lim:itdiag}) as needed. This existing command could be the {bf:stackMe} command {cmdab:genme:anstats}, that 
+might be wanted to provide a placement statistic other than the mean, or one of the Stata commands {help factor} 
+or {help MCA} (or analagous Stata command) to generate spatial placements that would complement those generated 
+by the existing {bf:stackMe} {help gendist:{ul:gendi}st} command.
+
 
 {p 2}{ul:Data structure options}{p_end}
 
@@ -380,25 +384,29 @@ by {cmd:stackMe}'s utility program {cmdab:SMcon:textvars} the first time this .d
 {cmd:stackMe} command; so this option is required if the default is to be overriden.
 
 {phang}
-{opt nocon:texts} if present, disregard distinctions between contexts (stack distinctions, defined by the 
-system variable {it:SMstkid} (see {help {ul:{genst}acks}) cannot be disregarded since these define the 
-objects being placed by this command).{p_end}
+{opt nocon:texts} if present, disregard distinctions between contexts defined by the characteristic referred to above.
+
+{phang}
+{opt nosta:cks} if present, is ONLY AVAILABLE WITH {opt gen:call}, since distinctions between stacks defined by the 
+system variable {it:SMstkid} cannot be disregarded when {cmdab:genme:anstats} is being used for its primary purpose 
+of defining the objects being placed by this command.{p_end}
 
 {p 2}{ul:Outcome variable naming options}{p_end}
 
 {phang}
-{opth mp:refix(name)} THIS OPTION DOES NOT EXIT for genplace, since pm_-prefixes are only used for the names  
-Of first-step variables needed in an optioned twostep {cmdab:genpl:ace} procedure.{p_end}.
+{opth mpr:efix(string)} THIS OPTION DOES NOT EXIT for genplace, since mp_-prefixes are only used for the names of  
+first-step variables needed in an optioned twostep {cmdab:genpl:ace} procedure; so variables with these prefixes 
+must already exist (if necessary having been previously renamed) when {cmdab:genme:anstats} is invoked.{p_end}
 
 {phang}
-{opth pp:refix(string)} if present, prefix for the name of the stack variable (which was a stubname before 
-stacking) that will identify the outcome variable holding generated placements for that stack (averaged 
+{opth ppr:efix(string)} if present, prefix for the name of the stacked variable (which was a stubname before 
+stacking) that will identify the outcome variable holding generated placements for that stack (generally averaged 
 across battery members). 
 
 {phang}
 {opth ipr:efix(string)} if present, prefix for the pre-existing or user-supplied variable named by the second 
-{help genplace##options:option}, above, (default is "pi_"). The prefix and varname will, together, identify 
-the generated placement ourcome variable for that indicator.
+{help genplace##options:option}, above, (default is "i_"). The prefix and varname will, together, identify 
+the generated placement outcome variable for that indicator.
 
 {p 2}{ul:Diagnostic options}{p_end}
 
@@ -462,15 +470,17 @@ the battery level or some higher level of aggregation) established by {cmdab:gen
 The number of such outcome placements will be the product of the number of cweight vars and {varlist} vars.
 
 {pstd}Such other variables as may be created by user-written programs, perhaps with variable prefixes 
-established by the user program interface (see option {opt cal:l(iyield)} for an example).{p_end}
+established by the user program interface (see option {opt SMc:all(iyield)} for an example).{p_end}
 
 
 {marker Reference}
 {title: Reference}
 
 {pstd}
-To understand the function of {opt call(iyield...)}, whose utility will likely not extend beyond the 
+To understand the function of {opt SMc:all(iyield...)}, whose utility will likely not extend beyond the 
 subfield of electoral studies) see:{break}
 De Sio, L., and Weber, T. (2014). "Issue Yield: A Model of Party Strategy in Multidimensional Space." 
-{it:American Political Science Review}, 108(4): 870-885.
+{it:American Political Science Review}, 108(4): 870-885.{break}
+For an example of the use of MCA to create a quasi-affinity measure in multi-level data see Weber, T and 
+Franklin, M. (2018) "A behavioral theory of electoral structure." {it:Political Behavior}, 40: 831–856.
 
