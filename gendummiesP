@@ -1,4 +1,5 @@
 
+
 capture program drop gendummiesP			  	// Does the gendummies heavy lifting (such as it is) for all contexts taken together
 
 program define gendummiesP									// Called by 'stackmeWrapper'; calls subprograms 'errexit'
