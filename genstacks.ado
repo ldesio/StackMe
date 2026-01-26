@@ -6,7 +6,7 @@ capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (s
 program define genstacks									// Called by 'genst' a separate program defined after this one
 															// Calls subprogram stackmeWrapper and subprogram 'errexit'
 
-*!  Stata versn 9.0; stackMe version 2, updated Jan'26 from major re-writes in June'22 and May'24 to include post-wrapper code
+*!  Stata versn 9.0; stackMe version 2, updated May'23 from major re-writes in June'22 and May'24 to include post-wrapper code
 *!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
 
 	version 9.0							// SEE HEAD OF PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
