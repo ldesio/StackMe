@@ -929,8 +929,6 @@ pause (2.1)
 	
 			 if "`postcolon'"==""  {								// If 'postcolon' is empty then there is no colon
 				
-			   if "`cmd'"=="genyhats" global multivariate = "`multivariate'" // (FOR GENYHATS, copy optn to flag accssble to 'getprfxdvars'
-																	// (where outcome vars are checked to see if they already exist)
 			   local prfxvar = ""									// If there is no colon, store empty string for prfxvar, & the followng
 			   local strprfx = ""									// Empty by default (there can only be one strprfx per varlst)
 *			   ************************
@@ -945,7 +943,6 @@ pause (2.1)
 		   
 		     else  {												// Else there is a colon, so 'inputs' get (perhaps tail of) 'precolon'
 		   
-			   if "`cmd'"=="genyhats"  global multivariate = "yes"	// Global accessble to progrm getprfxdvars, checks for existing outcomes
 			   local vars = strtrim(substr("`postcolon'",2,.))		// 'vars' is tail of 'postcolon' after ":" is removed from its head  
 *			   **********************								// See first call on 'checkvars', in wrapper(1.1) above, for its purpose
 			   checkvars "`vars'"									// (deals with hyphenatd and abbreviatd vars; othr vars get checkd below)
@@ -1103,20 +1100,24 @@ pause (3)
 			    exit											// Exit takes us straight to caller, skipping rest of wrapper
 			 } //endif wordcount
 			 
-			 if "`cmd'"=="genyhats" global multivariate = "yes" // For 'genyhats' presence of prefixvar indicates multivariate analysis
-		  } //endif wordcount									// (even if `multivariate' was not optioned)
-	   } //endif 'prfxvar'
+			 if "`cmd'"=="genyhats" {							// THIS DOES NOT NEED TO BE DONE FOR EVERY PRFXVAR						***
+			 	global multivariate = "yes" 					// For 'genyhats' presence of prefixvar indicates multivariate analysis
+			 } //endif wordcount								// (even if `multivariate' was not optioned)
+		  } //endif `cmd'
+	   } //endif 'prfxvars'
 	   else  {													// Else there is no prefixvar (genyhats can only have one)
 	   	  if "`cmd'"=="genyhats" & "`depvarname'"=="" { 		// genyhats requires an optioned depvarname if no prefixvar
-			 if "`multivariate'"!=""  {
+			 if "$multivariate"!=""  {
 				errexit "For a multivariate analysis with no prefixvar, a depvarname must be optioned"
 *               	  	 12345678901234567890123456789012345678901234567890123456789012345678901234567
 			 }
-			 else errexit "For a bivariate analysis (default), a depvarname must be optioned" // MAYBE WE SHOULD ALLOW A DEPVARLIST?	***
+			 else errexit "For a bivariate analysis (default), a depvarname should be optioned" 
 		  } //endif `cmd'=="genyhats"
 	   } //endelse
 	} //next 'nvl'
 																// End of code interpreting prefix types
+	if "$multivariate"=="yes"  scalar MULTIVARIATE = "yes" 		// Scalar overcomes loss of contents for globals with 'restore'
+	else scalar MULTIVARIATE = ""								// Empty the scalar if not initialized
 
 	
 	if "`cmd'"=="genplace" & "`indicator'"!=""  {				// `genplace' is the only cmd with additional var-naming optn 		***
@@ -1172,12 +1173,12 @@ pause (3)
 			global statrtrn = "$statrtrn "+word("`s0'",`j')	// (of stats optioned in `s1')
 			global statprfx = "$statprfx "+word("`s2'",`j')
 		}													// (globals to be accessed in  'genstatsP' & 'cleanup' for pfxng and labelng)
-		
-/*		scalar statrtrn = "$statrtrn"						// As with VARLSTS etc. these globals are not retaining their contents NO MORE**
-		scalar statprfx = "$statprfx"						// (perhaps because they get emptied in the course of preserve/restore cycles)
-*/
+
 	} //endif `genmeanstats'
-	
+		
+	scalar STATRTRN = "$statrtrn"							// As with VARLSTS etc. these globals are not retaining their contents
+	scalar STATPRFX = "$statprfx"							// (perhaps because they get emptied in the course of preserve/restore cycles)
+
 	
 
 	
@@ -1985,6 +1986,7 @@ global errloc "wrapper(11)"
 	  scalar drop _all										// Drop all scalars before exit
 	  
 	  capture drop ___*										// Drop all quasi-temporary vars
+	  exit 0												// Exit with return code 0 even if there were no tempvars to drop
 	
     } //endif $SMreport 									// ABOVE DROPS scalars VARLISTS#, PRFXVARS# & PRFXSTRS BUT WE CAN KEEP
 															// PARSING $multivarlst AS WE DO NOW	
@@ -2334,20 +2336,20 @@ gettoken caller rest : errloc,  parse( "(" )				// Local `caller' gets name of p
 															// RETRIEVE LOCALS THAT ONCE WERE GLOBALS BUT ARE NOW SCALARS
 local outcmnames = OUTCMNAMES								// Retrieve input & outcm names from global saved by subprog 'getprfxdvars'	
 local inputnames = INPUTNAMES								// ('getprfxdvars' got these lists from 'getoutcmnames' as r(return)s
-local spfxlst = SPFXLST										// List of prefixes that distinguish interims from inputs
-local varlistno = VARLISTNO									// THESE SCALARS LOSE THERE CONTENTS AFTER cleanup(1)
+local spfxlist = SPFXLST									// List of prefixes that distinguish interims from inputs
+local varlistno = VARLISTNO									// VARLIST# needed to refer to varlist responsible for any particular var
+local statprfx = STATPRFX									// Scalar stored after wrapper(3)
+local statrtrn = STATRTRN									// Ditto
 
-local multivariate = "$multivariate" 						// GLOBALS LOSE THEIR CONTENTS AROUND 'cleanup(1)'
+local multivariate = MULTIVARIATE 							// GLOBALS LOSE THEIR CONTENTS AROUND 'cleanup(1)'
 local limitdiag = $limitdiag
-local statrtrn = "$statrtrn"
-local statprfx = "$statprfx"
 local cmd = "$cmd"
 local namechange = "$namechange"
 
 
 
 
-pause on
+*pause on
 										
 pause cleanup(0)											// Establish general location of any error that may be captured below
 global errloc "cleanUp(0)"									// Currently executing codeblock helps diagnose program & user errors
@@ -2357,7 +2359,7 @@ global errloc "cleanUp(0)"									// Currently executing codeblock helps diagno
 
 										// (0) Extract the option-string from the commandline for this command, run the 'syntax'
 										//	   command on that string to make user options accessible to this subprogram
-
+										
 * *****************
   capture noisily {											// Open brace for codeblocks where errors will be captured, to be
 * *****************											//  processed following the matching close brace at and of subprogram
@@ -2434,16 +2436,16 @@ global errloc cleanup(0.2)
 */															// (don't confuse with `strprfx'; derived from scalar set before wrapper(3))
 	local statlist = "`statrtrn'"							// r(return) names for 'genmeanstats' repurposed to label 'genme' variables
 															// (set after wrapper(3); used in cleanup(1.3))
-	if "`cmd'"=="genmeanstats"  local spfxlst ="`statprfx'" // If this is a 'genme' cmd, labeling items from "$statrtrn", set after above
+	if "`cmd'"=="genmeanstats"  local spfxlist ="`statprfx'" // If this is a 'genme' cmd, labeling items from "$statrtrn", set after above
 	local uniqnames  : list uniq inputnames					// Used for varlabels that only need one instance of each input var
-	local uniqspfx   : list uniq spfxlst					// Used to cycle thru all distinct prefix strings & for checksum test, below															
+	local uniqspfx   : list uniq spfxlist					// Used to cycle thru all distinct prefix strings & for checksum test, below															
 															
 	local interims = ""										// NEXT CODEBLK WILL PRODUCE `cmd'P-GENERATED INTERIM NAMES FOR THIS LIST
 
 	
 	local k = 0												// Index needed to access 'gendu'-produced "$interims" and for checksum test
 	
-	if "`cmd'"=="gendummies"  local interims = "`interims'"	// 'gendu' is the only stackMe command to globalize its interim names
+	if "`cmd'"=="gendummies"  local interims = "$interims"	// 'gendu' is the only stackMe command to globalize its interim names
 	
 	else  {													// For other commands the list of interims has to be constructed
 	
@@ -2542,7 +2544,7 @@ global errloc cleanup(1.1)
 	    if _rc  {											// If return code is not zero then `lbl' is not all-numeric
 	   
 	      if "`lbl'"!=""  {									// If input variable was labeled
-		  	local lbl1 = "gen`ic2'-generated outcome from input `name': `lbl'"
+		  	local lbl1 = "gen`ic2'-generated outcome from input `iname': `lbl'"
 															// Append that label
 		  } //endif `lbl'o
 		} //endif _rc
@@ -2557,7 +2559,7 @@ global errloc cleanup(1.1)
 	  if "`cmd'"=="genyhats" & "`multivariate'"!=""  {		// If this is a multivariate yhats command
 															// (PROCESSED FIRST `COS COMES IN 2 FLAVORS – `bivariate' version below)
 		   local nvl = "`varlistno'"						// Generated in  `getoutcmvars', using local returned from 'getprfxdvars'
-		   if "`nvl'"!="." local varlist = VARLISTS`nvl'
+		   if "`nvl'"!="." local varlist = "VARLISTS`nvl'"
 
 		   local lbl : variable label `depvarname'
 		   local lbl1 = "Yhat for regressn of indeps (`varlist') on `depvarname'" // `uniqnames' omits duplicate inputs (eg in gendu)
@@ -2737,7 +2739,7 @@ global errloc cleanup(2)
 	   else local non2missing = "`non2missing' `interim'"	// (GLOBAL nonmissing SEEMINGLY NO LONGER FUNCTIONAL IN THIS SUBPROGRAM)	***
 															// (`non2missing' originally was distinguishd by applying to all varlists)
 	   
-		
+pause off		
 *	****************			
 	} //next 'iname'										// Continue with next `cmd'P-generated interim variable
 *	****************
@@ -2768,7 +2770,7 @@ global errloc cleanup(2)
 	
 	
   	
-
+*pause on
 pause cleanUp(2.1)
 global errloc "cleanUp(2.1)"
 pause off
@@ -2779,36 +2781,40 @@ pause off
 										// (2.1)  NOW PREPARE STACKME VARS THAT RECORD MISSINGNESS FOR DIFFRENT CMDS
 	
 			 
+	local ic = substr("`cmd'",4,1)							// Identifying char(s) used to distinguish interims produced by each `cmd'P
+	if "`cmd'"=="gendummies" | "`cmd'"=="genmeanstats"  local ic = substr("`cmd'",4,2) 
 	
-	foreach SMvar  in SM`ic2'misCount  SM`ic2'misPlugCount { // Cycle thru the two summary measures for current command
-															 // (using identirying char(s) (`ic') to differentiate commands)
+	foreach ic2 in dd ii yd yi du  {						// Cycle thru `ic2's for all vars for which missingness is monitored
+
+	  foreach SMvar in `ic2'misPlugCount SM`ic2'misCount SM { // Cycle thru the two summary measures for current command
+															 // (using identirying char(s) (`ic') to differentiate variables)
 															 
-	   if "`ic2'"!="dd" & "`ic2'"!="ii" & "`SMvar'"=="SM`ic2'misPlugCount" continue, break // Ooly have misPlugCount for gendi & genii
+	    if "`ic2'"!="dd" & "`ic2'"!="ii" & "`SMvar'"=="SM`ic2'misPlugCount" continue, break // Only have misPlugCount for gendi & genii
 															 // "d" covers both multivariate yhat and gendist outcomes
-	   if "`SMvar'"=="SM`ic'misCount"  {					 
+	    if "`SMvar'"=="SM`ic2'misCount"  {					 
 			local txt = "original"							 // Set text to be included in var label for input var
-	   }
-	   else {												 // else set text for outcome var
+	    }
+	    else {												 // else set text for outcome var
 			if "`ic2'"=="dd" local txt = "mean-plugged"		 // (i.e. mean-plugged, imputed or y-hatted)
 			if "`ic2'"=="ii" local txt = "imputed"
-			if "`ic2'"=="yd"  local txt = "Multivariate y-hat depvar"
+		   /*if "`ic2'"=="yd"  local txt = "Multivariate y-hat depvar"
 			if "`ic2'"=="yi"  local txt = "Bivariate y-hat indep"
 			if "`ic2'"=="du" local txt = "dummy"		 	 // (will overwrite any txt established when "d" was matched)
-			if "`cmd'"=="genmeanstats" local txt = "stat"
-	   }
+			if "`cmd'"=="genmeanstats" local txt = "stat" */
+	    }
 		
-	   capture confirm variable `SMvar'					 	 // See if variable exists from previous occurrence of same cmd
+	    capture confirm variable `SMvar'					 // See if variable exists from previous occurrence of same cmd
 		
-	   if _rc==0  {										 	 // If that var already exists			(THIS ALREADY DONE EARLIER?)		***
+	    if _rc==0  {										 // If that var already exists			(THIS ALREADY DONE EARLIER?)		***
 	   
-		  if "`SMvar'"=="SM`ic'misCount"  {					 // If this is first SMvar, see if 2nd also exists..
-			capture confirm variable SM`ic'misPlugCount
+		  if "`SMvar'"=="SM`ic2'misPlugCount"  {				 // If this is first SMvar, see if 2nd also exists..
+			capture confirm variable SM`ic'misCount
 			if _rc==0  {								 	 // If so, store both variables in SMvar
-			  local SMvar = "SM`ic'misCount SM`ic'misPlugCount"
+			  local SMvar = "SM`ic2'misCount SM`ic2'misPlugCount"
 			}		 		 							 	 // Else SMvar is just one variable (first or second in foreach list above)
 		  }
-		  else  local SMvar = "SM`ic'misPlugCount"		 	 // Else this is the second (and only) SMvar
-		  capture confirm variable SM`ic'misPlugCount
+		  else  local SMvar = "SM`ic2'misCount"			 	 // Else this is the second (and only) SMvar
+		  capture confirm variable SM`ic2'misCount			 // If SM`ic'misCount exists and both are optioned then both exist
 		  if _rc==0  {
 			display as error "`SMvar' already exist(s); replace?{txt}"
 *					          12345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -2818,9 +2824,9 @@ pause off
 			  errexit, msg("Lacking permission to drop `SMvar'") 
 			  exit 										  	  // _rc was non-zero so user is not 'OK'n with dropping this/ese
 			}												  
-			drop `SMvar'									  // Else drop the left-over variable
+			drop `SMvar'									  // Else drop the left-over variable(s)
 			
-		  } //endif _rc										  // If did not exit above, process the variable established
+		  } //endif _rc==0									  // If did not exit above, process the variable established
 		
 		  else  {											  // Else SMvars do not already exist
 					
@@ -2865,9 +2871,11 @@ pause off
 															   // (or one var that was misPlugCount var)
 		  } //endelse _rc==0
 		  
-	   } //endif _rc==0
+	    } //endif _rc==0
 		
-	} //next `SMvar'
+	  } //next `SMvar'
+		
+	} //next `ic2'
 
 	
 	if `limitdiag' noisily display " "						  // Display a blank line to terminate per context diagnostics
@@ -2979,7 +2987,7 @@ global errloc "cleanUp(4)"
 											// those prefixes define the provenance of each stackMe-generated variable, they should
 											// not be changed without careful thought regarding alternative means for keeping track of
 											// variable provenance (variable characteristics NOW PROVIDE A MEANS FOR DOING SO).
-											// (WE HAVE PLANS FOR AN 'origin' OPTION THAT WLD PUT FULL PROVENNCE INTO OUTCM VAR LABELS)
+											// (WE HAVE PLANS FOR AN 'origin' UTILITY THAT WLD PUT FULL PROVENNCE INTO OUTCM VAR LABELS)
 											// ****************************************************************************************
 
 											
@@ -2987,9 +2995,9 @@ global errloc "cleanUp(4)"
 
 	foreach out of local outcmnames  {						   // `outcmnames' is a revision of `outcmnames' reconstucted in 'cleanup'(1)
 		
-		local i = `i' + 1
-		local pfx = word("`pfxlist'",`i')					   // Get prefix for this variable (saved in wrapper(3))
-		if "`cmd'"=="genmeanstats"  local pfx = word("`genmeprfx'",`i')
+		local i = `i' + 1 
+		local pfx = word("`spfxlist'",`i')					   // Get prefix for this variable (saved in wrapper(3))
+		if "`cmd'"=="genmeanstats"  local pfx = word("`genmeprfx'",`i')  
 		if "`cmd'"=="gendist" & "`pfx'"=="x"  {
 		   if "`proximities'"==""  continue  				   // Continue with next `oname' if `pfx=="x"' but proximities not optioned
 		}													   // THERE SHOULD BE A BETTER LOCATION FOR THIS CHECK						***
@@ -3261,7 +3269,7 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 	if _rc global limitdiag = -1				// If $limitdiag was not yet initialized, put it into its default state
 	scalar LIMITDIAG = $limitdiag 				// And for $limitdiag
 	macro drop _all								// Clear all macros before exit (evidently including all of the above)
-	capture drop ___*									// Drop all quasi-temporary vars (vars with names starting "___")
+	capture drop ___*							// Drop all quasi-temporary vars (vars with names starting "___")
 												// (note that scalars are not macros so they are not dropped by above command)
 	global SMrc = SMrc							// Get $SMrc back from its scalar copy
 	local msg = SMmsg							// Governs way in whicn msgs are displayed
@@ -4626,3 +4634,94 @@ end varsImpliedByStubs
 ****************************************************** END OF SUBPROGRAMS *****************************************************
 
 
+
+/*											// TEST CODE MIGHT BE USEFUL
+	mata:st_numscalar("a",ascii("A")) 		// Get MATA to tell us the ascii value of char following "_"
+	display a  /*–  upper case A is 65;  upper case Z is 90 */
+*/
+/*
+*set trace on
+local v = "REDU1"
+	   while real(substr("`v'",-1,1))<.  {					// If conversion to real is not missing, last char is a number
+		  local `v' = substr("`v'",1,strlen("`v'")-1) 		// (so remove that char from end of string and repeat)
+		  display "`v'"
+	   } //next while										// Hopefully string now ends in generic name, not specific value
+*/
+
+/*
+local nvl = 1
+global varlists`nvl' = VARLISTS`nvl'
+*local varlist = "$varlists`nvl'"
+local varlist = VARLISTS`nvl'
+display "`varlist'"
+foreach var  of  local varlist {
+	
+	display "`var'"
+}
+*/
+
+
+
+/*							test for stata handling of unusual code
+
+capture program drop test
+
+program define test
+
+tempfile testfile
+
+save `testfile'
+
+test2 , file(`testfile')
+
+end test
+
+
+
+capture program drop test2
+
+program define test2
+
+syntax  , file(string)
+
+display "`file'"
+
+use `file', clear							// works fine
+
+end
+
+
+
+test 
+
+
+
+capture program drop test1
+
+program define test1
+
+tempvar ma_VOTE
+gen `ma_VOTE' = 99
+rename `ma_VOTE' __ma_VOTE
+
+tempvar me_VOTE
+gen `me_VOTE' = 88
+rename `me_VOTE'  ___me_VOTE
+
+end
+
+
+	
+capture program drop test2
+
+program define test2
+
+display "$_`ab'						// always empty when tried with a number of variations
+
+*sum $aa
+
+end
+
+
+
+*/
