@@ -1,7 +1,6 @@
 
 capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
 
-*! Updated Jan'26
 
 program define genstacksO, rclass							// Called by 'stackmeWrapper'; calls subprograms varsImpliedByStubs
 															// stunsImpliedByVars and subprogram 'errexit'
