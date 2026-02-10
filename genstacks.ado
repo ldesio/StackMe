@@ -172,6 +172,14 @@ global errloc "genstacks(2)"
 		   quietly label var `stub' "`varlabel'"
 		   
 		} //endif 'varlabel'
+		
+		if substr(substr("`stub'",1,3),-1,1)=="_"  {	// If there is a prefix ending with "_"
+		
+		   rename `stub' st`stub'						// Don't add another "_"
+			
+		}
+		
+		else  rename `stub' st_`stub'					// Else prepend a standard prefix, ending in "_"
 	
 	} //next `stub'										// Find next now-reshaped var needing a label
 	 
@@ -413,6 +421,7 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
 		   capture window stopbox rusure "Overwrite existing file?"
 		   
 		   if _rc==0  {										// If user responded with 'OK'
+		   
 			   if "$dblystkd"=="" {
 				  noi display "Newly-stacked file replaces existing $newfile"
 *              		        12345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -529,3 +538,16 @@ end genst
 
 
 *************************************************** END PROGRAMS **********************************************************
+
+
+/*
+		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
+		sum `contexts'
+		tempvar rank
+		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
+		tab1 `rank'
+		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
+		label var SMnstks "Number of stacks identified by SMstkid per context"
+																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
+*/
+
