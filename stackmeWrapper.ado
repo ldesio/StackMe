@@ -2417,8 +2417,6 @@ local statrtrn = STATRTRN									// Ditto
 local namechange = "$namechange"
 local cmd = "$cmd"
 
-noisily display "out: `outcmnames'; in: `inputnames'; prf: `spfxlst'"
-
 
 
 *pause on
@@ -4706,4 +4704,3 @@ local v = "REDU1"
 		  display "`v'"
 	   } //next while										// Hopefully string now ends in generic name, not specific value
 */
-
