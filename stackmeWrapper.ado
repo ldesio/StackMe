@@ -1,5 +1,4 @@
 
-
 capture program drop stackmeWrapper
 
 *!  This ado file is called from each stackMe command-specific caller program and contains program 'stackmeWrapper' that forwards calls
@@ -4705,3 +4704,14 @@ local v = "REDU1"
 	   } //next while										// Hopefully string now ends in generic name, not specific value
 */
 
+/*
+local nvl = 1
+global varlists`nvl' = VARLISTS`nvl'
+*local varlist = "$varlists`nvl'"
+local varlist = VARLISTS`nvl'
+display "`varlist'"
+foreach var  of  local varlist {
+	
+	display "`var'"
+}
+*/
