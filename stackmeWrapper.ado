@@ -40,7 +40,7 @@ scalar pauseon = "$PAUSEON"
 										
 										// This complex structure fulfills the design goals to (1) access each data observation the 
 										// minimum possible number of times per stackMe operation and (2) have the same code provide any 
-										// service requied by all stackMe commands, simplifying program maintenance and error-correction.
+										// service required by all stackMe commands, simplifying program maintenance and error-correction.
 *		********						
 * 		Summary:						// Wrapper for stackMe version 2.0, June 2022, updated in '23, '24 & '25. Version 8 extracts 
 *		********						// working data (variables and observations determined by each stackMe command-line) before  
@@ -4715,3 +4715,4 @@ foreach var  of  local varlist {
 	display "`var'"
 }
 */
+
