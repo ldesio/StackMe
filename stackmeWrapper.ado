@@ -1,4 +1,6 @@
 
+*! Feb 11'26
+
 capture program drop stackmeWrapper
 
 *!  This ado file is called from each stackMe command-specific caller program and contains program 'stackmeWrapper' that forwards calls
@@ -376,21 +378,7 @@ pause (1)
 						
 		if "`options'"!=""  {							// Here check for user option(s) that don't match any listed above
 
-/*														// COMMENTED OUT 'COS CHECK SHOULD BE IN 'genstacks', NOT HERE					***
-		   if "cmd'"!="genstacks"  {					// Except for command 'genstacks', for which ...		   
-			  local tail = "`options'"
-			  foreach opt  in  nostacks  {				// 'nostacks' (perhaps more – hence 'foreach') is optional for all but genstacks
-				 gettoken head tail : tail, parse("(")	// Put each options string in turn, up to the first/next "(", into 'head"
-				 if substr("`head'",1,5)=="`opt'"  {	// If 'head' is "(nocon'" (minimum version of "(nocontexts)")
-					local tail = substr("`tail'",1,strpos(")"))				  // `tail' has whatever else the user typed, up to ")"
-					local options = subinstr("`options'","`head'`tail'","",1) // Substitute "" for options-string "`head'`tail'", once
-				 } //endif
-			  } //next `opt', if any					// (any additional exceptional `opt's would be added to 'foreach's "nosta")
-			  
-		   } //endif `genstacks'
-		   
-		   if "`options'"!=""  {						// If, after removing the above 'options'-string still has any options remaining
-*/			  display as error "Option(s) invalid for this cmd: `options'"
+			  display as error "Option(s) invalid for this cmd: `options'"
 			  errexit, msg("Option(s) invalid for this cmd: `options'")
 														// Call on 'errexit' with optioned msg suppresses display, done just above
 			  exit										// 'exit' cmd returns to caller, skipping rest of wrapper incldng skipcapture
@@ -407,12 +395,7 @@ pause (1)
 															//**********************************************************************
 		local optionsP ="`optionsP' limitdiag(`limitdiag')" // Append `limitdiag', which got lost somewhere
 															// (perhaps indication that other options might also have been lost too)	***
-*		if "`cmd'"=="genyhats" & "`depvarname'"=="" {		//**********************************************************************
-*		   gettoken first rest : multivarlst, parse(":")	// COMMENTED OUT `COS NO LONGER PUTTING PREFIXED VAR INTO 'depvarname'
-*		   if "`rest'"!="" local optionsP = "`optionsP' depvarname(`first')"
-*		}													// Also `depvarname' if replaced by a prefix variable
-															// (avoids having to require a `depvarname' to be optioned even if unused)
-															// TOO CLEVER BY HALF!! NOW HOLDS FALLBACK NAME SHOULD LATER VARLIST NOT
+															//**********************************************************************
 															
 															// Pre-process 'limititdiag' option
 		if `limitdiag'== -1 local limitdiag = .				// Make that a very big number if user does not invoke this option
@@ -945,9 +928,12 @@ pause (2.1)
 										//		 varlists on one single pass through these enormous datafiles.
 										//		 ********************************************************************************************
 
+										
 			 local stub = ""										// Presence of a gendummies stub is used as a flag below
 			 local postul = ""										// Ditto for `postul'
 			 local gotat = ""										// Ditto for `gotat'
+			 local multivariate = "$multivariate"					// By default employ user-optioned version of this flag
+			 local dvar = "`depvarname'"							// Ditto for depvarname
 				
 				
 		     gettoken precolon postcolon : anything, parse(":")		// Parse components of 'anything' based on presence of ":", if any,
@@ -957,7 +943,7 @@ pause (2.1)
 			   local prfxvar = ""									// If there is no colon, store empty string for prfxvar, and prior
 			   local strprfx = ""									// Empty by default (there can only be one strprfx per varlst)
 *			   ************************								// Here we pre-process hyphenated and abbreviated un-prefxd varlist
-			   checkvars "`anything'"								// Vars provde most inputs (with colon some pre-processng is needed)
+			   checkvars "`anything'"								// Vars yield most inputs (with colon some pre-processng is needed)
 			   if "$SMreport"!=""  exit								// Exit if 'checkvars' reported an error
 *			   ************************								// See first call on 'checkvars', in wrapper(1.1) above. for details
 			   local vars = r(checked)								// (get vars from r(checked), not 'anything', whch may have hyphens)
@@ -969,7 +955,7 @@ pause (2.1)
 		   
 			   local vars = strtrim(substr("`postcolon'",2,.))		// 'vars' is tail of 'postcolon' after ":" is removed from its head 
 			   
-			   **********************								// Here we pre-process hyphenated and abbreviated pre-colon varlist
+			   **********************								// Here we pre-process hyphenated and abbreviated post-colon varlist
 			   checkvars "`vars'"									
 			   if "$SMreport"!="" exit								// Exit if 'checkvars' invoked 'errexit'
 *			   **********************
@@ -1000,16 +986,23 @@ pause (2.1)
 			   }
 			 
 			   **********************								// See 1st call on 'checkvars', in wrappr(1.1) abve, for its purpose
-			   checkvars "`prfxvar'"								// Pre-process hyphnatd & abbrevtd string prfxs to supplementry vars
+			   checkvars "`prfxvar'"								// Pre-procss hyphnatd & abbrevtd prefix-vars that supplement varlst
 			   if "$SMreport"!="" exit								// Exit if 'checkvars' invoked 'errexit'
 *			   **********************
-			   local prfxvar = r(checked)
-																	// Now set flag and add variable occasioned by any `yh@' prefix
-			   if "`gotat'"!=""  {									// 'genyhats' is only cmd for which a `prfxvar' would be an input
-				  local multivariate = "yes"						// (global multivariate is not changed; flags an optned multivariate)
+			   local prfxvar = r(checked)							// There is a colon so there must be one or more prefixvar(s)
+										
+										
+			   if "`cmd'"=="genyhats"  {							// 'genyhats' is only cmd for which a `prfxvar' would be an input
+				  local multivariate = "yes"						// (global multivariate is not changed; flags an optned multvariate)
 				  local dvar = "`prfxvar'"							// For genyhats precolon contains a (possibly prefixed) input var
-			   } //endif `goat'										// (`gotat' both acts as ht@ flag and supplies `dvar' for `genyhats')
-			   
+				  if "`preul'"!="" & "`gotat'"==""	{				// If dvar was string-prefixed using "_" not "@"
+				  	 errexit "Any string-prefix to 'genyhats' depvar must be followed by '@' not '_'"
+*               		      12345678901234567890123456789012345678901234567890123456789012345678901234567
+					 exit 
+				  }	
+				  local vars = "`prfxvar' `vars'"					// For 'genyhats' any prefxvar is also an input (assignd just below)
+			   } //endif `cmd'										// (`gotat' both acts as ht@ flag & supplies `dvar' for `genyhats')
+																	// (POSSIBLY REDUNDANT AS `prfxvar' ALSO HAS IT)					***
 			 } //endelse `postcolon'								// That should cover all possible varlist formats
 *			 
 			 
@@ -1169,7 +1162,7 @@ pause off
 	   } //endif 'prfxvars'
 	   else  {													// Else there is no prefixvar (genyhats can only have one)
 	   	  if "`cmd'"=="genyhats" & "`depvarname'"=="" { 		// genyhats requires an optioned depvarname if no prefixvar
-			 if "$multivariate"!=""  {
+			 if "$multivariate"!="" "`multivariate'"!=""  {
 				errexit "For a multivariate analysis with no yh@ prefix, a depvarname must be optioned"
 *               	  	 12345678901234567890123456789012345678901234567890123456789012345678901234567
 			 }
