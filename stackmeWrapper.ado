@@ -1,5 +1,4 @@
-
-*! Feb 11'26
+*! Feb 14'26
 
 capture program drop stackmeWrapper
 
@@ -940,7 +939,7 @@ pause (2.1)
 	
 			 if "`postcolon'"==""  {								// If 'postcolon' is empty then there is no colon
 				
-			   local prfxvar = ""									// If there is no colon, store empty string for prfxvar, and prior
+			   local prfxvar = ""									// If there is no colon, store empty string for prfxvar, and before
 			   local strprfx = ""									// Empty by default (there can only be one strprfx per varlst)
 *			   ************************								// Here we pre-process hyphenated and abbreviated un-prefxd varlist
 			   checkvars "`anything'"								// Vars yield most inputs (with colon some pre-processng is needed)
@@ -956,7 +955,7 @@ pause (2.1)
 			   local vars = strtrim(substr("`postcolon'",2,.))		// 'vars' is tail of 'postcolon' after ":" is removed from its head 
 			   
 			   **********************								// Here we pre-process hyphenated and abbreviated post-colon varlist
-			   checkvars "`vars'"									
+			   checkvars "`vars'"	
 			   if "$SMreport"!="" exit								// Exit if 'checkvars' invoked 'errexit'
 *			   **********************
 			   local vars = r(checked)								
@@ -966,24 +965,28 @@ pause (2.1)
 				 local postul = stritrim(substr("`gotat'",2,.))		// (anything that preceeds "@" is already in `preul'
 			   }													// (trim any spaces inside `goat' – eg "yh@ TURNOUT")
 			   
-			   else  {												// Else there is no @ parsing char; still might be a "_" parsng char
-			   	  gettoken preul postul : precolon, parse("_")		// "_" is treated exactly as "@" (but leaves no `gotat' indicator)																
-			      if "`postul'"!=""  {								// If 'postul' not empty then there is a "_" parsing char
+			   else  {												// Else there's no @ parsng char; does precolon have unprefixed var?
+			     checkvars "`precolon' noexit"						// (do not exit if expected variable does not exist)
+				 local checked = r(checked)							// (treating `precolon' as varlist to be unabbreviated)
+				 local var = word("`checked'",1)					// Get first word of checked and unabbreviated var(list)
+				 capture confirm var `var'							// If that var already exists, there is no newly-defined str prefix
+				 if _rc  {											// If var does NOT exist, parse `precolon' for string prefix
+			   	   gettoken preul postul : precolon, parse("_")		// "_" is treated exactly as "@" (but leaves no `gotat' indicator)																
+			       if "`postul'"!=""  {								// If 'postul' not empty then there is a "_" parsing char
 					 local postul =stritrim(substr("`postul'",2,.)) // Remove any spaces inside `postul' (e.g. following the "_")
-				  }
-			   } //endelse `gotat'  								// Next look for contents of `preul' (same whichever parse was used)
-																	// With either parsing char, postul will contain what followed
-			   if "`postul'"!=""  {									// (non-empty `postul' also tells us that `preul' is not empty)
-			   	  local strprfx = "`preul'"
-				  local prfxvar = "`postul'"						// With either parsing char, `postul' had that char removed above
-				  if "`cmd'"=="gendummies"  local stub = "`postul'" // If command is 'gendummies' `postul' contains stubnames
-			   }
+					 local strprfx = "`preul'"
+					 local prfxvar = "`postul'"						// With either parsing char, `postul' had that char removed above
+					 if "`cmd'"=="gendummies"  local stub = "`postul'" // If command is 'gendummies' `postul' contains stubnames
+				   }
 			   
-			   else  {												// Else `postul' is empty so there was neither string prefix
-				  local strprfx = ""								// Make `strprfx' empty
-				  local prfxvar = "`precolon'"						// All of `precolon' goes into `prfxvar' (whether 1 or more vars)
-				  if "`cmd'"=="gendummies" local stub="`precolon'" 	// For gendummies, precolon would hold stubname(s)
-			   }
+				   else  {											// Else `postul' is empty so neither "@" nor "_" str prfx was used
+					 local strprfx = ""								// Make `strprfx' empty
+					 local prfxvar = "`precolon'"					// All of `precolon' goes into `prfxvar' (whether 1 or more vars)
+					 if "`cmd'"=="gendummies" local stub="`precolon'" // For gendummies, precolon would hold stubname(s)
+				   }
+				 } //endif _rc										// Else precolon did hold a var(list) so next 'checkvars' is redndt
+			   } //endelse `gotat'  								// Next look for contents of `preul' (same whichever parse was used)
+																	// With either parsing char, postul will contain what followed		
 			 
 			   **********************								// See 1st call on 'checkvars', in wrappr(1.1) abve, for its purpose
 			   checkvars "`prfxvar'"								// Pre-procss hyphnatd & abbrevtd prefix-vars that supplement varlst
@@ -995,13 +998,12 @@ pause (2.1)
 			   if "`cmd'"=="genyhats"  {							// 'genyhats' is only cmd for which a `prfxvar' would be an input
 				  local multivariate = "yes"						// (global multivariate is not changed; flags an optned multvariate)
 				  local dvar = "`prfxvar'"							// For genyhats precolon contains a (possibly prefixed) input var
-				  if "`preul'"!="" & "`gotat'"==""	{				// If dvar was string-prefixed using "_" not "@"
-				  	 errexit "Any string-prefix to 'genyhats' depvar must be followed by '@' not '_'"
+/*				  if "`preul'"!="" & "`gotat'"==""	{				// If dvar was string-prefixed using "_" not "@"
+				  	 errexit "Any string-prefix to 'genyhats' depvar must be followed by '@' not '_' {txt}"
 *               		      12345678901234567890123456789012345678901234567890123456789012345678901234567
 					 exit 
 				  }	
-				  local vars = "`prfxvar' `vars'"					// For 'genyhats' any prefxvar is also an input (assignd just below)
-			   } //endif `cmd'										// (`gotat' both acts as ht@ flag & supplies `dvar' for `genyhats')
+*/			   } //endif `cmd'										// (`gotat' both acts as ht@ flag & supplies `dvar' for `genyhats')
 																	// (POSSIBLY REDUNDANT AS `prfxvar' ALSO HAS IT)					***
 			 } //endelse `postcolon'								// That should cover all possible varlist formats
 *			 
@@ -2322,7 +2324,7 @@ global errloc "checkvars"										// Establish general location of any error th
 			
 	} //endelse	`strpos'										// End of codeblock dealing with hyphated varlist(s)
 		
-	if "`errlst'"!=""  {										// If any bad varnames were identified ...
+	if "`errlst'"!="" & "`nexit'"!=""  {						// If any bad varnames were identified (but not anticipated) ...
 		
 		dispLine "Invalid variable name(s): `errlst'" "aserr"	// May need multiple lines to display this error message
 		if "`noexit'"==""  {									// If `noexit' was not optioned on call to this subprogram..
@@ -2580,7 +2582,7 @@ global errloc cleanup(1.1)
 	  if MULTIVARIATE`nvl'!=""  local multivariate = MULTIVARIATE`nvl' // But check for `nvl'- specific scalar, put there pre wrappr(3)
 	  
 	  local prfxvars = PRFXVARS`nvl'						// Get prefixvars, if any, associatd with varlstno that yielded this interim
-	  if GOTAT`nvl'!="" local prfxvars = GOTAT`nvl'			// For multivariate 'genyh' prefixvar is in scalar GOTAT`nvl'
+*	  if GOTAT`nvl'!="" local prfxvars = GOTAT`nvl'			// For multivariate 'genyh' prefixvar is in scalar GOTAT`nvl'
 	  
 	  if "`prfxvars'"!=""  {								// If prefixvar is non-empty ..
 	    if "`cmd'"=="genyhats"  local dvar = "`prfxvars'"
@@ -2613,7 +2615,7 @@ global errloc cleanup(1.1)
 	    if _rc  {											// If return code is not zero then `lbl' is not all-numeric
 	   
 	      if "`lbl'"!=""  {									// If input variable was labeled
-		  	local lbl1 = "gen`ic2'-generated outcome from input `iname': `lbl'"
+		  	local lbl1 = "gen`ic2'-generated outcome from input(s) `iname': `lbl'"
 															// Append that label
 		  } //endif `lbl'o
 		} //endif _rc
@@ -2716,7 +2718,7 @@ global errloc cleanup(1.3)
 															// (and make the result part of `lbl1')
 			local lbl1 = "Missng values imputd from "+stritrim(subinstr("`uniqnames'","`interim'","",1))
 			if strlen("`lbl1'")>73 & "`addvars'"!=""  local lbl1 = substr("`lbl1'",1,73) + ".. `addvars'"
-			if strlen("`lbl1'")>80  local lbl1 = substr("1,78") + ".."
+			if strlen("`lbl1'")>80  local lbl1 = substr("`lbl1'",1,78) + ".."
 															// Put result in `lbl1' to be applied below
 		 } //endif		
 															// Interim with m_ prefix was already labaled in cleanup(1.2)
@@ -2748,10 +2750,10 @@ global errloc cleanup(1.3)
 															// (the d_`var' was labeled at end of codeblk 1.1)
 		  local lb2 : variable label `iname'				// Basis for outcm var labels is the existng label for corrspndng input
 		  
-		  if "`lbl2'"!=""  local lbl1 = "Yhat for regression of `iname' on `depvarname':`lbl2'"
+		  if "`lbl2'"!=""  local lbl1 = "Yhat for regression of `depvarname, on `iname':`lbl2'"
 *					 					 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		  else  {
-		  	 local lbl1 = "Yhat for regression of `iname' on indep `depvarname'"
+		  	 local lbl1 = "Yhat for regression of `depvarname' on indep `iname'"
 		  }
 					
 	  } //endif `cmd'										// End of codeblks for var with existing label
@@ -3362,7 +3364,8 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 		  else  {								// Else there was a message with the return code
 			 dispLine "`msg'; will exit on OK" "aserr" 1 // limit to 1 line of text displayed in output window
 			 window stopbox note "`msg'; will exit on 'OK'"       // No limit for stopbox display
-			 exit
+			 if "$SMrc"!=""  local rc = "$SMrc"
+			 exit `rc'
 		  }
 		    
 		} //endelse  $SMrc
@@ -3427,7 +3430,7 @@ if  _rc & "`skipcapture'"==""  {				// If entered this block without 'skipcaptur
 	noisily display as error "'errexit' diagnosed an error within itself – click blue RC for details{txt}"
 *					          12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	window stopbox note "'errexit' diagnosed an error within itself – click blue return code for details"
-	exit _rc
+	exit 1
 }
 
 	
@@ -3526,7 +3529,6 @@ global errloc = "getoutcm(2)"
 											// (2) GET VARIABLES, PREFIXVARS, STUBNAMES AND STRPREFIXES FOR THIS VARLIST
 											
 											
-	local multivariate = MULTIVARIATE						// By default take the user-optioned 'genyhats' multivariate flag
 											
 	local statprfx = STATPRFX								// NOTE that 'genmeanstats' 'strprfx's were saved as scalars at wrapper(3)
 	local statlen = wordcount("`statprfx'")					// (only one varlist is allowed with 'genme' `cos never imagined more)
@@ -3536,27 +3538,29 @@ global errloc = "getoutcm(2)"
 	local nvarlsts = NVARLSTS								// get N of varlists from scalar NVARLSTS set in wrapper(2.1) 
 	
 	forvalues nvl = 1/`nvarlsts'  {							// Cycle thru all varlists (from scalar NVARLSTS in codeblk 10)
-															
-	  local dvar = ""										// By default this is not a `multivariate' yhat
-									
-	  local varlist = VARLISTS`nvl'							// Same scalar used in codblk cleanup(10) lists varnmes for each varlst
+	
+	  local dvar = ""										// By default this is not a `multivariate' yhats command
+	  local multivariate = MULTIVARIATE						// By default each varlst reverts to user-optd 'genyhats' multivariate flag
+	  if "`multivariate'"!=""  local dvar = "`depvarname'"	// (which, if set, implies using the user-optioned `depvarname'
+	  local varlist = VARLISTS`nvl'							// Scalar used in codblk cleanup(10) lists varnmes for each varlst
 	  local prfxvars = PRFXVARS`nvl'						// Retrieve any prefixes that are varnames (THESE DO NOT AFFECT VARNAMES)
 	  local stubnames = VARSTUBS`nvl'						// Ditto for stubnames used by 'gendummies' (can be empty or missing)
 	  local strprfx = PRFXSTRS`nvl'							// And any string prefix to those var prefixes (1 per listof `prfxvars')
 	  if "`strprfx'"=="."  local strprfx = ""				// (so it is duplicated as many times in `strprfx' as there are outcomes)
-	  local gotat = GOTAT`nvl'
+*	  local gotat = GOTAT`nvl'								// EXPERIMENTAL `yh@' FUNCTION NOW PERFORMED BY `prfxvars' 
 	  
-	  if MULTIVARIATE`nvl'!=""  local multivariate = MULTIVARIATE`nvl' // User-optioned version (above) is overridden by `yh@' prefix
-	  if  "`multivariate'"!=""  local dvar = "`depvarname'"	// Multivariate genyhats generates optioned depvar by default
-	  if "`gotat'"!=""  local dvar = "`gotat'"				// Prefix to multivariate varlist overrides optioned depvar, if any
+	  if "`cmd'"=="genyhats" & "`prfxvars'"!=""  {			// If this 'genyhats' has a prefixvar
+	  	local multivariate = MULTIVARIATE`nvl' 				// User-optioned version (above) is overridden by yhat prefix var
+		local dvar = "`prfxvars'"							// Multivariate genyhats generates optioned depvar by default
 															// (only one depvar for multivariate yhat analyses)
-	  if "`dvar'"!=""  {
-	  	 local varlist = "`dvar'"							// If a multivarte 'genyh' was opted or prfxd then `dvar' is only outcome
-		 local optnames = "dprefix"							// (and the only `optname' is `dprefix')
-	  }
+		if "`dvar'"!=""  {
+	  	  local varlist = "`dvar'"							// If multivarte 'genyh' was opted or prfxd then `dvar' is the only outcome
+		  local optnames = "dprefix"						// (and the only `optname' is `dprefix')
+		}
+	  } //endif genyhats
+	  
 	  
 	  local nv = 0											// Variable # within varlist
-	  
 	  
 	  foreach v  of  local varlist  {						// Cycle thru all outcome vars for each varlist (inputs, for multiv genyh)
 	  
