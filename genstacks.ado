@@ -1,3 +1,4 @@
+!* Feb 14'26
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -59,7 +60,7 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 ******************											 // (else skip all until end of program) 
 *															 **********************************************
 
-
+*capture noisily {
 * **********
   capture noisily {											 // Puts rest of command within capture braces, in case of Stata error	
 * **********												 // Capture processing code is at the end if this adofile.
@@ -175,11 +176,11 @@ global errloc "genstacks(2)"
 		
 		if substr(substr("`stub'",1,3),-1,1)=="_"  {	// If there is a prefix ending with "_"
 		
-		   rename `stub' st`stub'						// Don't add another "_"
+		   rename `stub' stk`stub'						// Don't add another "_"
 			
 		}
 		
-		else  rename `stub' st_`stub'					// Else prepend a standard prefix, ending in "_"
+		else  rename `stub' stk_`stub'					// Else prepend a 3-char prefix to mark transition to stacked data
 	
 	} //next `stub'										// Find next now-reshaped var needing a label
 	 
@@ -204,7 +205,7 @@ global errloc "genstacks(2)"
 	}
 	else  {												// Else this genstacks run doubly-stacked the data
 		tempvar rank
-/*		qui egen `rank' = rank(S2stkid), field by(contexts) // Unique values taken on by SMstkid		   NOT WORKING		***
+/*		qui egen `rank' = rank(S2stkid), field by(contexts) // Unique values taken on by SMstkid		   NOT WORKING			***
 		qui egen S2nstks = count(`rank'), by(contexts) // Max rank (which should be the number of different ranks)
 		label var S2nstks "Number of stacks identified by S2stkid per context"
 */		qui egen S2nstk = max(SMstkid)
@@ -550,4 +551,3 @@ end genst
 		label var SMnstks "Number of stacks identified by SMstkid per context"
 																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
 */
-
