@@ -1,4 +1,4 @@
-*! Feb 14'26
+*! Feb 17'26
 
 capture program drop stackmeWrapper
 
@@ -309,7 +309,7 @@ pause (0.2)
 	
 	else  {													// Else first word is not "multicntxt"
 		local mask = "`istwrd'" + "`mask'"					// So re-assemble mask by prepending whatever was in 1st word to rest
-	}														//  of mask, but with "multicntxt" flag and leading "\" removed
+	}														//  of mask, but now with "multicntxt" flag and leading "\" removed
 
 	gettoken preparen postparen : mask, parse("(")			// Identify the option-name for critical 1st option by parsing on "("
 	local opt1 = lower("`preparen'")						// Deal with any capitalized initial chars in this option name
@@ -369,7 +369,7 @@ pause (1)
 														// Initial `mask' (coded in the wrapper's calling `cmd' was pre-processed
 														//  in codeblock 0.2 above); options added here apply to all stackMe commnds
 *		***************									// (except that genstacks cannot have NOCONtexts or NOSTAcks)
-		global mask = "`mask'  NODiag EXTradiag CONtextvars(varlist) NOCONtextvars NOSTAcks prfxtyp(string) SPDtst"
+		global mask = "`mask'  APRefix(str) NODiag EXTradiag CONtextvars(varlist) NOCONtextvars NOSTAcks prfxtyp(string) SPDtst"
 														// Need a copy of full mask, established as below, for subprogram syntax stmt
 		syntax , [ $mask * ] 						  	// (`mask' was establishd in caller `cmd' and preprocessd in codeblk 0.2)
 *	    ***************	  								// (option SPDtst uses supposedly slower but simpler append file code)
@@ -2408,7 +2408,7 @@ local spfxlst = SPFXLST										// List of prefixes that distinguish interims f
 															// (don't confuse with `strprfx'; derived from scalar set before wrapper(3))
 local statprfx = STATPRFX									// Scalar stored after wrapper(3)
 local statrtrn = STATRTRN									// Ditto
-local namechange = "$namechange"
+local namechange = NAMECHANGE								// Scalar stored in 'getprfxdvars'
 local cmd = "$cmd"
 
 
@@ -3171,8 +3171,10 @@ capture noisily  {								// Any error occurring before corresponding close brac
 *****************								// (and processed after that close brace)
 	
   gettoken msg last : msg, parse(";") 						// If `msg' contains ";", that and rest of `msg' will suffix (abbrv) txt
-  local allmsg = "`msg'"
-  															// (leaves `msg' shorn of terminal "last")
+  if "`last'"!=""  local last = substr("`last'",2,.)		// If there was a ";", strip that from head of `last'
+  if strpos("`msg'","`last'")  local last = ""				// If `last' repeats `msg' content, make `last' empty
+  local allmsg = "`msg'"									// (leaves `msg' shorn of terminal "last")
+  						
   if "`last'"!=""  local lenl = strlen("`last'")			// Length of suffix determines max length of final line to be displayed
   else local lenl = 0										// Make `lenl' =0 if there is no suffix
   local maxwidth = 80 - `lenl'								// `maxwidth' is max width of final line displayed, when suffix is added
@@ -3232,7 +3234,7 @@ capture noisily  {								// Any error occurring before corresponding close brac
   	 local msg = "`allmsg'`last'"
   }	
   
-  return local msg "`msg'"
+  return local msg "`msg'"									// Return reformatted msg to caller, for optnl use in 'window stopbox' call
   
   
   local skipcapture = "skip"								// If execution passes this point, no error was captured
@@ -3452,14 +3454,9 @@ capture program drop getoutcmnames							// Called from 'getprfxdvars' (next sub
 program define getoutcmnames, rclass						// Returns lists of input and corresponding outcome & strprfx names
 															// (outcome names already fully prefixed; others combine to make outcm names)
 
-syntax [varlist(default=none)] [, $mask APRefix(str) DPRefix(str) IPRefix(str) MPRefix(str) PPRefix(str) XPRefix(str) DUPrefix(str)		   ///
-								  NPRefix(str) MEAnprefix(str) SDPrefix(str) MINprefix(str) MAXprefix(str) SKEwprefix(str) KURtprefix(str) ///
-								  SUMprefix SWPrefix(str) MEDianprefix(str) MODeprefix(str) PROximities(string) MULtivariate(string)	   ///
-								  NPRefix MEAnprefix SDPrefix MINprefix MAXprefix SKEwprefix KURtprefix SUMprefix SWPrefix				   ///
-								  MEDianprefix MODeprefix * ]
-								  
-
-
+*******************************************														
+syntax [varlist(default=none)] [, $mask * ]					// The options included in $mask for each `cmd' are listed under (1) below
+*******************************************
 
 
 pause getoutcm(1)
@@ -3492,7 +3489,7 @@ global errloc = "getoutcm(1)"
 	if "`cmd'"=="genmeanstats" local optnames = "nprefix meanprefix sdprefix minprefix maxprefix skewprefix kurtprefix sumprefix " ///
 											  + "swprefix medianprefix modeprefix" 	   // (same order as in 'genyhatsP')
 	if "`cmd'"=="genplace"  local optnames    = "iprefix mprefix pprefix" 
-	if "`cmd'"=="genyhats" local optnames     = "iprefix" 	// `dprefix' will be substituted if this varlist has a `yh@' prefix
+	if "`cmd'"=="genyhats" local optnames     = "iprefix" 	// `dprefix' will be substituted if this varlist has a varprefix
 															// Above are the naming options that may be user-invoked for each cmd	
 	
 *	scalar OPTNAMES = "dprefix iprefix mprefix pprefix xprefix" 
@@ -3516,7 +3513,7 @@ global errloc = "getoutcm(1)"
 	if "`aprefix'"=="_"  local aprefix = ""					// If a previous subprogram already pre-processed `aprefix', empty it
 	
 	local apfx = "_" 										// Create default `aprefix'	
-	if "`aprefix'"!="" local apfx = "`aprefix'"				// By default, `aprefix' inserts a "_" after identirying char(s)
+	if "`aprefix'"!="" local apfx = "`aprefix'"				// By default, `aprefix' inserts a "_" after identifying char(s)
 
 	
 	
@@ -3731,7 +3728,7 @@ pause off
 	
 	if "`dups'"!=""  {
 		local dups : list uniq dups
-		dispLine "Duplicate outcome varnames: `dups'; drop these?"
+		dispLine "Outcome varnames already exist: `dups'; drop these?"
 		local msg = r(msg)
 		capture window stopbox rusure "`msg'"
 		if _rc  {
@@ -3757,6 +3754,7 @@ pause off
 	scalar STUBNAMES = "`stubnames'"						// Same for the `gendummies' `stubnames' if STUBNAMES is not missing
 	scalar OPTNAMES	= "`optnames'"							// Save having to initialize these again for this subprogram
 	scalar SPFXLST = "`spfxlst'"							// ('genme' has the same multiplier in regard to stat names in $statlst)
+															// SOME SCALARS MAY BE ALL EMPTY FOR CERTAIN COMMANDS
 
 
 	
@@ -3824,22 +3822,9 @@ global errloc "getprfxdv(0)"
 
   	
 *	*****************************	
-	syntax [varlist], [ $mask * ] 							// Provide access to all current user-supplied options
+	syntax [varlist], [ $mask * ] 							// Provide access to all user-supplied options for current `cmd'
 *	*****************************							// (was called with `optionsP' option)
 
-
-		
-/*	if "$cmd"=="gendist"  	 local prfxlst = "d m p"		// Assign 1-char (second) char for other cmds (no x_prefix even tho ...)
-	if "$cmd"=="gendist" & "`proximities'"!=""  local prfxlst = "`prfxlst' x"
-	if "$cmd"=="gendummies"	 local prfxlst = "du"			// Assign generally 2-char identirying char(s) for gendu and genme (below)
-	if "$cmd"=="geniimpute"  local prfxlst = "i m"
-	if "$cmd"=="genmeanstats" local prfxlst = "np mn sd mi ma sk ku su sw me mo" 
-	if "$cmd"=="genplace"  local prfxlst = "i m p"
-	if "$cmd"=="genyhats" & "$multivariate"!="" local prfxlst = "d"	// (if multivariate WAS optioned)
-	if "$cmd"=="genyhats" & "$multivariate"=="" local prfxlst = "i" // (if multivariate was NOT optioned)
-	
-	scalar PRFXLST = "`prfxlst'"							// Put into scalar to make it accessible elsewhere
-*/															// ABOVE CODE SEEMINGLY UNUSED `COS `prfxlst' IS NOT REFERENCED ANYWHERE	***
 	
 	
 	local ic = substr("`cmd'",4,1)							// `ic' (for identirying char(s) is used to prefix `cmd'P-generated vars
@@ -3874,15 +3859,6 @@ global errloc "getprfxdv(0)"
 	local rename = ""										// List of vars to be temporarly renamed until user ops are implementd
 															// (at end of 'cleanup', which is final subprogram called by wrapper)	
 	global namechange = ""									// Will hold list of varnames temporarily changed to avoid name conflicts
-	global badivars = ""									// Will hold list of orphened ivars w existng names matched by `cmd'P vars
-															// (presumably left orphened by error exit prior to 'cleanup' renaming)
-	global badovars = ""									// Will hold list of ovars w names matchd by existng stackMe-generatd vars
-															// (perhaps left orphened by error exit; perhaps user error) 
-	local upv = ""											// Will hold list of existing vars with upper case first characters
-															// (presumably left after error exit before being renamed w lower case)
-															// (temporary global used only within this codeblk)
-	local badchoice = ""									// Will hold list of ovarnames made conflictual by chosen user options
-															// COULDNT THINK HOW TO DO THIS
 
 *pause on
 
@@ -3890,30 +3866,20 @@ pause getprfxdv(1)
 global errloc "getprfxdv(1)"
 
 	   
-											// (1)	 BUILD LIST OF VARS TEMPORARILY RENAMED, WITH "___" INITIAL PREFIXE (AND
+											// (1)	 DROP ANY VARS TEMPORARILY RENAMED, WITH "___" INITIAL PREFIXE (AND
 											// 		 APPARENTLY REMAINING IN DATASET DUE TO UNTIMELY ERROR EXIT) THAT NEED TO BE
 											//		 DROPPED SO AS TO AVOID NAMING CONFLICTS WITH NEWLY GENERATED U.C. PREFIXED
  											//		 VARS. THIS CODEBLOCK MUST COME FIRST SO AS TO AVOID CONFUSION WITH VARIABLES
-											//		 WHOSE FIRST PREFIX CARACTER IS NEWLY MADE UPPER CASE.
+											//		 WHOSE FIRST PREFIX CARACTER IS NEWLY MADE TEMPORARY
 											
 
 	
 
 	local nnames = wordcount("`outcmnames'")
 	  
-	forvalues i = 1/`nnames'	{							// Inspect each varname
 	
-	    local oname = word("`outcmnames'",`i')				// `outcmnames' already has full prefix for each as yet non-existnt varname
-	    local iname = word("`inputnames'",`i')				// `inputnames' is still just the varname typed by user
-		local sname = word("`stubnames'",`i')				// This local obtained from one of the scalars unpacked in codeblk(0)
-		if "`sname'"=="." local sname = "" 	
-															// (gives us the 'gendummies' outcome stub, if `cmd' is 'gendummies')
-															// We are cycling thru these three lists (matched on outcome variable name)
-		if substr("`oname'",1,3)=="___" drop ___* 			// If any ___* vars are hanging around after error exit, drop all of them	
-															// ("___" PREFIX IS PROGRAM-ASSIGNED NOT USER-DEFINED; DK WHY IGNORED THIS)	***
-	} //next `i'->oname										// NOTE THAT `iname' AND `oname' ARE OFTEN THE SAME NAMES AND, AS YET
-															//  ONLY `iname' MAY ACTUALLY EXIST AS A VARIABLE
-	
+	if substr("`oname'",1,3)=="___" drop ___* 			// If any ___* vars are hanging around after error exit, drop all of them	
+														// ("___" PREFIX IS PROGRAM-ASSIGNED NOT USER-DEFINED; DK WHY IGNORED THIS)	***
 	
 	
 	
@@ -3941,117 +3907,61 @@ global errloc "getprfxdv(2)"
 															// (gives us the 'gendummies' outcome stub, if `cmd' is 'gendummies')
 															// We are cycling thru these four lists (matched on outcome variable name)
 	   capture confirm variable `oname'
-	   if _rc==0   local rename = "`rename' `oname'"		// If `oname exists' add to list of vars to be renamed
-	   if "`pf'"!="." {										// If `spfxlst' was not empty for this varlist..
-	      capture confirm variable "`pf'_`temp'"			// (temp is either an 'iname' or, for 'gendu', maybe a stubname)
-	      if _rc==0  local rename = "'rename' `pf'_`temp'"	// Same for `cmd'P-generated interim variable
-	   }
-	   
-	   //IN ABOVE CODE NEED TO VERIFY THAT CONFLICTING NAME WILL NO LONGER BE A PROBLEM AFTER RENAMING THAT HAPPENS IN 'cleanup'. HOW??	***
-
+	   if _rc==0   local badonames = "`badonames' `oname'"	// If `oname exists' add to list of vars to be dropped (w user permission)
+															// (two identical outcomenames cannot coexist)
+															
+	   capture confirm variable "`pf'_`temp'"				// (temp is 'iname' or, if 'gendu', maybe stubnm; so `pf'_`temp' is interim)
+	   if _rc==0  local rename = "`rename' `pf'_`temp'"		// Same for `cmd'P-generated interim variable
+															// (these will not coexist after interims have been renamed in 'cleanup')
 	} //next `i'->oname
+	
+
 	
 	
 	if "`rename'"!=""  {									// If `rename' is not empty..
 		
 		foreach name of local rename  {						// Cycle thru all names in list
-/*	   	  
-			local ist = strupper(substr("`name'",1,1))		// Make first char of prfx upper case (UC) (prfxs are otherwise always LC)
-			local upname = "`ist'" + substr("`name'",2,.)	// Construct new name by prepndng that UC char to rest of originl name
-*/															// ABOVE LINES COMMENTED OUT 'COS WE ADOPTED QUASI-MISSING ALTERNATIVE
+
 *			**********************
 			rename `name' ___`name'							// THIS IS THE MONEY COMMAND WHERE PRECAUTIONARY RENAMING IS DONE
-*			**********************
-			global namechange = "$namechange ___`name'"		// Add the new name to global list of strs needing previous names restored															// (this will be done as final task of subprogram 'cleanup')
+*			**********************							// (three-"_" tempnames are used to distingush from standrd Stata tempnmes)
+
+			global namechange = "$namechange ___`name'"		// Add the new name to global list of vars needing previous names restored															// (this will be done as final task of subprogram 'cleanup')
+
 		} //next `name'
 															// (it is the possible exit before doing this that calls for cdblk 1 above)
 	} //endif `rename'
 	
+	scalar NAMECHANGE = "$namechange"						// Save global in same-named scalar to protect against 'preserve'/`restore'
+															// (apparent source of content-loss for globals)
 	
 	
-	
-	
-pause getprfxdv(3)
-global errloc "getprfxdv(3)"
-
-											// (3) 	DEAL WITH NEW VARNAMES THAT STILL CLASH AFTER ABOVE TEMPORARY RENAMING.
-											// 		BEARING IN MIND THAT BOTH INPUT AND OUTCOME NAMES WILL BE GENERATED LATER,
-											//   	ENSURE NO OUTCOME NAMES CONFLICT WITH EXISTING VARNAMES (OR WITH `cmd'P-GENERATED 
-											//		INTERIM NAMES); BUILD LIST OF VARNAMES THAT WILL REMAIN CONFLICTED EVEN AFTER 
-											//		USER-OPTIONED NAME-CHANGES HAVE BEEN IMPLEMENTED; ASK USER FOR PERMISSION TO 
-											//		REPLACE SUCH VARIABLES. 
-											//		(NOTE THAT, FOR `genmeamstats', `cmd'P PREFIXES ARE STORED AS `opt' NAMES)
-																				
-								
-
-	local nnames = wordcount("`outcmnames'")				// Obtain count in `nvars' for number of outcome names
-														    // (same as n of inputvars and spfxlst strings – all w matching vars)															
-	forvalues i = 1/`nnames'  {								// Inspect each varname
-	
-		local oname = word("`outcmnames'",`i')				// List of all the vars to ultimately be generated
-		local iname = word("inputnames'",`i')				// List of original names on which outcomes are built
-		local temp = "`iname'"								// (so there are as many inputnames per variable as optnames for this `cmd')
-		local sname = word("`stubnames'",`i')				// This local returned from 'getoutcmnames' where retrieved in codeblk(0)
-		if "`sname'"!="."&"`sname'"!="" local temp="`sname'" // For 'gendummies', iname may come from `stubnames' (avoid schlocking it)
-															// (for `iname' (now `temp', an `ic' prefix is added by default)	   				
-		capture confirm variable "`ic'_`temp'"				// If `cmd'P-generated `ic'_`temp' names a variable that already exists 
-		if _rc==0  {										// (presumably after a previous error exit)..
-			global badivars = "$badivars `ic'_`temp'" 		// Add to list of `badivars'
-		}	   												// (this list includes `sname' vars that already exist)
-
-		capture confirm variable `oname'					// (distinguished from inames `cos they call for a specific error message)
-		if _rc==0  {										// If `oname' exists 
-			global badovars = "$badovars `oname'"			// Add to list of badovars
-			
-		} //endif _rc										// IDEA FOR FUTURE CONSIDERATION: CREATE AN SMcleanup UTILITY				***
-															// (Use stackMe utility program SMcleanup to rid dataset of all such)
-	} //next `i'->name
-
 		
-	if "$badivars"!=""  {									// If we found name conflicts for ivars in code above..
+	if "`badonames'"!=""  {									// If we found name conflicts for outcmnames in code above..
 															// (distinguished because they call for a specific error message)	
-		dispLine "Listed vars likely remain after error exit that orphened them: $badivars; drop them & continue. ok?" "aserr"
+		dispLine "(Possibly optioned) outcome names already exist: `badonames'; drop them & continue. ok?" "aserr"
 *				  12345678901234567890123456789012345678901234567890123456789012345678901234567890 
-		local rmsg = r(msg)								
+		local rmsg = r(msg)									// `rmsg' is returned pre-formatted for stopbox rusure	
 		capture window stopbox rusure "`rmsg'"
 		if _rc  {											// If user did not respond with 'ok'
-			errexit "Lacking permission to drop listed vars, will exit on 'ok"
+			errexit, msg(Lacking permission to drop listed vars, will exit on 'ok')
 			exit
 		}
 	   
 		else  {												// Else drop these variables
-		  foreach var of global badivars  {
+		  foreach var of local badonames  {
 			capture drop `var'
 		  }
 		} //endelse							
 		
-	} //endif $badivars
+	} //endif badonemes
 	
-
-	if "$badovars"!=""  {									// If we found name conflicts for ovars in code above..
-															// (distinguished because they call for a specific error message)
-		dispLine "Listed vars already exist: $badovars; drop them to continue. Replace?" "aserr"
-		local rmsg = r(msg)									// Retrieve displayed msg reformatted for window stopbox
-		
-		capture window stopbox rusure "`rmsg'"
-		if _rc  {											// If user did not respond with 'ok'
-			errexit "Lacking permission to drop listed vars, will exit on 'ok'"
-			exit
-		}
-	   
-		else  {												// Else drop these variables
-		   foreach var of global badovars  {
-			  capture drop `var'
-		   }
-		} //endelse
-	
-	} //eudif $badovars
-
 									
 	
 	local skipcapture = "skip"								// Flag to skip the endcapture block if entered it from here
 	
 
+	
 * **************	
   } //endcapture											
 * **************
@@ -4059,7 +3969,7 @@ pause off
  
   if _rc & "`skipcapture'"==""  {
    	 errexit "Error in $errloc"
-     exit
+     exit _rc
   }
 														
 	
@@ -4689,6 +4599,8 @@ end varsImpliedByStubs
 
 
 /*											// TEST CODE MIGHT BE USEFUL
+
+
 	mata:st_numscalar("a",ascii("A")) 		// Get MATA to tell us the ascii value of char following "_"
 	display a  /*–  upper case A is 65;  upper case Z is 90 */
 */
