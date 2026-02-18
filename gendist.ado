@@ -1,10 +1,11 @@
+*! Feb 18'26
 
 capture program drop gendist				// Calculates distances (now also proximities) between respondent's self-placed spatial 
 											// locations and the spatial location of battery items.
 											
 											// Called from program gendi (appended); calls stackmeWrapper, errexit
 											
-											// SEE PROGRAM 'stackmeWrapper' (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+											// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
 program define gendist										// Called by 'gendi' a separate program defined after this one
 															// Calls subprogram stackmeWrapper and subprogram 'errexit'
@@ -13,7 +14,7 @@ program define gendist										// Called by 'gendi' a separate program defined 
 
 version 9.0														
 
-											// (0 Here sets stackMe command-specific options and call the stackMe wrapper program;  
+											// (0) Here sets stackMe command-specific options and call the stackMe wrapper program;  
 											//    lines ending with "**" need to be tailored to specific stackMe commands
 
 global errloc "gendist(0)"									// $Records which codeblk is now executing, in case of Stata error
@@ -65,6 +66,8 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 								// On return from wrapper ...
 								// **************************
 								
+								
+global SMreport = "skip"									// Skip the capture block for this caller (along with all but genstacks)
 								
 ***************************
 if _rc  & "$SMreport"=="" {									// If there is a non-zero return code not already reported by errexit
@@ -136,4 +139,6 @@ end gendi
 
 
 ******************************************************* END PROGRMES **************************************************************
+
+
 
