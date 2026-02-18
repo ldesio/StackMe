@@ -1,4 +1,4 @@
-!* Feb 14'26
+*! Feb 18'26
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -89,13 +89,13 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 
 										// (2) Make labels for reshaped vars, based on first var in each battery ...
 										
-														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY								***
+														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY									***
 										
 	local namelist = "`anything'"						// Put user-supplied varlist into `namelist' 
 														// (genstacks only has a single varlist; so no "||", no ":")	
 	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
 	local response = 0									// Local at top level to register responses within if or foreach		
-														// (apparently unused)														***
+														// (apparently unused)															***
 	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
 	
 		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
@@ -105,12 +105,12 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 			local label : variable label `var'			// See if that variable has a label		
 			if "`label'"=="" {							// If this var has no label, provide dummy label
 			   local varlabel = "stkd `var'"			// Use varname as label 
-			   continue, break							// Break out of varlist loop because have label for stub
+			   continue, break							// Break out of varlist loop because have label for stub (same as other stubs)
 			}
 
 			local loc = strpos("`label'", "==")			// Otherwise see if the label contains "==" (from gendummies)
 														// (meaning it starts with the associated varname)
-			if `loc'>0  & `loc'<14 {					// If contains varname, placed by 'gendummies' recover it
+			if `loc'>0  & `loc'<15 {					// If 	label' contains varname, placed by 'gendummies' recover it
 				
 				local varname = strtrim(substr("`label'", 1,`loc'-1)) // Assume "==" follows end of varname
 				capture confirm variable `varname'		// See if gendummies kept original varname at start of label			
@@ -119,10 +119,10 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 					if "`label'"!=""  {
 						local varlabel = "stkd `label'"
 						continue, break					// Break out of foreach `var' because we found a generic label	
-					}
-				}										// (from the var whose categories became dummy variables)
-														// Either never labeled or was renamed during gendummies
-				local label : variable label `var'		// So proceed as above, providing
+					}									// (from the var whose categories became dummy variables)
+				}		
+														// Else, either never labeled or was renamed during gendummies
+				local label : variable label `var'		// So proceed as above, providing..
 				if "`varlabel'"=="" {					// If this var has no label, provide dummy label
 					local varlabel = "stkd `var'"		// Use varname as label 
 					continue, break						// Break out of varlist loop because have label for stub
@@ -142,15 +142,15 @@ global errloc "genstacks(2)"
 					local loc = strpos("`label'", "`var'")
 					local label = substr("`label'",`loc'+strlen("`var'"), .)
 					local cc = (substr("`label'", 1, 1))
-					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
+					mata:st_numscalar("a",ascii("`cc'")) 	 // Get MATA to tell us the ascii value of `cc'
 
 					while (strpos("<=>?@[\/]_{|}~", "`cc'") < 1) & ("`cc'" != "") & ( (a<45 & a!=41) | a>126 )  {
 					   local label = substr("`label'", 2, .) // (strpos & 41 are good; a<45 & a>126 are not)
-					   local cc =(substr("`label'"),1,1) // Trim chars other than "good" above from front of label
+					   local cc =(substr("`label'"),1,1) 	 // Trim chars other than "good" above from front of label
 					   mata: st_numscalar("a", ascii("`cc'"))
-					}									// (the above doesnt include " " so leading spaces get trimmed)
+					}										 // (the above doesnt include " " so leading spaces get trimmed)
 					local varlabel = "stkd " + strtrim("`label'")
-					continue, break						// Break out of foreach 'var' because 1st var is all we need
+					continue, break							 // Break out of foreach 'var' because 1st var is all we need
 				}
 				else  {									// Else no embedded varname
 					local varlabel ="stkd " + strtrim("`label'") 
@@ -158,15 +158,15 @@ global errloc "genstacks(2)"
 				}
 			} //end else
 			
-		} //next `var'									// Will break out of loop when processd 1st var w' numeric suffx
+		} //next `var'									// Will break out of loop when processd 1st var w' numeric suffx (see above)
 		
 		
 		if "`varlabel'"!=""  {							// If we found a varlabel
 		
-		   local varlabel = strrtrim("`varlabel'")		// Trim off any trailing blanks
+		   local varlabel = strtrim("`varlabel'")		// Trim off any leading or trailing blanks
 
 		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric
-			  local varlabel = strtrim(substr("`varlabel'",1,strlen("`varlabel'")-1)) // shorten varlabel by one char
+			  local varlabel = strtrim(substr("`varlabel'"-1,1)) // shorten varlabel by one char from end of `varlabel'
 		   }											// Exit 'while' when last char of label is not numeric
 
 		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
@@ -174,13 +174,22 @@ global errloc "genstacks(2)"
 		   
 		} //endif 'varlabel'
 		
-		if substr(substr("`stub'",1,3),-1,1)=="_"  {	// If there is a prefix ending with "_"
+														// NEXT WE ELIMINATE ANY "_" DIVIDERS FOLLOWING "stk_", except for final one
 		
-		   rename `stub' stk`stub'						// Don't add another "_"
-			
+		if substr("`stub'",3,1)=="_"  {					// If `stub' startw with a string prefix ending in "_"
+		
+		   local tailpos = strrpos("`stub'","_") + 1	// Find start of name following final "_" in current stub (using `strr..')
+		
+		   local tail = substr("`stub'",`tailpos',.)	// Save that name in `tail'
+		   
+		   local body = subinstr("`stub'","_","",.)		// Substitute all "_" with "" so `body' contains `stub' wuth all "_" removed
+		   
+		   if "`body'"==""  rename `stub'  stk_`tail'	// If there is no `body' left, only use one "_"
+		   else rename `stub'  stk_body_`tail'			// Else reinstate the first and last "_", following "stk'" & preceeding `tail'
+		   			
 		}
 		
-		else  rename `stub' stk_`stub'					// Else prepend a 3-char prefix to mark transition to stacked data
+		else  rename `stub'  stk_`stub'					// Else prepend a 3-char prefix to mark transition to stacked data
 	
 	} //next `stub'										// Find next now-reshaped var needing a label
 	 
