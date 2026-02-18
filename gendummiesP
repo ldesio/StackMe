@@ -1,254 +1,154 @@
+*!Feb 18'26
 
+capture program drop gendummies			// Transforms categorical variables into dummy vars, one dummy for each level of the original
 
-capture program drop gendummiesP			  	// Does the gendummies heavy lifting (such as it is) for all contexts taken together
+										// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
-program define gendummiesP									// Called by 'stackmeWrapper'; calls subprograms 'errexit'
+program define gendummies								// Called by 'gendu' a separate program defined after this one
+														// Calls subprogram stackmeWrapper
 						
 
+*!  Stata version 9.0; gendummies version 2, updated Apr'23 (with minor tweaks in '24 and '25) by Mark from major re-write in June'22
 
-*! Stata version 9.0; gendummies version 2, updated Mar'23 (with minor tweaks in Sept '24) from major re-write in June'22
+	version 9.0
+										// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
+										// that end with "**" need to be tailored to specific stackMe commands
+										
+														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		//		**
+	local optMask = "STUbname(name) DUPrefix(string) LIMitdiag(integer -1) KEEpmissing RECordmissing REPlace NODuprefix NOSTUbname"
 
-   version 9.0												// GendummiesP version 2 (was previously 'gendummies')
-	
-   // Version 2 allows varlists to be processed, either "naked" (using varnames as stubs) or with different stubs in different
-   // varlists, grouping together successive varlists having the same options.
+														// Ensure stubname for this stackMe command is placed first and its 
+														// negative is placed last; ensure options with arguments preceed toggle 
+														// (aka flag) options for this command. Options (apart from limitdiag) 
+														// common to all stackMe `cmd's will be added in stackmeWrapper.
+														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)	**
 
-   // NOTE that codeblocks importd from genyhatsP, which should be common across`cmd'Ps, needed some tweekng (see lines flagged **)
-	
-	
-	
-global errloc "genduP(0)"									// Global that keeps track of execution location for benefit of 'errexit'
-
-
-
-****************
-capture noisily {											// Open capture braces mark start ot code where errors will be captured
-****************
-	
-	
-	syntax anything, [ STUbname(name) INCludemissing RECordmissing LIMitdiag(integer -1)  DUPrefix(str) NODuprefix ] ///
-					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
-															// `prfx' and `isprfx' options now transmitted by scalar variables
-
-															
-															
-	global interims = ""									// Global will hold list of outcomenames with default prefix
-	
-	quietly count 	
-	local numobs = r(N)										// N of observations (gendummies processes all contexts at once)
-	
-	if `limitdiag'==-1  local limitdiag = .					// Make that a very big number
-	display " "												// Display blank line at start of diagnostics
-
-															// GENDUMMIES TREATS THE WHOLE DATASET AS ONE CONTEXT
-															
-	local pfx = "du_"										// And default stub-prefix is "du_", used to prefix all gendu outcomes
-															// LEFT IN PLACE IN CASE ACCIDENTALLY STILL REFERENCED
-/*															// COMMENTED OUT 'COS DONE IN 'cleanup'										***
-	if "`duprefix'"!=""  {									// If user optioned a different prefix ..
-		if substr("`duprefix'",-1,1)!="_"  local duprefix = "`duprefix'_"
-		local pfx = "`duprefix'"							// Suffix optioned prefix with "_" if user did not
-	}														// (below we will see if even this is overridden by strng prefix to varlst)
-	if "`noduprefix'"!=""  local pfx = ""					// If user optioned "noduprefix" override that with empty pfx
-*/															// END OF COMMENTED OUT
-
-	global inpvar = ""										// Global will nold list of input vars corresponding to each outcome
-															// (each inpvar appears as many times as there are outcomes for that var)
-	forvalues nvl = 1/`nvarlst'  {						 	// Cycle thru set of varlists with same options
-															// Any stubname comes from option `(opt)stubname' or from `precolon'	
-		local vars = VARLISTS`nvl'							// Stored in that scalar in wrapper (2.1)
-		local stubs = VARSTUBS`nvl'							// And put into stubname the tail of 'postul' following initial "_"
-/*		local pfxlst = PRFXSTRS`nvl'						// Any prefix string was a prefix to that stubname
-		if "`pfxlst'"=="null"  local pfxlst = ""			// WILL BE USED IN 'cleanup' TO PRODUCE USER-OPTIONED PREFIX				***
-*/															// (above comments regard origins of gendu varlst componnts parsd in wrappr)
-		local notvar = ""
-				   
-		local nvar = 0										// Running count of varno for this varlist
+	local prfxtyp = /*"var"*/"othr"	/*"none"*/			// Nature of varlist prefix – var(list) or other. (`stubprefix' will		**
+														// be referred to as `opt1', the first word of `optMask', in codeblock 
+														// (0) of stackmeWrapper called just below). `opt1' is always the name 
+														// of an option that holds a varname or varlist (which must be referred
+														// using double-quotes). Normally the variable named in `opt1' can be 
+														// updated by the prefix to a varlist, but not in genyhats.
 		
-		foreach var of local vars  {				  		// Cycle thru varlist(s) in `anything' (wrapper ensures 1 stub per var)
-		  local nvar = `nvar' + 1
-		  capture confirm numeric variable `var'			// (also the default name of the outcome stub)
-		  if _rc  local notvar = "`notvar' `var'"			// If variable is not numeric, accumulate in local 'notvar'
-		   
-		  else  {
-															// ELSE CLAUSE FOLLOWS IN CODEBLK (5)
-			
-			
-			
-global errloc "genduP(5)"									// Global that keeps track of execution location for benefit of 'errexit'
-
-
-
- 
-											// (5) For each var, cycle thru all values
-												
-												
-		    local out = "`var'"									// Default outcome varname in case no stubnames were optioned
-		    if "`stubname'"!=""  local out = "`stubname'"		// User-optioned stubname, if any
-		    if "`stubs'"!="" local out = word("`stubs'",`nvar')	// (trumped by user-supplied stublist as prefix to varlist)
-																// (one stub for each var in 'vars')
-
-/*		    if "`pfxlst'"!=""  {								// If varlist holds a string prefix, that trumps prefx establshe earlier
-*		   	  if "`noduprefix'"==""  local pfx = "`pfx'_"		// MUST DO THIS SOMEWHERE ELSE: 'cleanup'??								***
-			  local pfx = word("`pfxlst'",`nvar')
-		    }													
-		    else  local pfx = ""								// Else empty the prefix in case it holds a left-over string
-*/																// WE NOW DO THE ABOVE IN 'cleanup' FOR ALL 'cmd's						***
-
-		    quietly levelsof `var', local(values) missing		// Enumerate the category values for this (soon to be) outcome variable
-		    local notnum = ""									// (the same variable provides the categories, no matter the stubname)		   
-			  
-		    foreach val of local values  {						// Cycle thru all levels of `var'
-			  
-			  if "`val'"=="."  continue							// Skip to next value if this one is missing (note 'missing' opt, above)
-			  capture confirm number `val'
-			  if _rc  {											// If `val' is not numeric..
-				 local notnum = "`notnum' `val'"				// Record it in list of non-numeric suffixes (DK WHY WE DO THIS)
-				 continue										// Continue with next value
-			  }
-*			  **************************
-			  gen du_`out'`val' = (`var'==`val') 				// This is the money cmd that creates a new var for each value			***
-*			  **************************						// NOTE that, while outcome is stubname `out', input is still 'var' 
-																// REPLACED, IN 'cleanup', WHERE `val'	SUFFIX IS REMOVED				***
-			  global interims = "$interims du_`out'`val'"		// Add to global list of interim varnames, fur use in 'cleanup'
-			  
-			  local label : label (`var') `val'					// Value label from each value of `var' 
-			  local label = strtrim("`label'")					// Remove any leading/trailing blanks
-			  local istchar = ""
-			  if substr("`label'",1,1)=="="	 {
-			  	 local label = strtrim(substr("`label'"2,1))	// Trim off any leading "="	
-				 local istchar = "= "							// Save that char w following space to replace at end of this codeblk
-				 if substr("`label'",1,1)=="="	{				// If there were two leading "="
-				   local label = strtrim(substr("`label'"2,1))	// Label started w "==" so trim off both of them
-				   local istchar = "== "						// Save those chars w following space to replace at end of this codeblk
-				 }
-			  }													// If first non-blank char is "=" save that in istchar instead of ""
-			  local len = strlen("`label'")						// ('var' may also have a variable label created in genstacks)
-			  capture confirm number `label'					// If `label' is all numeric then it was found unlabeled by 'numlabel'	***
-			  if _rc  {											// If _rc is non-0 then there is a proper label for this var
-				 forvalues i = 1/`len'  {						// See if 'val' is repeated as label prefix
-					local j = `i'								// Store value of 'i', which has no value outside this loop
-					local k = substr("`label'",1,`j')			// Convert string to number if numeric
-					capture confirm number `k'					// Not numeric if last char is end-of-value character. ???				***
-					if _rc  continue, break						// Found non-numeric char signalling end of numeric label prefix
-				 } //next `i'									// (dk what value that is, but must be non-numeric)
-
-				 local nprefix = substr("`label'", 1, `j'-1)	// Numeric prefix ends one char before end-of-prefix char (convert to #)
-				 if `nprefix'==`val'  {							// If label prefix duplicates 'val' then 
-				 mata:st_numscalar("a",ascii(substr("`label'",`j',1))) // Get MATA to tell us the ascii value of the next char in `label'
-				 if !((a>64 & a<91) | (a>96 & a<123))  local `j'=`j'+1 // If label prefix is followed by "non-alpha" character, skip it
-				   local label = substr("`label'",`j', .) 		// Trim all up to end-of-label char from start of label
-				   local label = strltrim("`label'")			// Strip any leading blanks following label prefix
-				 }												// Ensures label does not end up with value repeated multiple times!
-				 label variable du_`out'`val' "`out'==`val' `istchar'`label'"
-																// If there was an "=" at start of label, restore it (+ space)
-				 char define du_`out'`val' [origin] "gendu"		// Give this var a charctrstic that establishs its origin as cmd 'gendu'
-			  } //endif _rc
-			  
-			  
-			  
-			  
-global errloc "genduP(5.1)"										// Global keeps track of execution location for benefit of 'errexit'
-
-		
-																// Recordmissing OPTION NOT FINALIZED IN THIS stackMe VERSION			***
-			  if "`recordmissing'"!=""  local includemissing = "includemissing" // The former requires the latter
-			  if ("`includemissing'"!="") {						// See if user optioned values of 0 for missing data
-			  
-			  qui replace du_`out'`val' = 0 if du_`varname'`val'>=.
-																// FIRST DECIDE HOW TO CODE MISVAL FOR NEW VARS (HERE TEXTUAL)			***
-					if "`recordmissing'"!=""	 {				// THIS USER OPTION NOT DOCUMENTED AS YET
-						local nm = 0							// Initialize count of different missing values
-						preserve  								// (LUCKILY, FOR 'gendummies', DATA ARE NOT OTHERWISE PRESERVED)
-							 drop if `var'<.					// Drop all non-missing observations
-							 sort `var' 						// Sort `var' in order of its missing values
-							 while _N>0  {						// While there are any remaining observations
-								local nm = `nm'+1				// Increment `nm'
-								local val`nm' = min(`var')		// Put value of lowest missing value in val`nm'
-								drop if `var'<= val`nm'			// Drop observations with missing values less than this
-							 } //nextwhile
-						restore									// Restore working data
-						forvalues i = 1/`nm'  {					// Cycle thru all seperate missing values found
-							gen du_`var'`mis'`i' = val`nm'		// Generate a new var for each missval filled with that value
-							qui replace `newvar'mis`i' = `newvar' if `newvar'<.
-						}										// Replace that value with original value for non-missing obs
-						  
-					} //endif `recordmissing'
-					  
-			   } //endif `includemissing
-			  
-			} //next `val'
-				 
-				
-*			order `prefix'`varname'`val', last					// (SHOULD PUT VALUES THAT WERE MISSING LAST, BUT) 					***
-																// (GET 'options not allowed" error)
-			  
-			if "`notnum'"!=""  {								// If list of non-numeric vars is not empty..
-		  	  if "`reported'"==""  {							// If such were not already reported..
-			    local txt = "For variable `var', found non-integer value(s) (e.g. `notnum'). Ignore?"
-*                		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			    if strlen("`txt'")>69  local txt = substr("txt",1,67) + "..). Ignore"?"
-			    display as error "`txt'{txt}"
-			    capture window stopbox rusure "`txt'"
-			    if _rc  {
-				  errexit "Lacking permission to ignore non-integer values"
-				  exit
-			    }
-			    local reported = "yes"
-			    local notnum = ""								// Don't flag every non-integer value after user said 'ok'
-			  } //endif 'reported' 
-		    } //endif 'notnum'
-
-		  } //endelse (not a variable)
-		   
-	    } //next `var'
-		
-	    if "`notvar'"!=""  {
-		  local txt = "Gendummies found non-numeric variables: `notvar'"
-		  dispLine "{err}`txt'{txt'}"
-		  errexit, msg("`txt'")								 	  // Option-format errexit only sends 'txt' to stopbox
-		  if _rc  {
-			errexit "Lacking permission to ignore non-integer variables"
-		  }
-		 
-	    } //endif 'notvar'
+	local multicntxt = ""/*"multicntxt"*/				// Whether `cmd'P takes advantage of multi-context processing				**
+	
+	local save0 = "`0'"									// Seems necessary, perhaps because called from gendi
 
 	
-	
-	
-		
-global errloc "genduP(6)"										  // Global that keeps track of execution location for benefit of 'errexit'
+*	*************************									   
+	stackmeWrapper gendummies `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
+*	*************************							// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
+														// (`prfxtyp' placed for convenience; will be moved to follow options)
+														// (that happens on fifth line of stackmeWrapper's codeblock 0)
+
+*  CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*														// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
 
 
-											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
-											// 	   (or pre-process syntax for next varlist) ALL THIS NOW DONE IN WRAPPER
+														
+											// *****************************
+											// On return from stackmeWrapper
+											// *****************************
 											
+											
+					
+					
+  global SMreport = "skip"									//*****************************************************************
+															// HAS EFFECT OF SKIPPING ENTIRE ENSUING CODE, NOW FOUND IN WRAPPER
+  *******************										*******************************************************************
+  if "$SMreport"==""  {										// If this re-entry follows an error report (reported by program errexit)
+  *******************										// ($SMreport being non-empty means error has been reported)
+		
+		
 
-	    local isprfx = ""										  // Switch off the prefix flag if it was on
+	global errloc "gendu"
 
-	} //next `nvl' 												  // (next list of vars having same options)
+		
+		
+		
+	***************		
+	capture noisily {										// Begin new capture block in case of errors to follow)
+	***************
+
+
+		local 0 = "`save0'"									// On return from stackmeWrapper restore what user typed
+
+
+*		***************	
+		syntax anything [if] [in] [aw fw iw pw/], [ STUbname LIMitdiag(integer -1) APRefix(str) NODiag *  ]
+*		***************
+
+		if "`aprefix'"!=""  {								// Ensure aprefix, if any, has trailing "_"	
+			if substr("`aprefix'",-1,1) !="_"  local aprefix = "`aprefix'_"
+			rename du_`var' du`aprefix'`var'				// Note that 'all-prefix' replaces the "_", not the 'du_'
+		 }
+		
+		if "`nodiag'"!=""  local limitdiag = 0				// THE ONLY FUNCTION OF THIS CODEBLK1
 	
-*pause on
-pause end genduP	  
-pause off
- 
-	local skipcapture = "skip"									  // Local, if set, prevents capture code, below, from executing
-	
-	
-* *************
-} //end capture													  // Endbrace for code in which errors are captured
-* *************													  // Any such error would cause execution to skip to here
-																  // (failing to trigger the 'skipcapture' flag two lines up)
+*		local skipcapture = "skip"							// SO NO NEED TO skipcapture
+		
 
-if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
-	
-	if _rc  errexit "Stata reports program error in $errloc"
-	exit
-}
+*	  **************
+	} //end capture											// Close braces delimit code skipped on return from error exit
+*	  **************  
 
-   
-end //gendummiesP
+*	***************
+  } //end $SMreport
+*	*************** 
+  
+  if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	 errexit  "Program error while post-processing"
+	 exit _rc
+
+  }
+
+  
+  capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
+  capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
+  if _rc==0  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
+  else scalar RC = 98765									// Else stash an unused return code
+  if $limitdiag !=0 & RC == 98765 noisily display _newline "done." // Display "done." only if no error reported, by Stata or by stackMe
+  macro drop _all											// Drop all macros (including $SMrc, if extant)
+  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
+  scalar drop _all 											// Drop all scalars, including RC
+
+  
+
+  exit `rc'													// Local 'rc' will be dropped on exit
+
+  
+  
+end gendummies			
 
 
 
-******************************************************* END gendummiesP ***************************************************************
+
+*********************************************** PROGRAM GENDU *******************************************************************
+
+
+
+capture program drop gendu									// Short command name for 'gendummies'
+
+program define gendu
+
+global abbrevcmd = "used"									// Lets `cmd' know that abbreviated command was employed
+
+gendist `0'													// Invoke the command using its full name and append what user typed
+
+global abbrevcmd 											// On return to abbreviatd caller ('cos 'cmd' was called from here)
+															// (immediately clear the global used to indicate that fact)
+if "$SMrc"!="" {											// If a non-empty return code was flagged anywhere in program chain
+	local rc = $SMrc 										// Save that RC in a local
+	global SMrc												// Empty the global
+	exit `rc' 												// Then exit with that RC (the local will be cleared on exit)
+}															// Else execute a normal end-of-program
+
+global abbrevcmd											// Clear the global
+
+end gendu
+
+
+************************************************* END GENDU *******************************************************************
+
+
