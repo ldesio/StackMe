@@ -1,4 +1,4 @@
-*! Feb 17'26
+*! Feb 20'26
 
 capture program drop stackmeWrapper
 
@@ -2498,7 +2498,7 @@ global errloc cleanup(0.2)
 	   foreach name  of  local uniqnames  {					// Cycle thru all distinct input names
 		  foreach spfx  of  local uniqspfx  {				// Cycle thru all distinct prefix strings (only "du_" for gendummies)
 			 local interim = "`spfx'_`name'" 				// These `cmd'Ps just prepend `spfx' to front of "_`name'"
-			 local k = `k' + 1								// SEEMINGLY NOT NEEDED														***
+			 local k = `k' + 1								// SEEMINGLY NOT NEEDED	except for checksum, below													***
 			 local interims = "`interims' `interim'"		// Cumulate the needed list of `interims' (interim is `spfx'_`name')
 *			 local ic2 = "`spfx'"							// REDUNDANT
 		  } //next `spfx'
@@ -2534,16 +2534,17 @@ global errloc cleanup(1)
 		local prx = 1										// Proximities will be generated in next codeblk (1.1)
 			   
 		if "`replace'"!=""  {
-			noisily display "Will calculate proximities as optioned; dropping distances per 'replace' option"
+			noisily display "Proximities calculated as optioned; dropping distances per 'replace' option"
 *					 		 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		}
-		else noisily display "Will calculate proximities as optd; distances kept since 'replace' was not optd"
+		else noisily display "Proximities calculated as optioned; distances kept since 'replace' was not optd"
 	   
 	} //endif 'proximities'									// Back to all 'cmds' (including 'gendist')
 	
 
 	else  {													// Else proximities are not being calculated
-	   if "`replace'"!=""  noisily display "Dropping relevant input variables following 'replace' option"
+	   if "`replace'"!=""  noisily display "Dropping relevant input & interim vars per 'replace' option"
+*					 		 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	}														// Applies to all but 'gendist' command	
 
 /*	
@@ -2631,7 +2632,9 @@ global errloc cleanup(1.1)
 															// (PROCESSED FIRST `COS COMES IN 2 FLAVORS – `bivariate' version below)
 		   local varlist = VARLISTS`nvl'	  				// (`nvl' is the 'foreach' local that increments for each varlist)
 		   local lbl : variable label `dvar'
-		   local lbl1 = "Yhat for regressn of `dvar' on `varlist'" // `uniqnames' omits duplicate inputs (eg in gendu)
+		   if "`logit'"==""  local txt = "regressn"
+		   if "`logit'"!=""  local txt = "logit"
+		   local lbl1 = "Yhat for `txt' of `dvar' on `varlist'" // `uniqnames' omits duplicate inputs (eg in gendu)
 *					 	 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 															// HERE INSERT CODE TO PUT (ABBREVIATED) DEPVAR LABEL IN PAREN BEFORE "on"	***																
 	  } //endif `cmd'										// (BIVARIATE GENYHATS will be processed as final labeling cmd, below)
@@ -2656,7 +2659,7 @@ global errloc cleanup(1.2)
 			 
 		 if substr("`interim'",1,2)=="d_"	{				// This `interim' is a distance measure
 		  
-		    local distance = "`interim'"					// Save this value to use when generating any optioned proximity
+*		    local distance = "`interim'"					// Save this value to use when generating any optioned proximity			***
 			local lbl1 = "Distance of `selfplace' from `mis'-based `iname'"
 *					 	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 			if "`lbl'"!=""  {
@@ -2673,13 +2676,13 @@ global errloc cleanup(1.2)
 		  
 		  
 		  if substr("`interim'",1,2)=="x_"  {				// If proximities were optioned on a gendist cmd 
-															// (equivalent to testing for substr(`interim"1,2)=="x_'))
-	   		 quietly sum `iname'							// Get missingness from source of proximity, which is distance
-			 scalar MAX = r(max)							// Store maximum value of this source iname
-*			 *******************************************
+															// FOLLOWING COMMENTED OUT AS NOW DONE IN 'gendist'P
+/*	   		 quietly sum `iname'							// Get missingness from source of proximity, which is distance
+			 scalar MAX = r(max)							// Store maximum value of this source iname over all contexts
+*			 *******************************************	// NOW DONE IN 'gendist'P CONTEXT BY CONTEXT
 			 quietly replace x_`iname' = MAX - `distance'	// Newly-created vars receive prefixes according to function
 *			 *******************************************	// (`distance' is a saved copy of the d_ version of `interim'
-			 local lbl1 = "Proximity of `selfplace' to `mis'-based `iname': `lbl'"
+*/			 local lbl1 = "Proximity of `selfplace' to `mis'-based `iname': `lbl'"
 
 			
 		  } //endif `prx'
@@ -2727,7 +2730,7 @@ global errloc cleanup(1.3)
 	
 	  if "`cmd'"=="genmeanstats"  {							// This command has a different basis for its `ic' prefixes
 								  
-		  local lpfx = word("`statlist'",`k')				// `lpfx' is repurposed as a portion of the label for a 'genme' var
+		  local lpfx = word("`statlist'",`k')				// `lpfx' is re-purposed as a portion of the label for a 'genme' var
 															// (`statlist' was got from "$statrtrn" in cleanup(0.2) (now `statrtrn')
 		  if "`lpfx'"=="sweights" local lpfx = "SumOfWts"	// If optd stats include sum of weights, correct the label portion
 		  if "`lpfx'"=="sd" local lpfx = "StdDev"			// Ditto regarding "sd"
@@ -2749,17 +2752,19 @@ global errloc cleanup(1.3)
 	  if "`cmd'"=="genyhats" & "`multivariate'"=="" {		// If this is a bivariate genyhats analysis
 															// (the d_`var' was labeled at end of codeblk 1.1)
 		  local lb2 : variable label `iname'				// Basis for outcm var labels is the existng label for corrspndng input
+		  local txt = "regression"
+		  if "`logit'"!="" local txt = "logit"
 		  
-		  if "`lbl2'"!=""  local lbl1 = "Yhat for regression of `depvarname, on `iname':`lbl2'"
+		  if "`lbl2'"!=""  local lbl1 = "Yhat for `txt' of `depvarname, on `iname':`lbl2'"
 *					 					 12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		  else  {
-		  	 local lbl1 = "Yhat for regression of `depvarname' on indep `iname'"
+		  	 local lbl1 = "Yhat for `txt' of `depvarname' on indep `iname'"
 		  }
 					
 	  } //endif `cmd'										// End of codeblks for var with existing label
 	
 
-		
+
 		
 	  
 															
@@ -3032,7 +3037,7 @@ global errloc "cleanUp(3)"
   	
 		
 
-*pause on
+pause on
 pause cleanUp(4)
 global errloc "cleanUp(4)"
 
@@ -3455,7 +3460,7 @@ program define getoutcmnames, rclass						// Returns lists of input and correspo
 															// (outcome names already fully prefixed; others combine to make outcm names)
 
 *******************************************														
-syntax [varlist(default=none)] [, $mask * ]					// The options included in $mask for each `cmd' are listed under (1) below
+syntax [varlist(default=none)] [, $mask PROximities(str) * ] // The options included in $mask for each `cmd' are listed under (1) below
 *******************************************
 
 
@@ -3939,7 +3944,7 @@ global errloc "getprfxdv(2)"
 		
 	if "`badonames'"!=""  {									// If we found name conflicts for outcmnames in code above..
 															// (distinguished because they call for a specific error message)	
-		dispLine "(Possibly optioned) outcome names already exist: `badonames'; drop them & continue. ok?" "aserr"
+		dispLine "(Possibly optioned) outcome names already exist: `badonames'; drop them & continue – ok?" "aserr"
 *				  12345678901234567890123456789012345678901234567890123456789012345678901234567890 
 		local rmsg = r(msg)									// `rmsg' is returned pre-formatted for stopbox rusure	
 		capture window stopbox rusure "`rmsg'"
@@ -4394,7 +4399,7 @@ global errloc "stubsImpl"
 	   }
 *	   **********************	   
 	   checkvars "`prepipes'"									// 'checkvars' elaborates unab; will collct invald vars in 'errlst'
-	   if "$SMreport"!=""  exit									// See if error was reported by program called above
+	   if "$SMreport"!="" exit									// See if error was reported by program called above
 *	   **********************
 	   local errlst = r(errlst)
 	   if "`errlst'"=="."  local errlst = ""					// SEEMINGLY r(errlst) RETURNS "." RATHER THAN ""					***
@@ -4599,8 +4604,6 @@ end varsImpliedByStubs
 
 
 /*											// TEST CODE MIGHT BE USEFUL
-
-
 	mata:st_numscalar("a",ascii("A")) 		// Get MATA to tell us the ascii value of char following "_"
 	display a  /*–  upper case A is 65;  upper case Z is 90 */
 */
