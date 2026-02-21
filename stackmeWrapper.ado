@@ -1,4 +1,4 @@
-*! Feb 20'26
+*!Feb 21`26
 
 capture program drop stackmeWrapper
 
@@ -21,7 +21,7 @@ capture program drop stackmeWrapper
  
 *!  Stata version 9.0; stackmeWrapper versions 4-9 updatd Apr, Aug '23 & again Apr '24 to May'25 by Mark from major re-write in June'22
 
-*!  AT SOME POINT INVESTIVATE USE OF STATA COMMAND 'snapshot' IN LIEU OF 'preserve' SO stackMe WILL WORK ON PRESERVED DATA.				***
+*!  AT SOME POINT INVESTIGATE USE OF STATA COMMAND 'snapshot' IN LIEU OF 'preserve' SO stackMe WILL WORK ON PRESERVED DATA.				***
 
 										// For a detailed introduction to the data-preparation objectives of the stackMe package, 
 										// see 'help stackme'.
@@ -716,6 +716,9 @@ pause (1.2)
 																// (`itemname' can be referenced only by using this alias)
 																// (NOT SURE WHAT BENEFIT USER GETS FROM REFERRING TO IT INDIRECTLY)	***	
 	  } //endif 'options'
+	  
+	  
+	  global optionsP = "`optionsP'"							// NEEDED FOR AND BY SUBPROGRAMS TO PASS ON USER-CHOSEN OPTIONS
 	
 	
 	
@@ -2845,21 +2848,21 @@ pause off
 										// (2.1)  NOW PREPARE STACKME VARS THAT RECORD MISSINGNESS FOR DIFFRENT CMDS
 	
 			 
-	local ic = substr("`cmd'",4,1)							// Identifying char(s) used to distinguish interims produced by each `cmd'P
+	local ic = substr("`cmd'",4,1)							  // Identifyng char(s) used to distinguish interims producd by each `cmd'P
 	if "`cmd'"=="gendummies" | "`cmd'"=="genmeanstats"  local ic = substr("`cmd'",4,2) 
 	
-	foreach ic2 in dd ii yd yi du  {						// Cycle thru `ic2's for all vars for which missingness is monitored
+	foreach ic2 in dd ii yd yi du  {						  // Cycle thru `ic2's for all vars for which missingness is monitored
 
 	  foreach SMvar in `ic2'misPlugCount SM`ic2'misCount SM { // Cycle thru the two summary measures for current command
-															 // (using identirying char(s) (`ic') to differentiate variables)
+															  // (using identirying char(s) (`ic') to differentiate variables)
 															 
 	    if "`ic2'"!="dd" & "`ic2'"!="ii" & "`SMvar'"=="SM`ic2'misPlugCount" continue, break // Only have misPlugCount for gendi & genii
-															 // "d" covers both multivariate yhat and gendist outcomes
+															  // "d" covers both multivariate yhat and gendist outcomes
 	    if "`SMvar'"=="SM`ic2'misCount"  {					 
-			local txt = "original"							 // Set text to be included in var label for input var
+			local txt = "original"							  // Set text to be included in var label for input var
 	    }
-	    else {												 // else set text for outcome var
-			if "`ic2'"=="dd" local txt = "mean-plugged"		 // (i.e. mean-plugged, imputed or y-hatted)
+	    else {												  // else set text for outcome var
+			if "`ic2'"=="dd" local txt = "mean-plugged"		  // (i.e. mean-plugged, imputed or y-hatted)
 			if "`ic2'"=="ii" local txt = "imputed"
 			
 /*			if "`ic2'"=="yd"  local txt = "Multivariate y-hat depvar"
@@ -2872,7 +2875,7 @@ pause off
 		
 	    if _rc==0  {										 // If that var already exists			(THIS ALREADY DONE EARLIER?)		***
 	   
-		  if "`SMvar'"=="SM`ic2'misPlugCount"  {				 // If this is first SMvar, see if 2nd also exists..
+		  if "`SMvar'"=="SM`ic2'misPlugCount"  {			 // If this is first SMvar, see if 2nd also exists..
 			capture confirm variable SM`ic'misCount
 			if _rc==0  {								 	 // If so, store both variables in SMvar
 			  local SMvar = "SM`ic2'misCount SM`ic2'misPlugCount"
@@ -3037,7 +3040,7 @@ global errloc "cleanUp(3)"
   	
 		
 
-pause on
+*pause on
 pause cleanUp(4)
 global errloc "cleanUp(4)"
 
@@ -3216,7 +3219,7 @@ capture noisily  {								// Any error occurring before corresponding close brac
   
   if "`msg'"!=""  {											// If there are any characters left un-displayed (reached end of `msg')
  	if substr("`msg'",-1,1)==" "  local msg = substr("`msg'",1,strlen("`msg'")-1) // Trim off final char if it is blank 
-	local dMs = "`msg'`last'"
+	local dMs = "`msg'; `last'"
 
 	
 	if "`aserr'"=="aserr" noisily display "{err}`dMs'{txt}" // Display final (or only) line +`last' as error if optioned
@@ -3460,7 +3463,7 @@ program define getoutcmnames, rclass						// Returns lists of input and correspo
 															// (outcome names already fully prefixed; others combine to make outcm names)
 
 *******************************************														
-syntax [varlist(default=none)] [, $mask PROximities(str) * ] // The options included in $mask for each `cmd' are listed under (1) below
+syntax [varlist(default=none)] [, $mask /*PROximities(str)*/ * ] // The options included in $mask for each `cmd' are listed under (1) below
 *******************************************
 
 
@@ -3845,7 +3848,7 @@ global errloc "getprfxdv(0)"
 
 	
 *	*************											// Subprog gets lists of inputs, outcomes to convert to globals below
-    getoutcmnames , depvarname(`depvarname') aprefix(`aprefix') proximities(`proximities') multivariate(`multivariate')
+    getoutcmnames , $optionsP /*depvarname(`depvarname') aprefix(`aprefix') proximities(`proximities') multivariate(`multivariate')*/
 	if "$SMreport"!=""  exit								// If returning from errexit, exit to next level up
 *	*************											// 'getoutcmnames' HAS 'IRONED OUT' VARIABLE TYPES AND MULTIVARLISTS
 															// (whatever their origin, any var to be newly created gets equal status)
@@ -4116,7 +4119,7 @@ version 9.0
 		
 	    capture confirm variable `var'						// These vars have their final prefixes (default or optioned)
 	    if _rc==0  {										// If that variable already exists ...
-	      global prfxdnames = "`prfxdnames' `var'"				// Add to global list final names of outcome vars
+	      global prfxdnames = "`prfxdnames' `var'"			// Add to global list final names of outcome vars
 		  global exists = "$exists `var'"					// Add to global list initial names of corresponding inputs
 	    }													// (but not ALL new vars may have prefix – eg gendummies)
 	    else local newprfxdnames = "`newprfxdnames' `var'"	// List of prefixed outcomes that don't yet exist (APPARENTLY UNUSED)		***
