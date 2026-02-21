@@ -1,6 +1,7 @@
+*! Feb 21'26
 
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
-											// (the "multiple" in "multiply-imputed" is a feature of multi-country datasets)
+											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
 											
 											// Called by 'gendu' a separate program defined after this one
 											// Calls subprogram stackmeWrapper
@@ -55,17 +56,27 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 										// *****************************
 										// On return from stackmeWrapper
 										// *****************************
-												
+										
+										
+										
+											
 
 
-
-**************************
-if _rc & "$SMreport"=="" {									// If there is a non-zero return code not already reported by errexit
-**************************									//   & if execution did not pass thru line before '
+***********************************************
+if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
+***********************************************				//   & if execution did not pass thru line before '} //end capture'
 															// (which is to say that execution arrived here by way of error capture)
 		
+
 		
-											// Deal with any Stata-diagnosed errors unanticipated by stackMe code										
+											// (5) Deal with any Stata-diagnosed errors unanticipated by stackMe code
+											
+	if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	   errexit  "Program error while post-processing"
+	   exit _rc
+
+	}
 															
 	local err = "Stata reports a likely program error during post-processing"
 	display as error "`err'; retain (partially) processed dta?""
@@ -85,6 +96,8 @@ if _rc & "$SMreport"=="" {									// If there is a non-zero return code not alr
   ***************************
 } //endif _rc & 'skipcapture'								// End brace-delimited error-capture handling
   ***************************
+
+
 
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
