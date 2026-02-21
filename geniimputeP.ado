@@ -1,3 +1,5 @@
+*! Feb 21'26
+
 
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
@@ -299,9 +301,11 @@ capture noisily {												// Open capture braces mark start ot code where err
 
 	} // next nvl
 	
-*pause end genii	
-pause off
+	
+
 	local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
+	
+	
 	
 * *************
 } //end capture													  		// Endbrace for code in which errors are captured
@@ -317,6 +321,7 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 	
 		
 end //geniiP_body
+
 
 
 ****************************************************** END PROGRAM geniimputeP ***************************************************
