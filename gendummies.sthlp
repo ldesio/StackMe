@@ -1,3 +1,5 @@
+*! Feb 21'26
+
 {smcl}
 {cmd:help gendummies}
 {hline}
@@ -52,6 +54,7 @@ optioned or established at the start of the {cmdab:gendu:mmies} {varlist}).{p_en
 {p 4}None of these options are required.{p_end}
 {synoptline}
 
+
 {title:Description}
 
 {pstd}
@@ -88,7 +91,7 @@ numbers for the same items, which only the user can check.
 {opt stu:bname(name)} If specified, optional name for the stub used to name the generated dummy variable(s). The 
 recommended default is to use as stubname the name of the variable from which dummies are being generated. The 
 ability to define a different stubname (by using either the optional prefix to the command's {varlist} or the 
-{opt stu:bname}} option) is provided mainly for conformity with the syntax for other {help stackMe} commands.{p_end}
+{opt stu:bname} option) is provided mainly for conformity with the syntax for other {help stackMe} commands.{p_end}
 
 {phang}
 {opt dup:refix} if specified, a string of text that serves as prefix to the stubname (either optioned or 
@@ -99,11 +102,14 @@ that generated variables were produced by {cmd:stackme}'s {cmdab:gendu:mmies} co
 {opt nod:uprefix} if specified, eliminate the default outcome varname prefix without providing an alternative.{p_end}
 
 {phang}
-{opt apr:efix} if specified, a string of text (the same for all stubnames) that extends the stubname prefix.{p_end}
+{opt apr:efix} if specified, a single string of text (it will apply to all stubnames) that extends each stubname 
+prefix. Allows the second syntax to distinguish the outcomes for one varlist from the outcomes for another 
+varlist using the same stubnames. (Of doubtful utility but provided for conformity with other {bf:stackMe} command-line 
+formats).{p_end}
 
 {phang}
 {opt inc:ludemissing} if specified, code missing values for each {it:varname} as zero. If there is already a 
-non-missing cetegory coded 0, the user should first employ Stata's {help:recode} command to change the value 
+non-missing category coded 0, the user should first employ Stata's {help recode} command to change the value 
 of 0 to some otherwise unused category value.{p_end}
 
 {p 4}All options have default settings.
@@ -116,7 +122,6 @@ item be duplicated onto the separate stacks (the natural fate for variables that
 and use logical expressions to derive one or more corresponding stacked variables (eg. 'generate vote = ptyvot==SMstkid', 
 which produces a dummy variable equal to 1 where the expression is true (in this example, where the party voted for 
 is the party of that stack) and 0 otherwise.
-
 
 
 {title:Examples:}
