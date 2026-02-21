@@ -1,227 +1,132 @@
+*! Feb 21'26
 
-capture program drop geniimputeO							// Preparations that can be done before calling geniiP for each context
+capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
+											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
+											
+											// Called by 'gendu' a separate program defined after this one
+											// Calls subprogram stackmeWrapper
 
-															// Called by stackmeWapper; calls no subprograms
-program define geniimputeO, rclass
-
-*! geniimputeO (was geniimpute) version 2 is called by stackmeWrapper version 2 to run under Stata versions 9/16, updated Feb,Apr'23 by MNF
-*! Minor tweaks in Nov 2024; major reorganization March 2025 where this program becomes geniimputeO, accessing entire working data prior
-*! to call on geniimputeP (was geniiP) so that preparatory steps can be taken using all contexts.
-
-	//    Lines terminating in "**" should be inspected if this code is adapted for use in a different `cmd'							**
-	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								**
-	 
-
-	version 11												// iimputeO version 2.0
-
-	
-global errloc "geniimputeO"									// Global that keeps track of execution location for benefit of 'errexit'
+program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
 
-********
-capture noisily {												// Open capture braces mark start ot code where errors will be captured
-********	
-	
-	syntax anything  ,   ///		
-		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) IPRefix(name) MPRefix(name) ROUndedvalues BOUndedvalues SELected ] ///	**
-		[ LIMitdiag(integer -1) NODIAg EXTradiag KEEpmissing REPlace NOInflate FASt MINofrange(integer 0) MAXofrange(integer 0) ]	///	**
-		[ RANgeofvalues(str) NOCONtexts NOSTAcks nvarlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) * ] //	**
+*!  Stata version 9.0; genyhats version 2, updated May'23 from major re-write in June'22; unchanged in Nov'24
+
+	version 9.0
+								// Here set stackMe command-specific options and call the stackMe wrapper program; lines 
+								// that end with "**" need to be tailored to specific stackMe commands
+									
+								// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'
+	local optMask ="ADDvars(varlist) CONtextvars(varlist) STAckid(varname) MINofrange(string) MAXofrange(string) " ///	**
+		 + "RANgeofvalues(str) IPRefix(name) MPRefix(name) LIMitdiag(integer -1) ROUndedvalues BOUndedvalues " ///	 	**
+		 + "NOInflate SELected"
+		   
+								// Ensure prefix option for this stackMe command is placed first
+								// and its negative is placed last; ensure options w args preceed 
+								// (aka flag) options and that last option w arg is limitdiag
+								// CHECK THAT NO OTHER OPTIONS, BEYOND FIRST 3, NAME ANY VARIABLE(S)					 **
+
+																				
+																
+	local prfxtyp = "var"/*"othr" "none"*/			// Nature of varlist prefix – var(list) or other. (`stubname'  //	 **
+								// will be referred to as `opt1', the first word of `optMask', in codeblock 
+								// (0) of stackmeWrapper called just below). `opt1' is always the name 
+								// of an option that holds a varname or varlist (which must be referred
+								// using double-quotes). Normally the variable named in `opt1' can be 
+								// updated by the prefix to a varlist. In geniimpute the prefix can 
+								// itself be a varlist.
 		
-		// contextvars, nocontexts, stackid, nostacks handled in wrapper; rounded, bounded, range, keep & replace in caller; 
-		// addvars, selected, noinflate, fast, nvarlst, ctxvar nc, c, & wtexplst are only optiones handled here
 		
-																// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
-	local cmd = "geniimpute" 
+	local multicntxt = "multicntxt"/*""*/			// Whether `cmd'P takes advantage of multi-context processing		 **
+	
+	local save0 = "`0'"
+	
+	
+*	*************************
+	stackmeWrapper geniimpute `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd & rest of cmd-line				
+*	*************************						// (`0' is what user typed; `prfxtyp' & `optMask' were set above)	
+													// (`prfxtyp' placed for convenience; will be moved to follow optns)
+													// ( that happens on fifth line of stackmeCaller's codeblock 0)
 
-	
-	mata: st_numscalar("VERSION", statasetversion())			// Get stata verion # (*100) from Mata (PUT SCALAR IN ALL CAPS)
-
-
-	
-	
-												// Convert original default options (or revised defaults) for piped syntax
-	
-	if "`rangeofvalues'"!=""  {									// If user optioned a range of values ..
-	  gettoken precomma postcomma : rangeofvalues, parse(",")	// See if there is a comma
-	  if "`postcomma'"!=""  {
-		local minofrange = "`precomma'"							// If so, put `precomma' into `minofrange'"
-		local maxofrange = strtrim(substr("`postcomma'",2,.))	// (and trimmed `postcomma', shorn of comma, into `maxofrange')
-	  }
-	  else  {													// Else there is no comma
-		local minofrange = word("`rangeofvalues'",1)			// (so range values are in successive words)
-		local maxofrange = word("`rangeofvalues'",2)
-	  }
-	} //endif `rangeofvalues'									// Else min & max may still be optioned
-
-	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
-	local missingflagprefix = "m_"	
-	
-	capture confirm variable SMimisCount						// See if SMimisCount still has values from previous calL
-	
-	if _rc==0  {												// If the variable exists
-		drop SMimisCount										// Default values will be provided by egen, below
-																// (wrapper will already have asked user if this is ok)
-	} //endif _rc==0											// Next command involving this var generates it
-
-	
-	capture confirm variable SMimisImpCount
-	
-	if _rc==0  {												// Same comments as for SMimisCount
-		drop SMimisImpCount										// Except default values are not provided until return to caller
-	} //endif _rc==0
-
-			
+*  EXTradiag REPlace NEWoptions MODoptions NODIAg NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
+*  and so are added in 'stackmeWrapper'
+						
+											
+											
+											
+										// *****************************
+										// On return from stackmeWrapper
+										// *****************************
+										
+										
+										
+											
 
 
-	local missingCntName = "SMimisCount"						// Legacy code references this variables
-	local missingImpCntName = "SMimisImpCount"					// Ditto
-
-	
-	
-	
-	set more off	
-	
-												// Variable processing moved here from geniimpute_body, below
-												// Pre-process multi-varlist, variables saved by iimpute, and contextvars
-
-	local postpipes = "`anything'"							// Pretend `anything' started with (already removed) pipes ("||")
-/*	local allPTVs = ""										// Will hold list of vars from which to generate imputd versns
-	√local imputedvars = ""									// Will hold list of variables to impute (in all multi-varlsts)
-	√local missingvars = ""									// Ditto list of vars  with cases where unimputd var was missng
-*/	
-	local allPTVs = ""
-	local totPTVs = 0										// Initialize count of max # of vars to be imputed
-	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
-	local totaddv = 0										// Will hold count of max # of additional vars
-	local nonmisPTVs = ""									// Will hold list of non-missing PTVs
-	local prfxdPRVs = ""
-	
-
-	
-	
-												// HERE STARTS PRE-PROCESSING OF CURRENT CONTEXT (for current context) ...			***
-																// (preparatory to using results for actual processing)
-	forvalues nvl = 1/`nvarlst'  {						
-
-		gettoken prepipes anything : anything, parse("||") 		//`anything' then starts with "||" or is empty at end of cmd
-																 	
-		gettoken precolon postcolon : prepipes, parse(":") 		// See if varlist starts with prefixing indicator 
-																//`precolon' gets all of varlist up to ":" or to end of string		
-		if "`postcolon'"!=""  {							 		// If not empty we should have a prefix varlist before colon
-		    local prfxvars = "`precolon'"						// Local holding prefixvars
-		    local anything = strtrim(substr("`postcolon'",2,.))	// strip off the leading ":" along with any following blanks
-		} //endif `anything'									// If there was no colon then varlist was in `anything'
+***********************************************
+if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
+***********************************************				//   & if execution did not pass thru line before '} //end capture'
+															// (which is to say that execution arrived here by way of error capture)
 		
-		unab thePTVs : `anything'								// Legacy name for vars for which missing data will be imputed
-		local allPTVs = "`allPTVs' `thePTVs'"					// Add to list of all PTVs from all varlists
-		if "`prfxvars'"!=""  {
-			unab addvars : `prfxvars'							
-			local alladdv = "`alladdv' `addvars'"
-		}
-														
-		local nvars : list sizeof thePTVs						// # of vars in this (sub-)varlist
-		local totPTVs = `totPTVs' + `nvars'
-		local nvars : list sizeof addvars
-		local totaddv = `totaddv' + `nvars'
-		
-		tokenize `anything'
-		if `nvl'==1  {
-			local first `1'
-		}
-		if `nvl'==`nvarlst'  local last `nvars'
-		
-		foreach var of local thePTVs  {							// Faster than using (now redundant) varlist
-		
-			quietly clonevar i_`var' = `var' 					// Initialize imputed version of 'var' with original values
-			local imputedvars `imputedvars' i_`var'				// (stata will exit with error if this is not a variable)
-			local varlab : variable label `var'
-			local newlab = "imputd " + "`varlab'"				// (and label it)
-			quietly label variable i_`var' "`newlab'"
 
-			quietly generate m_`var' = missing(`var')
-			capture label var m_`var' "Was `var' originally missing? (1=yes)"
-			local missingvars `missingvars' m_`var'				// NOT SURE WE USE THIS
-			
-			quietly count if missing(`var') 					// THIS CHECK MOVED FROM geniimputeP							***
-			local missing = r(N)								// N of missing cases for this PTV within full dataset
-			if `missing'==0  local nonmisPTVs = "`nonmisPTVs' `var'" 
-																// Accumulate list of non-missing PTVs
-			local prfxdPTVs = "`prfxdPTVs' i_`var' m_`var'"		// And list of prefixed and initialized PTVs
-			
-		} //next var 											// (in this varlist)
-		  
-/*																// NOT SURE WE USE ANY OF THESE
-		local nptvs: list sizeof thePTVs						// Get length of (longest sub-)varlist
-		if `nptvs'>`maxPTVs'  local maxPTVs = `nptvs'			// NOT SURE WE USE THIS
-			
-		local naddv: list sizeof addvars						// Same for any additional vars in a multi-varlist
-
-		if `naddv'>`maxaddv'  local maxaddv = `naddv'
-		foreach var of varlist `addvars'  {
-		   if strpos("`alladdv'", "`var'")==0  {				// If this 'var' is not already in the list of 'addvars'
-			   local alladdv = "`alladdv' `var'"
-		   }
-		}
-*/		
-		local vlnvl = "vl`nvl'"
-		global `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
-		local alnvl = "al`nvl'"
-		global `alnvl' = "`alladdv'"							// Additional varlist for this `nvl' (as above)
-
-		if "`anything'"==""  continue, break					// Break out of multi-varlist loop if no more varlists	
-		if substr("`anything'",1,2)=="||"  {					// SEEMINGLY TESE WERE ALREADY STRIPPED								***
-		   local anything = strtrim(substr("`anything'", 3, .))	// Else strip "||" & put remaining varlist(s) in `anything'			**
-		}
 		
-	} //next `nvl' (varlist) 									// (in this multi-varlist)
-	
-	if "`nonmisPTVs'" != ""  {									// Some vars in varlist had no missing values to be imputed
-		
-		display as error _newline ///
-			"Add to prfix list or optn as 'additionl' vars without {help missing:missing values}: {bf:`nonmisPTVs'}{txt}"
-*			 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		errexit, ///											// (help link should suggest need to learn about Stata missng)		***
-			msg("Add to prefix list or option as 'additional' any vars that have no Stata missing values (>=.):`nonmisPTVs'")
-		exit
+											// (5) Deal with any Stata-diagnosed errors unanticipated by stackMe code
+											
+	if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
+  
+	   errexit  "Program error while post-processing"
+	   exit _rc
+
 	}
-		
-	quietly egen SMimisCount = rowmiss(`allPTVs')				// Var holding N of missing cases for variable to be impoted
-	capture label var SMimisCount "N of missing values in `nvars' variables to impute (`first'...`last')"
-																// ('SMimisImpCount' will be generated in caller)
-
-	
-*	local added = "`alladdv'"									// Need a local that can be overwritten, as `addvars' cannot
-
-	local maximpvar = `totPTVs' + `totaddv'
-	if (`maximpvar' > 30) {
-		errexit "Max of 30 vars for varlist + additional – you have specified `maximpvar'"
-		exit
+															
+	local err = "Stata reports a likely program error during post-processing"
+	display as error "`err'; retain (partially) processed dta?""
+*              		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+	window stopbox rusure ///
+			  "`err'; retain (partially) post-processed data and clean it up yourself – ok?"
+	if _rc  {
+		window stopbox note "Absent permission to retain processed data, on 'OK' original data will be restored before exit"
+		capture use $origdta, clear
+		noisily display "{bf:NOTE: original dataset has been restored}"
+	}
+	else {													// Else 'ok' was clicked	
+		display as error "Partially post-processed data is retained in memory"
 	}
 	
-	local keepvars = "`allPTVs' `alladdv' `prfxdPTVs' `SMimisCount' `SMimisImpCount'"
-	return local keepvars `keepvars'							// Return unabbreviated un-hyphenated vars in r(checked)
-	
-	local minmax = "`minofvalues' `maxofvalues'"				// Either originally optioned or derived from `rangeofvalues'
-	if "`minmax'"==" "  local minmax = ""
-	return local minmax `minmax'								// Return minmax in two-word string
+
+  ***************************
+} //endif _rc & 'skipcapture'								// End brace-delimited error-capture handling
+  ***************************
+
+
+
+  
+  capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
+  capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
+  if _rc==0  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
+  else scalar RC = 98765									// Else stash an unused return code
+  if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
+  macro drop _all											// Drop all macros (including $SMrc, if extant)
+  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
+  scalar drop _all 											// Drop all scalars, including RC
+
+
+  exit `rc'
 
 	
- 
-	local skipcapture = "skipcapture"							  // Local, if set, prevents capture code, below, from executing
-	
-* *************
-} //end capture													  // Endbrace for code in which errors are captured
-* *************													  // Any such error would cause execution to skip to here
-																  // (failing to trigger the 'skipcapture' flag two lines up)
-
-if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
-	
-	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
-	exit
-}
-
-				
-end //geniimputeO
+end // geniimpute			
 
 
-********************************************** END PROGRAM geniimputeO ********************************************************
+
+************************************************** PROGRAM genii *********************************************************
+
+
+capture program drop genii
+
+program define genii
+															// (should that be needed)
+geniimpute `0'
+
+end genii
+
+
+*************************************************** END PROGRAM **********************************************************
