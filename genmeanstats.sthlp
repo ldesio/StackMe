@@ -1,21 +1,23 @@
+*! Feb 21'26
+
 {smcl}
-{cmd:help genmeans}
+{cmd:help genmeanstats}
 {hline}
 
 {title:Title}
 
 {p2colset 7 19 19 0}{...}
-{p2col :{cmdab:genme:ans} {hline 2}}Generates (optionally weighted) statistics separately for each context and stack{p_end}
+{p2col :{cmdab:genme:anstats} {hline 2}}Generates (optionally weighted) statistics separately for each context and stack{p_end}
 {p2colreset}{...}
 
 
 {title:Syntax}
 
 {p 4 13 11}
-{cmdab:genme:ans varlist [if][in][weight], options}
+{cmdab:genme:anstats varlist [if][in][weight], options}
 
 
-{p 4 4}The alternative syntax, that applies the same options to multiple varlists, is allowed but provides no benefits.
+{p 4 4}An alternative syntax, that would apply the same options to multiple varlists, is not provided for {cmdab:genme:anstats}.
 
 
 {p 4}aweights, fweights, and iweights are allowed.
@@ -25,16 +27,17 @@
 {synopthdr}
 {synoptline}
 {p2colset 5 21 19 2}
-{synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the different 
-electoral contexts within which means will be separately calculated (required if the default contextvars, 
-recorded as a 'data characteristic' by {cmd:stackMe}'s {help stackme##SMcontextvars:{ul:SMcon}textvars}, 
-is to be overriden){p_end}
+{synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the different electoral 
+contexts within which means will be separately calculated (provided to address any unlikely need to override 
+the default contextvars 'data characteristic' set by {cmd:stackMe}'s {help stackme##SMcontextvars:{ul:SMcon}textvars}.{p_end}
 {synopt :{opt nocon:texts}}disregard context distinctions{p_end}
 {synopt :{opt nosta:cks}}disregard distinctions between stacks/battery-items{p_end}
-{synopt :{bf:{opt sta:ts}(n|{opt mea:n}|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)}}(required) statistics to be generated, 
-where {it:{opt sd}} is standard deviation and {it:{opt sw}} is sum of weights. Any or all keywords can be 
-included, separated by spaces. Keywords may be abbreviated to first 3 chars.{p_end}
-{synopt :{opt mnp:refix(name)}}prefix for name(s) of generated mean(s) (defaults to "mn_"){p_end}
+{synopt :{bf:{opt sta:ts}(n|{opt mea:n}|{opt mod:e}|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)}}(required) statistics 
+to be generated, where {it:{opt sd}} is standard deviation and {it:{opt sw}} is sum of weights. Any or all 
+keywords can be included, separated by spaces. Longer keywords may be abbreviated to their first 3 chars.{p_end}
+{synopt :{opt mep:refix(name)}}prefix for name(s) of generated mean(s) (defaults to "me_"){p_end}
+{synopt :{opt mdp:refix(name)}}prefix for name(s) of generated median(s) (defaults to "md_"){p_end}
+{synopt :{opt mop:refix(name)}}prefix for name(s) of generated mode(s) (defaults to "mo_"){p_end}
 {synopt :{opt sdp:refix(name)}}prefix for name(s) of generated standard deviation(s) (defaults 
 to "sd_"){p_end}
 {synopt :{opt mip:refix(name)}}prefix for name(s) of generated minimum(s) (defaults to "mi_"){p_end}
@@ -42,10 +45,10 @@ to "sd_"){p_end}
 {synopt :{opt skp:refix(name)}}prefix for name(s) of generated skewedness (defaults to "sk_"){p_end}
 {synopt :{opt kup:refix(name)}}prefix for name(s) of generated kurtosis (defaults to "ku_"){p_end}
 {synopt :{opt sup:refix(name)}}prefix for name(s) of generated sum(s) (defaults to "su_"){p_end}
-{synopt :{opt swp:refix(name)}}prefix for name(s) of generated sum(s) of weight(s) 
+{synopt :{opt swp:refix(name)}}prefix for name(s) of generated sum(s) of weight(s) (defaults to "sw_") 
 (defaults to "sw_"){p_end}
-{synopt :{opt lim:itdiag(#)}}number of contexts for which to report on variables being generated 
-(default is to report progress for all contexts){p_end}
+{synopt :{opt lim:itdiag(#)}}number of contexts for which progress is to be to reported on variables 
+being generated (default is to report progress for all contexts){p_end}
 {synopt :{opt nod:iag}}equivalent to {opt lim:itdiag(0)}, suppressing progress reports{p_end}
 
 {p 4}Only the {bf:stats} option is required
@@ -60,23 +63,23 @@ to "sd_"){p_end}
 The {cmdab:genme:anstats} command can be issued before or after stacking. It generates a variety of statistics 
 separately for each context named by the {help stackme##SMcontextvars:{ul:SMcon}textvars} utility and (by dafault) 
 for each stack defined by the {bf:{it:SMstkid}} special variable. The values taken on by these statistics are duplicated 
-onto all observations in each context (and stack, if optioned). {cmdab:genme:ans} thus duplicates certain of the features 
+onto all observations in each context (and stack, if optioned). {cmdab:genme:anstats} thus mimics certain features 
 of Stata's {help egen} command but permits unit weights to be taken into account, which {cmd:egen} does not.{break}
-{space 3}Note that {cmd:genmeanstats} can be {it:{opt call}}ed by the {help stackme} command {help genplace:{ul:genpl}ace} 
+{space 3}Note that {cmdab:genme:anstats} can be {it:{opt call}}ed by the {help stackme} command {help genplace:{ul:genpl}ace} 
 in order to place batteries of items, in terms of statistics other than the mean, in the first step of a two-step 
-{cmdab genpl:ace} procedure. Otherwise that first step places the battery in terms of the mean of its member items.
+{cmdab:genpl:ace} procedure. Otherwise that first step places the battery in terms of the mean of its member items.
 
 {pstd}
 SPECIAL NOTE COMPARING {help genmeans:{ul:genme}anstats} WITH {help genplace:{ul:genpl}ace}: The data processing 
-performed by the first step of a two-step {cmd:genplace} command is computationally identical to that performed 
-by command {cmd:genmeans} with option {it:{opt stats(mean)}} but conceptually very different. Means are 
-generated by {cmd:genmeans} without regard to any conceptual grouping of variables inherent in batteries 
+performed by the first step of a two-step {cmdab:genpl:ace} command is computationally identical to that performed 
+by command {cmdab:genme:anstats} with option {it:{opt stats(mea:n)}} but conceptually very different. Means are 
+generated by {cmd:genmeanstats} without regard to any conceptual grouping of variables inherent in batteries 
 that might contain (some of) those variables. The command {cmd:genplace} can do the same for variables that 
-are conceptually connected by being members of a battery of items but then proceeds to a second 
-step in which those means (or some other placement battery defined by option {bf:cweight}) are used 
-when averaging the item placements into a (weighted) mean placement regarding the battery as a whole 
-(for example a legislature placed in left-right terms according to the individual placements of parties 
-that are members of that legislature).{break}
+are conceptually connected by being members of a battery of items but then proceeds to a second step in which 
+those means (or some other placement battery defined by option {bf:cweight}) are used when averaging the item 
+placements into a (weighted) mean placement regarding the battery as a whole (for example a legislature placed 
+in left-right terms according to the individual placements of parties that are members of that legislature).{break}
+
 
 {marker:Options}
 {title:Options}
@@ -84,9 +87,9 @@ that are members of that legislature).{break}
 {phang}
 {opt con:textvars(varlist)} (generally unspecified) a set of variables identifying the different contexts within 
 which mean-related statistics will be separately calculated. By default, context varnames are taken from a Stata .dta file's 
-{help char:characteristic} established by {cmd:stackMe}'s {help stackme##SMcontextvars:{ul:SMcon}textvars} utility the 
-first time this file was opened for {help use} by a {cmd:stackMe} command; so this option is required if the default is 
-to be overriden.{p_end}
+{help char:characteristic} established by {cmd:stackMe}'s {help stackme##SMcontextnames:{ul:SMcon}textnames} utility the 
+first time this file was opened for {help use} by a {cmd:stackMe} command. This option is provided to accomodate the 
+unlikely event that the default is to be overriden.{p_end}
 
 {phang}
 {opt nocon:texts} if present, disregard distinctions between contexts (equivalent to using {help egen} with 
@@ -94,25 +97,32 @@ no {bf:{it:by}} option).
 
 {phang}
 {opt stackid(varname)} THERE IS NO SUCH OPTION. Stacks are identified by the system variable {bf:SMstkid}
-(see {help genstacks:{ul:genst})acks}) – equivalent to the {bf:j} index in Stata's {bf:{help reshape:reshape long}} 
-command) – and {cmdab genme:anstats} statistics will be separately generated for each stack. 
+(see {help genstacks:{ul:genst}acks}) – equivalent to the {bf:j} index in Stata's {bf:{help reshape:reshape long}} 
+command) – and {cmdab:genme:anstats} statistics will be separately generated for each stack. 
 
 {phang}
 {opt nosta:cks} if present, disregard distinctions between stacks.
 
 {phang}
-{bf:stats({opt mea:n}|n|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)} if present, (defaults to 'mean' if not 
-specified) statistic(s) to be generated, where {it:sd} is standard deviation and {it:sw} is sum 
-of weights. Any or all keywords can be included, separated by spaces, and may be abbreviated to 
-their first 3 chars. Execution is somewhat slowed if skew, kurtosis, median and/or mode are 
-requested{p_end}
+{bf:stats({opt mea:n}|{opt med:ian}|{opt mod:e}|n|sd|min|max|{opt ske:w}|{opt kur:tosis}|sum|sw)} if present (defaults  
+to 'mean' if not specified) statistic(s) to be generated, where {it:sd} is standard deviation and 
+{it:sw} is sum of weights. Any or all keywords can be included, separated by spaces, and may be 
+abbreviated to their first 3 chars. Execution is somewhat slowed if skew, kurtosis, median and/or 
+mode are requested. If mode is requested and more than a single mode is found empirically, a 
+missing value is returned. The default prefix for the N of cases is an upper case "N". No option 
+is provided for changing that prefix.{p_end}
 
 {phang}
-{opt mnp:refix(name)}prefix for name(s) of generated mean(s) (defaults to "mn_"){p_end}
+{opt mep:refix(name)}prefix for name(s) of generated mean(s) (defaults to "me_"){p_end}
 
 {phang}
-{opth sdp:refix(name)}prefix for name(s) of generated standard deviation(s) (defaults 
-to "sd_"){p_end}
+{opt mdp:refix(name)}prefix for name(s) of generated median(s) (defaults to "md_"){p_end}
+
+{phang}
+{opt mop:refix(name)}prefix for name(s) of generated mode(s) (defaults to "mo_"){p_end}
+
+{phang}
+{opth sdp:refix(name)}prefix for name(s) of generated standard deviation(s) (defaults to "sd_"){p_end}
 
 {phang}
 {opt mip:refix(name)}prefix for name(s) of generated minimum(s) (defaults to "mi_"){p_end}
@@ -134,7 +144,7 @@ to "sd_"){p_end}
 
 {phang}
 {opt limitdiag(#)} only display diagnostic reports for the first # contexts (by default report 
-variables created for all contexts).{p_end}
+on variables being generated for all contexts).{p_end}
 
 {phang}
 {opt nodiag} equivalent to {opth limitdiag(0)}.{p_end}
@@ -148,7 +158,7 @@ variables created for all contexts).{p_end}
 constant across respondents within contexts (and stacks if the data are stacked) for the variable measuring 
 respondents' left-right positions.{p_end}
 
-{phang2}{cmd:. genmeans rlr [aw=wt], stat(mean) context(cid year) stackid(stkid)} {p_end}{break}
+{phang2}{cmd:. genmeanstats rlr [aw=wt], stat(mean) context(cid year) stackid(stkid)} {p_end}{break}
 
 
 {title:Generated variables}
@@ -157,15 +167,16 @@ respondents' left-right positions.{p_end}
 {cmd:genmeans} saves the following variables or sets of variables:
 
 {synoptset 18 tabbed}{...}
-{synopt:n_{it:var} n_{it:var} ...} (no other prefix can be optiond for N of cases)
+{synopt:n_{it:var} N_{it:var} ...} (no other prefix can be optiond for N of cases). Note that the 
+option that requests this statistic is the lowercase letter "n".
 
-{synopt:mn_{it:var} mn_{it:var} ...} (or other prefix set by option {bf:mnprefix}) (perhaps 
+{synopt:mn_{it:var} me_{it:var} ...} (or other prefix set by option {bf:mep:refix}) (perhaps 
 weighted) means, constant within context and/or stack, for each variable in {it:varlist}.{p_end}
 
-{synopt:sd_{it:var} sd_{it:var} ...} (or other prefix set by option {opt sdprefix}) (perhaps weighted) 
+{synopt:sd_{it:var} sd_{it:var} ...} (or other prefix set by option {opt sdp:refix}) (perhaps weighted) 
 standard deviations, constant within contexts and/or stack, for each variable in {it:varlist}.{p_end}
 
-{synopt:mi_{it:var} mi_{it:var} ...} (or other prefix set by option {opt miprefix}) (perhaps weighted) 
+{synopt:mi_{it:var} mi_{it:var} ...} (or other prefix set by option {opt mip:refix}) (perhaps weighted) 
 minimums, constants within context and/or stack, for each variable in {it:varlist}.{p_end}
 
 {pstd}Such other variables as may be created to hold other optioned statistics (see option {opt stats} 
