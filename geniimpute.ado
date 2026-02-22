@@ -60,23 +60,19 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 										
 										
 											
+local rc = _rc							// HOW DO WE GET A NON-ZERO RC WHEN WRAPPER TERMINATED W exit 0
 
+local rc = 0
 
-***********************************************
-if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported by errexit
-***********************************************				//   & if execution did not pass thru line before '} //end capture'
+***************************	
+if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not already reported by errexit
+***************************									
 															// (which is to say that execution arrived here by way of error capture)
 		
 
 		
 											// (5) Deal with any Stata-diagnosed errors unanticipated by stackMe code
 											
-	if _rc & "`skipcapture'"=="" & "$SMreport"!="skip"  {
-  
-	   errexit  "Program error while post-processing"
-	   exit _rc
-
-	}
 															
 	local err = "Stata reports a likely program error during post-processing"
 	display as error "`err'; retain (partially) processed dta?""
@@ -94,11 +90,11 @@ if _rc  & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero re
 	
 
   ***************************
-} //endif _rc & 'skipcapture'								// End brace-delimited error-capture handling
+} //endif _rc & $SMreport								// End brace-delimited error-capture handling
   ***************************
 
-
-
+														// ABOVE WILL HAVE BEEN SKIPPED DUE TO CLUGED RC AFTER RETURN FROM WRAPPER
+														// (NEED TO FIX)
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
