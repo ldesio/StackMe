@@ -1,552 +1,180 @@
-!* Feb 14'26
+*! Feb 23`26
 
-capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
+capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
-										 // SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+program define genstacksP								// Called from 'stackmeWrapper', makes no calls on other subprograms
 
-program define genstacks									// Called by 'genst' a separate program defined after this one
-															// Calls subprogram stackmeWrapper and subprogram 'errexit'
+*!	Version 2 uses the command window to build label for stacked data; unlike version 2a which uses a dialog box.
 
-*!  Stata versn 9.0; stackMe version 2, updated May'23 from major re-writes in June'22 and May'24 to include post-wrapper code
-*!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
-
-	version 9.0							// SEE HEAD OF program stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
-
-global errloc "genstacks(0)"								// Records which codeblk is now executing, in case of Stata error
+*!  Stata version 16.1 (originally 9.0); genstacks version 2.0, updated Jan'23 & May'24 from major re-write in June'22.
+*!  Search sreshape for a faster reshape command published in 2019 (possibly already incorporated into Stata 17)
+*!  However, reshape is not the slow part. A faster merge command would be good!
 
 
-
-
-										// (0)  Here set stackMe command-specific options and call the stackMe wrapper program  
-										// 		(lines that end with "**" need to be tailored to specific stackMe commands)
-									
-															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
-															// prefixvar (here ITEmname) is first and its negative, if any, is last.	
-															
-	local optMask = " ITEmname(varname) FE(namelist) FEPrefix(string) LIMitdiag(integer -1) KEEpmisstacks NOCheck " //					**
-
-*					EXTradiag NODIAg NOREPlace NOCONtexts NOSTAcks APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most
-															//  stackMe cmds and are added to 'optMask' in wrapper's codeblk (1)
-															// (NOTE that options named 'NO??' are not returned in a macros named '??')
+	version 16.1				// stackMe's genstacks version 2.0, June 2022, updated 2'23, Aug'24, Nov'24
 	
-															// For this `cmd', the first option does not have a corrspnding negative
-															// counterpart, and no varlist/stublist prefixes are allowed.
-*															
-	local prfxtyp = /*"var" "othr"*/"none"					// Nature of varlist prefix – var(list) or other. (NOTE that, except for	**
-															//  this command, a varlist	may itself be prefixd by a varlist or string
-		
-	local multicntxt = "multicntxt"							// Whether `cmd'P takes advantage of multi-context processing (resulting 	**
-															// macro morphes into `noMultiContxt' in 'stackmeWrapper')
-															
-	local save0 = "`0'"										// Save what user typed, to be retrieved on return to this caller program
-										
+	// This version of genstacks reshapes each context separately. It does labeling of vars and data in `cmd' caller. It  
+	// doesn't use Stata's code for duplicating variables that are not reshaped. Instead it saves those variables and later   
+	// merges them with the reshaped variables. It uses external files for this rather than data frames, because of limitations   
+	// on types of merges that frames support.
+	//   An important component of the stacking operation happens in `genplaceO', where stubnames are identified and 
+	// checked. `genstacksP' (this ado file) reshapes the stacked data, also removing empty stacks and correcting for 
+	// fixed effects, if optioned.
+	//   `genstacksP' calls a subroutine already called from stackmeWrapper to derive variable names implied by stubs used in
+	// conformity with genstacks syntax 2 (see help file for genstacks).
+	//   Trial versions were used Stata's version 2b to evaluate use of frame technology where present. It used a call on Mata to 
+	// get the version # (I was unable to discover how to get the version number from Stata itself.) thus: 
+	// 'mata: st_numscalar("temp", statasetversion()', returns versn # in scalar 'temp'. But frames proved slower than tempfiles.
 
-*	************************
-	stackmeWrapper genstacks `0' \prfxtyp(`prfxtyp') `multicntxt' `optMask' 	// Space after "\" must go from all calling progs		**			
-*	************************								// `0' is what user typed; `prfxtyp' & `optMask' strings were filled	
-															//  above; `prfxtyp', placed for convenience, will be moved to follow 
-															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1)
-															// `multicntxt', if empty, sets stackmeWrapper flag 'noMultiContxt'
-
-set trace on															
-
-							// **************************	// 'genstacks' IS THE ONLY CALLER THAT STILL DOES ITS OWN POST-PROCESSING
-							// On return from wrapper...*	// (does not use 'cleanup'). Hence we do not set $SMreport to "skip" on
-							// **************************	// this return).
-								 
-******************											 **********************************************
-if "$SMreport"==""  {										 // If return does not follow an errexit report
-******************											 // (else skip all until end of program) 
-*															 **********************************************
-
-*capture noisily {
-* **********
-  capture noisily {											 // Puts rest of command within capture braces, in case of Stata error	
-* **********												 // Capture processing code is at the end if this adofile.
+*set trace on
 
 
+global errloc "genstacksP(1)"								// Global that keeps track of execution location for benefit of 'errexit'
 
-								// Here deal with possible errors that might follow
-								
-								
-	global errloc "genstacks(1)"							 // Records which codeblk is now executing, in case of Stata error
-									
-	local 0 = "`save0'"									     // On return from wrapper, re-create local `0', restoring what user typed
-															 // (so syntax cmd, below, can initialize option contents, not done above)
-															
-	
-*	***************
-	syntax anything ,  [ LIMitdiag(integer -1) ITEmname(varname) CONtextvars(varlist) NOStacks NOContexts NODiag REPlace * ]									
-*	***************										    
-											
-	/*if `limitdiag'==0*/  noisily display " "				// No 'continue' for final busy dot
-
-	
-	
-	
-										// Next codeblocks post-process new variables created in genstacksP
-
-										// (2) Make labels for reshaped vars, based on first var in each battery ...
-										
-														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY								***
-										
-	local namelist = "`anything'"						// Put user-supplied varlist into `namelist' 
-														// (genstacks only has a single varlist; so no "||", no ":")	
-	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
-	local response = 0									// Local at top level to register responses within if or foreach		
-														// (apparently unused)														***
-	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
-	
-		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
-		
-			if real(substr("`var'",-1,1))==.  continue	// If final char is NOT numeric (real version IS missing)..
-														// ('continue' skips rest of foreach block, continues w' next var)
-			local label : variable label `var'			// See if that variable has a label		
-			if "`label'"=="" {							// If this var has no label, provide dummy label
-			   local varlabel = "stkd `var'"			// Use varname as label 
-			   continue, break							// Break out of varlist loop because have label for stub
-			}
-
-			local loc = strpos("`label'", "==")			// Otherwise see if the label contains "==" (from gendummies)
-														// (meaning it starts with the associated varname)
-			if `loc'>0  & `loc'<14 {					// If contains varname, placed by 'gendummies' recover it
-				
-				local varname = strtrim(substr("`label'", 1,`loc'-1)) // Assume "==" follows end of varname
-				capture confirm variable `varname'		// See if gendummies kept original varname at start of label			
-				if _rc == 0  {							// If this word was previously a variable ...
-					local label : variable label `varname' // See if that variable was labeled
-					if "`label'"!=""  {
-						local varlabel = "stkd `label'"
-						continue, break					// Break out of foreach `var' because we found a generic label	
-					}
-				}										// (from the var whose categories became dummy variables)
-														// Either never labeled or was renamed during gendummies
-				local label : variable label `var'		// So proceed as above, providing
-				if "`varlabel'"=="" {					// If this var has no label, provide dummy label
-					local varlabel = "stkd `var'"		// Use varname as label 
-					continue, break						// Break out of varlist loop because have label for stub
-				}
-				
-			} //endif 'loc'	
-			
-
-			
-global errloc "genstacks(2)"
-			
-
-			
-			else {										// No "==" so is not from a gendummies-built battery
-			
-				if strpos("`label'", "`var'") > 0	{	// If it has an embedded varname ...
-					local loc = strpos("`label'", "`var'")
-					local label = substr("`label'",`loc'+strlen("`var'"), .)
-					local cc = (substr("`label'", 1, 1))
-					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
-
-					while (strpos("<=>?@[\/]_{|}~", "`cc'") < 1) & ("`cc'" != "") & ( (a<45 & a!=41) | a>126 )  {
-					   local label = substr("`label'", 2, .) // (strpos & 41 are good; a<45 & a>126 are not)
-					   local cc =(substr("`label'"),1,1) // Trim chars other than "good" above from front of label
-					   mata: st_numscalar("a", ascii("`cc'"))
-					}									// (the above doesnt include " " so leading spaces get trimmed)
-					local varlabel = "stkd " + strtrim("`label'")
-					continue, break						// Break out of foreach 'var' because 1st var is all we need
-				}
-				else  {									// Else no embedded varname
-					local varlabel ="stkd " + strtrim("`label'") 
-					continue, break						// Otherwise use label of first var, unmodified
-				}
-			} //end else
-			
-		} //next `var'									// Will break out of loop when processd 1st var w' numeric suffx
-		
-		
-		if "`varlabel'"!=""  {							// If we found a varlabel
-		
-		   local varlabel = strrtrim("`varlabel'")		// Trim off any trailing blanks
-
-		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric
-			  local varlabel = strtrim(substr("`varlabel'",1,strlen("`varlabel'")-1)) // shorten varlabel by one char
-		   }											// Exit 'while' when last char of label is not numeric
-
-		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
-		   quietly label var `stub' "`varlabel'"
-		   
-		} //endif 'varlabel'
-		
-		if substr(substr("`stub'",1,3),-1,1)=="_"  {	// If there is a prefix ending with "_"
-		
-		   rename `stub' stk`stub'						// Don't add another "_"
-			
-		}
-		
-		else  rename `stub' stk_`stub'					// Else prepend a 3-char prefix to mark transition to stacked data
-	
-	} //next `stub'										// Find next now-reshaped var needing a label
-	 
-
-	 
-	 
-	label var SMstkid "stkid for vars `namelist'"		// Label var SMstkid with list of stubnames that were stacked
-		 
-	label var SMunit "Sequential ID of observations that were units of analysis in the unstacked data"
-*					  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-
-	local contexts = "`_dta[contextvars]'"				// Get contextvars as basis for generating SMnstks and SMaxtk
-	
-	if "$dblystkd"==""  {								// If this was the primary genstacks operation
-/*		tempvar rank
-		qui egen `rank' = rank(SMstkid), field by(contexts) // Unique values taken on by SMstkid
-		qui egen SMnstks = max(`rank'), by(contexts) 	// Max rank (which is the number of different ranks) NOT WORKING		***
-		label var SMnstks "Number of stacks identified by SMstkid per context"
-*/		qui egen SMnstks = max(SMstkid)
-		label var SMnstks "Maximum value of SMstkid in any context"
-
-	}
-	else  {												// Else this genstacks run doubly-stacked the data
-		tempvar rank
-/*		qui egen `rank' = rank(S2stkid), field by(contexts) // Unique values taken on by SMstkid		   NOT WORKING			***
-		qui egen S2nstks = count(`rank'), by(contexts) // Max rank (which should be the number of different ranks)
-		label var S2nstks "Number of stacks identified by S2stkid per context"
-*/		qui egen S2nstk = max(SMstkid)
-		label var SMnstks "Maximum value of S2stkid in any context"
-	}
-
-	 
-
-	 
-global errloc "genstacks(3)"
-		  
-									// (3) Drop unstackd versns of now stackd vars if 'replace' optiond; process any `itemname'
-									
-									
-	if "`replace'"=="replace" {							// If  commandline contains option "replace" (or allowed abbreviation)
-		varsImpliedByStubs `namelist'					// Program can be found at end of `stackmeWrapper' adofile
-		local varlist = r(impliedvars)
-
-		if `limitdiag'  noisily display _newline "As 'replace' was optioned, dropping original versions of now stacked variables"
-*								                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-
-		drop `varlist'									// 'varlist' is list of variables corresponding to syntax 2 stubs
-	}													// (in syntax 1 for genstacks these would have identified each batery)
-	
-*														***********************************	
-														// Here deal with SMitem and S2item
-*														***********************************
-	local act = 0										// By default take no action			
-															
-	if "$dblystkd"=="" {								// Data have not been doubly-stacked
-		local act = 1
-		local S_ = "SM"									// These substitutions may be made in 2 locations below
-	}
-	else  {												// else the data are double-stacked
-		local act = 2
-		local S_ = "S2"									// These substitutions may be made in 2 locations below
-	}	
-	
-															
-	if "`itemname'"!=""  {								// Was there an optioned itemname (name of var that will be SMitem)
-														// 'itemname' was already checked to confirm it names a var
-	  if "`S_'"=="SM"  local item : char _dta[SMitem]	// Retrieve name of var stored in SMitem, if any
-	  else local item : char _dta[S2item]
-		
-	  if "`item'"=="`itemname'" noisily display "NOTE: redundant option `itemname' duplicates established `S_'item : `item'"
-*				 			                     12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	  else  {											// Else `itemname' is different from established characteristic
-		 if "`item'"!=""  {								// If characteristic is not empty
-			display as error "Replace establshed `S_'item: `item' with optioned `itemname'?"
-*				 			  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window stopbox rusure "Replace `S_'item characteristic `item' with `itemname'?"
-			if _rc  {
-				errexit "No permission to replace `S_'item characteristic" // Exit with errexit
-				exit
-			}
-			else  {
-				char define _dta[`S_'item] `itemname' // Replace the characteristic
-				noisily display "With previous `S_`item replaced by optioned itemname, execution continues..."
-			} //endelse
-		 } //endif `item'
-
-		 else  noisily display "genstacks is defining optioned itemname `itemname' as the established `S_'item"
-*				 				   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		local act = 0									// Take no further action
-			
-		} //endelse
-		
-	} //endif
-
-
-
-	
-global errloc "genstacks(4)"
+***************
+capture noisily {											// Open capture braces mark start ot code where errors will be captured
+***************	
 
 
 
 
-	else  {													// Else `itemname' was not optioned ...	
-	
-	  if `limitdiag' {
+  syntax anything [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
+				  [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(integer -1) EXTradiag NOCheck  ] ///
+				  [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) wtexplst(string) ] 
 
-		 forvalues i = 1/1  {								// Dummy loop provides 'continue' exit from midst of 'if's
-		
-			display as error "NOTE: With no 'itemname' option, battery items are identfied only by var SMstkid{txt}"
-			display as error "Is there a variable in this dataset that labels the battery items appropriately?{txt}"
-*                        	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window rusure ///
-			"If there is a variable in this dataset that labels the battery items appropriately, can you name it?"
-			if _rc==0  {
-			  noisily display ///
-			  "Enter the `S_'item variable name (you could have done that using the 'itemname' option)" _request(txt)
-			  if "$txt"!=""  {
-				capture confirm variable $txt
-				if _rc==0  {
-				  char define _dta[`S_'item] $txt 			// Put "`itemname'" variable name as str into S_ _dta char
-				  noisily display "Variable $txt saved as `S_'item linkage variable"
-				  continue, break							// Break out of dummy loop
-				  
-				} //endif _rc
-				else  {										// Name user typed is not a valid varname
-				  display as error "You can establish an `S_'item variable by using the {help SMitemname} utility program"
-*                        	  		12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				  errexit "What you typed does not name an existing variable"  	// subprogram errexit exits the command
-				  exit
-				}
-			  } //endif $txt								// Else there was an empty response from the user
-			  if "$txt" =="" errexit "Null response does not provide a variable" // subprogram errexit exits the command
-			  else  capture confirm variable $txt
-			  if _rc  {
-			  	errexit "Variable $txt does not exist"
-				exit
-			  }
-			} //endif _rc
-			
-		    else {											// Else there is no suitable `S_' variable
-			  noisily display "Failing that you can treat SMstkid as if it named the items it enumerates"
-*                        	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			} //endelse
-			
-	     } //next `i' (ie exit the quasi-loop)
-		 
-	  } //endif 'limitdiag'
-	  
-	} //endelse
-	
-
-
-
-global errloc "genstacks(5)"
-/*															// COMMENTED OUT SINCE ALREADY DID THIS IN CODEBLK 2				***
-									// (5) Tidy & rename stackMe special vars if optioned ...
-									
-	local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-	
-	if "$dblystkd"==""  {									// If this dataset has just been stacked for first time
-	   label var SMstkid "Sequential ID of stacks that were battery items in the unstacked data"
-	   egen SMnstks = max(SMstkid), by(`contexts')			// Tidy the SM variables created while stacking
-	   label var SMnstks "Number of stacks for each context in the single-stacked data"
-
-	   egen SMaxstk = max(SMstkid), by(`contexts')
-	   label var SMxstks "Maximum N of stacks for any context in the single-stacked data"
-	   drop `SMmxstks'
-	}
-	
-	else {													// If this dataset has just been doubly-stacked
-	   label var S2stkid "Sequential ID of secondary stacks in the double-stacked data"
-	   egen S2nstks = max(S2stkid), by(`contexts')
-	   label var S2nstks "Number of secondary stacks for each context in the double-stacked data"
-	   tempvar S2axstk
-	   egen `S2axstk' = max(S2stkid)
-	   qui replace S2xstks = `S2mxstks'
-	   label var S2xstks "Maximum N of stacks for any context in the double-stacked data"
-	   drop `S2mxstks'
-	}
-*/	
-	
-	
-	
-									// (6)  Name the stacked (or doubly-stacked) file
-	  	   
-	
-global errloc "genstacks(6)"								  // Store message locating source of any reported error
-
-	   
-	local report = "not saved."								  // Default is to save nothing
-	
-	if "$dblystkd"==""  {
-	   noi display as error _newline "Stacked dataset needs a filename that starts with STKD_{txt}"															
-	   capture window stopbox rusure "Stacked dataset needs a filename that starts with STKD_ ; OK?"
-*              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	}														 // return code is consulted below
-
-	else  {													 // Data were doubly-stacked
-	    noi display as error _newline "Doubly-stacked dataset needs filename that starts with S2KD_{txt}"															
-	    capture window stopbox rusure "Doubly-stacked dataset needs filename that starts with S2KD_ ; OK?"
-*              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890	
-	}
-	
-	if _rc  {												// How did user respond?
-		errexit "Absent user permission to save a new file" // User responded with 'cancel' so exit after message
-		exit
-	}
-															// Otherwise get filename and dirpath from dataset characteristics
+							   
+							   
+							   
+							   
+							   
+							   
+							   // (1) Following codeblock executed for each context established in wrapper & recorded in `c'
 					
-	local filename : char _dta[filename]					// Filename established by setcontexts
-	local dirpath  : char _dta[dirpath]						// Dirpath established by setcontexts
-															// (dirpath ends with dirsep – "/" or "\")
-	gettoken prefix rest : filename, parse("_")		  		// If file was already stacked, get prefix preceeding "_"
 
-	if "`prefix'" != "STKD" & "`prefix'" != "S2KD"  {		// Avoid identifying doubly-stacked dataset as "S2KD_STKD_'"
-	   global newfile = "`dirpath'" + "STKD_"+ "`filename'"	// Prepend chars 'STKD_' to filename)
-	}
-	if "`prefix'"=="STKD"  {								// WRAPPER SHOULD HAVE ENSURED CONSISTENCY WITH $dblystkd				***
-	   global newfile = "`dirpath'" + "S2KD_" +"`filename'" // (by prepending chars 'S2KD_' to filename)
-	   global dblystkd = "dblystkd"							// In case that global had lost its content
-	}														// window fsave expects new filename to be a global
-
-	capture window fsave newfile "Edit name and choose folder for file in which to save stacked data" "Stata Data (*.dta)|*.dta" dta
-*              		              12345678901234567890123456789012345678901234567890123456789012345678901234567890	
-	
-	if _rc  {												// Non-zero RC means user did not supply a filename
-		
-		local nofile = "nofile"								// Deal with this below
-	}
-	
-	else {													// Else user supplied a filename
-	
-	   capture save $newfile
-	
-	   if _rc!=0  {											// If file already exists..
-
-		   noi display as error _newline "Overwrite existing file?{txt}" 
-*              		         		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		   capture window stopbox rusure "Overwrite existing file?"
-		   
-		   if _rc==0  {										// If user responded with 'OK'
-		   
-			   if "$dblystkd"=="" {
-				  noi display "Newly-stacked file replaces existing $newfile"
-*              		        12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			   }
-			   else  noi display "New doubly-stacked file will replace $newfile"	
-			
-			   save "$newfile", replace
-			   
-			   local nameloc = strrpos("$newfile","`c(dirsep)'") +1 // Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
-			   global SMdirpath = substr("$newfile",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-			   global SMfilename = substr("$newfile",`nameloc',.)	// Update filename with latest filename saved or used by Stata
-
-			   char define _dta[filename] "$SMfilename"		// Establish this filename as characteristic of dataset			   
-			   char define _dta[dirpath] "$SMdirpath"		// And the directory path to that name
-			
-			   local report = "file $newfile saved."
-			
-		   } //endif _rc
-		   
-		   else local nofile = "nofile"						// Another type of failure to supply a filename
-		
-	   } //endif _rc!=0
-	  
-	} //endelse 											// File was not saved if this return code was not zero
-	
-	
-	
-	if "`nofile'"!=""  {									// If no new file has been established with stacked data
-	
-		display as error "Restore unstacked datafile?"
-		capture window stopbox rusure "Restore unstacked datafile? (click 'cancel' to retain stacked file in memory)"
-		if _rc  local report = "Stacked datafile has been retained in memory but not saved."
-		else   {
-			use $origdta, clear
-			local report = "Original unstacked datafile has been restored to active memory."
-	    }
-
-	} //endif 'nofile'
-	
-	noisily display _newline "`report'" _newline
-	
-	
-	
-	
-	local skipcapture = "skip"								// Set flag to indicate no errors were found in captured codeblocks
-															// (this line of code only executes if no errors in capture block)
-	
-*	************
-  } //end capture											// The capture braces enclose just codeblocks since return from wrappr
-*	************ 
+  local w = 1												// By default warnings are displayed
   
-
-
-  if _rc & "`skipcapture'"=="" & "$SMreport"=="" {			// If there is a non-zero return code not already reported
-															// (user errors should have been caughte in wrapper pre-processing)
-	global SMrc = _rc										// Save _rc which will be re-used below
+  if `limitdiag'>0 & `c'>`limitdiag' local w = 0			// If limit not -1 & context>limit turn warnings off
+															// (`w' flags diagnostics for this context, `nodiag' for any context)
+															// (NOTE that nodiag is backwards; 0=none, !0=some)
+  
+  if `w'  local displ = "noisily"							// Prefix for 'reshape' command
+  if !`w' local displ = "quietly"
 															
-	local err = "Stata reports error $SMrc during post-processng"
-	display as error "`err'; retain dta in memory?"
-*              	12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	capture window stopbox rusure "`err'; retain partially post-processed data in memory and clean it up yourself – ok?"
-	
-	if _rc  {
-		display as err "Absent ok for retaining data to post-process, unstacked data will be restored"
-*              		    12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox note "Absent ok for retaining data to post-process, on 'OK' unstacked data will be restored before exit"
-		use $origdta, clear
-		exit $SMrc
-	}
-	
-	else {													// Else 'ok' was clicked
-		errexit "(Partially) post-processed data is retained in memory."
-		exit $SMrc
-	}
-
-  } //endif _rc & ! `skipcapture'
+  set more off
   
+  local namelist = "`anything'"								// Get stubnames from argument passed by wrapper program	
+															// (Wrapper did check that all stubs have corresponding varlists)
+										
+										
+										
+										
+										
+global errloc "genstacksP(2)"										
+														
+								// (2) For first context only: diagnose any errors in fe syntax
+								
+															// (fe options have been removed from help file but are still coded)
+																
+  if `c'==1  {												// If this is first context ...
+  	
+	 if ("`fe'"!="") {										// Prepare for fixed effects if optioned . . .
 
+		local list = ""							
+		foreach fevar of local fe  {
+			if strpos("`namelist'","`fevar'") == 0  {		// If fevar is not in stub-list, add to list of inappropriate fe's
+				local list = "`list' `fevar'"
+			}
+		} //next 'fevar'
 
-  *****************
-} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
-  ****************
+		if "`list'"!=""  {
+			display as error	"Not in varlist: optioned fe var(s) `list'"
+	`		errexit, msg("Optioned fe variables not among vars to be processed: `list'")
+			exit
+		}
+	
+		if "`feprefix'"==""  {
+			if `w' noisily display "NOTE: No feprefix provided for optioned fixed effects; using 'fe_' as prefix"
+		}															// Substituted in each context separately
+						   // 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		if `w' {
+			noisily display "Applying fixed-effects treatment to fe-vars (subtracting unit-level means)"
+		} //endif `w'												// Subtracted for each context separately
+		
+	 } //endif `fe'!=""
+	 
+	 
+  } //endif `c'==1
+	 
+	 
 
-  global multivarlst										// Clear this global, retained only for benefit of caller programs
-  capture erase $origdta 									// (and erase the tempfile in which it was held, if any)
-  global origdta											// Drop the global holding its name
-  capture confirm number $SMrc 								// See if $SMrc is numeric
-  if _rc  {													// If not a number..
-  	 if "$SMrc"==""  global SMrc = ""						// Initialize an empty textual global
-  }															// (leave unchanged if not empty)
-  else   {													// Else it is numeric
-  	 local rc = $SMrc
+	
+global errloc "genstacksP(3)"
+
+								// (3) For each context: reshape, process fixed effects, drop empty stacks if optioned
+
+				
+*  if `w' noisily display _newline "{bf:Context `c':}{txt}"			//`w' false after limitdiag reached
+	
+  if ("`fe'"=="_all")  local fe = "`namelist'"
+
+  if "$dblystkd"==""  {												// If double-stacking is not wanted ...
+		  
+		
+*		  ************************
+		  tempvar SMstk												// If NOT to be doubly-stacked (just conventional reshaping)
+	     `displ' reshape long `namelist', i(SMunit) j(`SMstk') 		// SMunit & S2unit were created in stackmeWrapper 
+		  quietly replace SMstkid = `SMstk'							// Replace missing obs for var ordered after SMunit
+		  drop `SMstk'
+  }																	// `SMstk' & `S2stk' get succesive values from 'reshape')
+  
+  else  {															
+		  tempvar S2stk												// If IS to be doubly-stacked (e.g. issues within parties)
+		  `displ' reshape long `namelist', i(S2unit) j(`S2stk')		//`displ' is "quietly" if `w' ==0
+		  quietly replace S2stkid = `S2stk'							// Replace missing obs for var ordered after S2unit
+		  drop `S2stk'												// All this futzing attempts to avoid inexplicable problem
+*		  ************************ 									//  with Stata's 'order..., after...' command
   }
-  global SMreport											// And these, retained for error processing
-  global SMrc
-  exit `rc'
- 
-end genstacks	
+
+ if "`keepmisstacks'" == "" | "`fe'" != ""  {						// If `keepmisstacks' NOT optioned or fixed effects IS optioned ...
+	
+	 if ("`fe'"!="")  {												// If fixed effects were optioned
+		if ("`fe'"=="_all")  local fe = `namelist'
+		foreach fevar of local fe  {
+			capture qui sum `fevar' [aw fw pw/]						// Put weighted mean of each fevar new local for each context
+			capture local mfevar = r(mean)							// Save in specific local for each fevar
+			`displ' gen `feprefix'`fevar' = `fevar' - `mfevar' 
+		}
+	 }
+
+	 if "`keepmisstacks'"==""  {									// If dropping empty stacks (default) ...
+		 tempvar stkmiss											// Flag to indicate stack all missing for this context
+		 qui egen `stkmiss' = rowtotal(`namelist'), miss			// Set missing if rowtotal missing in this (perhaps only) context
+		 qui drop if `stkmiss'==.									// Drop stacked observations that are all-missing in this context
+		 drop `stkmiss'
+	 }
+	   
+  } //endif keep misstacks | fe
+  
+																	// THIS WOULD BE WHERE TO INSERT CODE FROM GENDUMMIES TO FIND
+																	// MAX N OF NON-EMPTY STACKS FOR THIS CONTEXT						***
+  noisily display "." _continue
+		
+  local skipcapture = "skipcapture"							  		// Local, if set, prevents capture code, below, from executing
+	
+	
+* *************
+} //end capture													  	// Endbrace for code in which errors are captured
+* *************													  	// Any such error would cause execution to skip to here
+																	// (failing to trigger the 'skipcapture' flag two lines up)
+																	
+
+if "`skipcapture'"==""  {										  	// If not empty we did not get here due to stata error
+	
+	if _rc  errexit, msg("Stata reports program error in $errloc") displ orig("`origdta'")
+	exit
+}
+																	// Much post-processing of stacked data is in genstacks caller																
+end genstacksP
 
 
-
-************************************************** program genst *********************************************************
-
-
-capture program drop genst									// Short command name for 'genstacks'
-
-program define genst
-
-genstacks `0'
-
-if _rc  exit _rc
-
-end genst
-
-
-*************************************************** END PROGRAMS **********************************************************
-
-
-/*
-		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-		sum `contexts'
-		tempvar rank
-		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
-		tab1 `rank'
-		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
-		label var SMnstks "Number of stacks identified by SMstkid per context"
-																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
-*/
+********************************************************** END OF PROGRAM *********************************************************
