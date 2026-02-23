@@ -1,4 +1,4 @@
-*! Feb 18'26
+*! Feb 23`26
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -60,7 +60,7 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 ******************											 // (else skip all until end of program) 
 *															 **********************************************
 
-*capture noisily {
+
 * **********
   capture noisily {											 // Puts rest of command within capture braces, in case of Stata error	
 * **********												 // Capture processing code is at the end if this adofile.
@@ -166,7 +166,7 @@ global errloc "genstacks(2)"
 		   local varlabel = strtrim("`varlabel'")		// Trim off any leading or trailing blanks
 
 		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric
-			  local varlabel = strtrim(substr("`varlabel'"-1,1)) // shorten varlabel by one char from end of `varlabel'
+			  local varlabel = substr("`varlabel'"-1,1) // shorten varlabel by one char from end of `varlabel'
 		   }											// Exit 'while' when last char of label is not numeric
 
 		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
@@ -182,10 +182,10 @@ global errloc "genstacks(2)"
 		
 		   local tail = substr("`stub'",`tailpos',.)	// Save that name in `tail'
 		   
-		   local body = subinstr("`stub'","_","",.)		// Substitute all "_" with "" so `body' contains `stub' wuth all "_" removed
+		   local body = subinstr("`stub'","_","",.)		// Substitute all "_" with "" so `body' contains `stub' with all "_" removed
 		   
 		   if "`body'"==""  rename `stub'  stk_`tail'	// If there is no `body' left, only use one "_"
-		   else rename `stub'  stk_body_`tail'			// Else reinstate the first and last "_", following "stk'" & preceeding `tail'
+		   else rename `stub'  stk_`body'_`tail'			// Else reinstate the first and last "_", following "stk'" & preceeding `tail'
 		   			
 		}
 		
@@ -414,7 +414,7 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
 
 	capture window fsave newfile "Edit name and choose folder for file in which to save stacked data" "Stata Data (*.dta)|*.dta" dta
 *              		              12345678901234567890123456789012345678901234567890123456789012345678901234567890	
-	
+															// `fsave' returns name & dirpath to chosen file in global named in call
 	if _rc  {												// Non-zero RC means user did not supply a filename
 		
 		local nofile = "nofile"								// Deal with this below
@@ -512,7 +512,7 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
 
 
   *****************
-} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
+capture } //endif $SMreport									// Close braces that delimit code skipped on return from error exit
   ****************
 
   global multivarlst										// Clear this global, retained only for benefit of caller programs
