@@ -1,5 +1,6 @@
+*! Feb 23`26
 
-capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
+capture program drop genstacksO				// 'Opening' program for genstacksP, greatly reducing code executed for each context
 
 
 program define genstacksO, rclass							// Called by 'stackmeWrapper'; calls subprograms varsImpliedByStubs
