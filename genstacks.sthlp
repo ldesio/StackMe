@@ -1,3 +1,5 @@
+*! Fwb 23`26
+
 {smcl}
 {cmd:help {cmdab:genst:acks}}
 {hline}
@@ -13,14 +15,13 @@ help-text before proceeding){p_end}
 
 {title:Syntax}
 
-{p 6 28 2}
-{opt genst:acks} (unstacked) {varlist} [  {space 2}|| {break}
-{varlist} ]  [      ||  ... ]   || {break}
-{varlist} , options{p_end}
+{p 6 16 2}
+{opt genst:acks} {varlist} {bf:[} || {varlist} {bf:]  [}  ||  ... {bf:]  [} || {varlist} {bf:]} , options{p_end}
+
 {space 4}	or
 
 {p 6 32 2}
-{opt genst:acks} (stacked) {it:{help varlist:namelist}}{cmd:,} {it:options} 
+{opt genst:acks} {it:{help varlist:namelist}}{cmd:,} {it:options} 
 
 
 {p 2 2 2}where {varlist} in syntax 1 lists the names of variables constituting one or more 
@@ -30,19 +31,27 @@ after reshaping – one stub in Syntax 2 for each varlist in Syntax 1. So syntax
 typing and provides less opportunity for error.
 
 {p 2 2 2}
-Stubnames must be the same for all variables in a battery. If a battery's 
-variables do not have consistent stubnames with numeric suffixes then they need 
-to be {help rename}d before invoking {cmd:genstacks}. See {help rename group}, especially rule 17.
+Stubnames must be the same for all variables in a battery. If a battery's variables do not have consistent 
+stubnames, each with a numeric suffix that distinguishes one battery item from the next, then they need to be 
+{help rename}d before invoking {cmdab:gens:tacks}. See {bf:Stata}'s {help rename group}, especially rule 17.
 
 {p 2 2 2}
-{cmdab:genst:acks} does not support {ifin} or {weight} expressions. Reshaping applies to an entire dataset 
-as it stands when reshaped. The batteries listed in successive varlists (or equivalent stubnames) 
-{bf:must all relate to batteries that concern the same items} (schools, political parties, issues, etc.) 
-so that each battery derives from a series of essentially identical questions that were asked in the same 
-sequence regarding each school, party, etc.  Because the command is focused on a specific set of items, 
-it may be necessary to stack the same dataset more than once (either {help stackme##Doublydtackeddata:double-stacking} 
-the dataset or saving stacked data for each set of items in a different .dta file, each named for the items 
-that are its focus).
+Variables that are not battery members will be retained in the stacked data without themselves being reshaped. 
+Instead they will be duplicated across the items being reshaped, as many times as there are items in each 
+battery, constant across battery items.
+
+{p 2 2 2}
+{cmdab:genst:acks} does not support {ifin} or {weight} expressions. Reshaping applies to an entire dataset as it 
+stands when reshaped. The batteries whose member items are listed in successive varlists (or equivalent stubnames) 
+{bf:must all relate to batteries that concern the same type of item} (schools or political parties, for example) 
+so that each battery derives from a series of essentially identical questions that were asked in the same sequence 
+regarding each school, party, etc. (For a clarifying diagram see under {help genstacks##Description:Description} below.)
+
+{p 2 2 2}
+Because each varlist or stubname is focused on a specific set of items, it may be necessary to stack the same 
+dataset more than once ({help stackme##Doublystackeddata:double-stacking} the dataset to accommodate two nested 
+sets of batteries or saving stacked data for each set of items in a different .dta file, each named for the 
+type of item that is its focus).
 
    
 {synoptset 22 tabbed}{...}
@@ -51,10 +60,10 @@ that are its focus).
 {p2colset 5 26 24 2}
 {synopt :{opt con:textvars(varlist)}}{bf:THERE IS NO SUCH OPTION} for command {cmdab:genst:acks}. The variables 
 identifying different contexts within which batteries will be separately reshaped should have been identified 
-by the {cmdab:SMcon:textvars} utility which should be the first {cmd:stackMe} command issued by a user 
-intending to employ {cmd:stackMe} to reorganize what is still a conventional Stata .dta dataset. See under 
-{help stackme##Quickstart:Quickstart} in the {cmd:stackMe} help text for details.{p_end}
-{synopt :{opt stackid(varname)}}{bf:THERE IS NO SUCH OPTION} for any {cmd:stackMe} command. When the data are 
+by the {help stackMe##SMsetcontexts:{ul:SMcon}texts} utility which should be the first {cmd:stackMe} command 
+issued by a user intending to employ {cmd:stackMe} to reorganize what is still at that time a conventional {bf:Stata} 
+dataset. See under {help stackme##Quickstart:Quickstart} in the {cmd:stackMe} help text for details.{p_end}
+{synopt :{opt stackid(varname)}}{bf:THERE IS NO SUCH OPTION} for command {cmdab:genst:acks}. When the data are 
 stacked {cmdab:genst:acks} will supply a {cmd:stackMe} variable, {it:{cmd:SMstkid}}, that will identify each 
 stack with a sequential ID number, starting at 1 and running up to the number of stacks.
 (see {help genstacks##Generatedvariables:Generated variables}, below).{p_end}
@@ -142,7 +151,7 @@ schools or manufacturers or hospitals readily come to mind. The important thing 
 the data for such objects is that each battery of variables (variables resulting from questions about the 
 same battery topic) {ul:must} relate to the {ul:same} objects. Batteries of questions regarding other 
 objects would need to be stacked separately (see {cmd:stackMe}'s introductory {help stackMe}, especially 
-regarding {help stackme##Doublydtackeddata:double-stacking}).{p_end}
+regarding {help stackme##Affinitymeasures:double-stacking}).{p_end}
 {pstd}
 {space 3}{cmd:genstacks} identifies the items in a battery with variable names consisting of a "stub" string 
 of text that is the same for all variables in a battery, but with numeric suffixes appended to that stub that 
@@ -161,11 +170,7 @@ which only the user can check. See also the special note on reference values in 
 {help gendist:{ul:gendi}st}.
 
 
-
 {title:Options}
-{synoptset}
-{synopthdr:Options}
-{synoptline}
 
 {phang}
 {opt con:textvars(varlist)} {bf:THERE IS NO SUCH OPTION} for command {cmdab:genst:acks}. The variables 
@@ -184,13 +189,13 @@ being reshaped by {cmdab genst:acks}, often providing a key for merging addition
 data (variables found in expert surveys or archives of party platforms/manifestos, for instance). The variable 
 name provided by this option is kept in a data characteristic named either {it:{cmd:SMitem}} or {it:{cmd:S2item}}, 
 depending on whether {cmdab:genst:acks} is undertaking a conventional (first-stage) stacking operation or whether the 
-operation is a second-stage {help stackme##Doublydtackeddata:double-stacking} of the data. The link to an alternative 
+operation is a second-stage {help stackme##Affinitymeasures:double-stacking} of the data. The link to an alternative 
 set of values that uniquely identify the same stacks is provided for convenience and to ensure that such linkage variables 
 are appropriately reshaped. Occasionally there may be additional linkage variables that will need to be reshaped by being 
 included as additional batteries among those in a {cmdab:genst:acks} {varlist} or implied by a {cmdab:genst:acks} namelist 
 (see above). It will be up to the user to keep track of any such variables, reshaping them as needed and documenting their 
 usage with appropriate variable labels. NOTE that the labels and values linked to by {it:{cmd:SMitem}} will be applied to 
-all variables stacked by the same {cmdab genst:acks) command, so it is well worth the trouble of labeling the categories of 
+all variables stacked by the same {cmdab:genst:acks) command, so it is well worth the trouble of labeling the categories of 
 such a variable. {it:{cmd:SMitem}} and {it:{cmd:S2item}} can be temorarily renamed by employing the {opt ite:mname(name)} 
 option fpr any {cmd:stackMe} command that offers such an option (all except {cmdab:gendummies}). The associated variable 
 named in the relevant characteristic can be changed or cleared by {cmd:stackMe}'s {cmdab:SMite:mname} utility or its 
@@ -233,8 +238,7 @@ is to be employed}.{p_end}
 
 {pstd}Reshape three batteries of items, involving sympathy for parties, sympathy for party 
 leaders, and left-right distances from the same 7 parties. The only option directs that the 
-originals of reshaped variables be dropped. Note that, with this syntax, if some variables 
-are missing from certain contexts the user will need to respond to a relevant warning.{p_end} 
+originals of reshaped variables to be dropped.{p_end} 
 
 {phang2}{cmd:. genstacks rsym rsyml lrdpty, replace}{p_end}
 
@@ -251,19 +255,16 @@ risky) second syntax (and warning the user if the two do not match).{p_end}
 {synopt:{it:SMstkid}}a generated variable identifying each primary stack in a conventionally 
 stacked dataset. It is recommended that the name of this variable not be changed. The variable 
 label for this variable lists the stubnames corresponding to batteries of variables that were 
-stacked by the same {cmdab genst:acks} command. These names are also known as "battery names" 
+stacked by the same {cmdab:genst:acks} command. These names are also known as "battery names" 
 or "stacknames". The order of these names is the same as the order in which stubnames were 
 presented in the command's varlist or namelist. If one of the batteries has some sort of 
 logical priority (perhaps being expected to serve as a {depvar} for other batteries in the 
 stacked data) then, for documentary purposes, that battery should be the first battery (or 
-provide the first stubname) in the {cmdab genst:acks} {varlist} or {namelist}.{p_end}
+provide the first stubname) in the {cmdab genst:acks} {varlist} or namelist.{p_end}
 
 {synopt:{it:S2stkid}}a generated variable identifying each secondary stack in a 
-{help stackme##Doublydtackeddata:doubly-stacked} dataset. It is recommended that the name of this 
-variable not be changed. Stubnames for doubly-stacked data do not have numeric suffixes (since 
-they are stack-names not variable names). {cmdab genst:acks} instead checks that all the 
-named variables listed in the commandline are contained in the list of stubnames contained in 
-the first-stage {it:{cmd:SMstkid}} generated variable (see above).{p_end}
+{help stackme##Affinitymeasures:doubly-stacked} dataset. It is recommended that the name of this 
+variable not be changed.{p_end}
 
 {synopt:{it:SMunit}}a generated variable identifying the overall unit number (might correspond 
 to a respondent ID) uniquely identifying the units that were observations before stacking. This 
