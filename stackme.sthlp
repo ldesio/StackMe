@@ -1,5 +1,4 @@
-*! Feb18'26
-
+*! Feb 23`26
 {smcl}
 {cmd:help StackMe}
 {hline}
@@ -38,11 +37,11 @@ by phrases like "question battery", "reshaping"/"stacking" "generic variable" an
 you may want to dive right into the {bf:stackMe} commands that facilitate the creation/manipulation 
 of such batteries and measures, using links provided in those commands' help files to clarify matters 
 that remain obscure. This short paragraph introduces the one command needed to get started.{p_end}
-{marker SMcontextvars}{...}
-{pstd}{space 3}The {bf:stackMe} utility {help SMsetcontexts:{ul:SMset}contexts} provides other {bf:stackMe} 
-commands with the most basic and essential information regarding the dataset currently in {bf:{help use}}: 
-the names of variables (often {it:country} and {it:year}) that define its hierarchical structure (if any), 
-thus:{p_end}
+{marker SMsetconts}{...}
+{pstd}{space 3}The {bf:stackMe} utility {help stackme##SMsetcontexts:{ul:SMset}contexts} provides other 
+{bf:stackMe} commands with the most basic and essential information regarding the dataset currently in 
+{bf:{help use}}: the names of variables (often {it:country} and {it:year}) that define its hierarchical 
+structure (if any), thus:{p_end}
 
 {pstd}{space 3}{cmdab:SMset:contexts} [ {varlist} ] [| , nocontexts ]{p_end}
 
@@ -222,7 +221,9 @@ Most of the above affinity measures bring with them limitations often linked wit
 regarding their theoretical or methodologica underpinnings. But {help gendummies} engenders no controversy 
 and its major limitation (the fact that a numerical variable will have to be divided into categories of 
 increasing magnitude) is well-understood and non-controversial. It is a "lowest common denominator" fallback 
-for operationalizing an affinity measure based on any sort of data.
+for operationalizing an affinity measure based on any sort of data; also for operationalizing what we will 
+refer to as "dual-affinities" in doubly-stacked data. See {help SMwriteyourown:{ul:SMwri}teYourOwn} for more 
+on this topic.
 
 {marker Doublystackeddata}
 {title:Doubly-stacked data}
@@ -250,7 +251,9 @@ electoral studies. As already mentioned, these examples take the form of "user-w
 can be "hung" onto "hooks" that we have provided, in {cmd:StackMe}'s {help genplace:{ul:genpl}ace} 
 command, designed to facilitate the incorporation into {cmd:stackMe} of new code that operationalizes 
 whatever new insights may arise. See the help texts for {help SMwriteyourown:{ul:SMwri}teYourOwn} for 
-details.{p_end}
+details. That helpfile also introduces alternatives to double-stacking a dataset that contains what 
+we there refer to as "subordinate batteries"; and presents the most straightforward means for analysing 
+doubly-stacked data by employing dummy variables (indicator variables).{p_end}
 
 {marker Programefficiency}
 {title:Program efficiency}
