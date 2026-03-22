@@ -1,9 +1,9 @@
-*! Feb 21'26
+*! Mar 22'26
 
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
 											
-											// Called by 'gendu' a separate program defined after this one
+											// Called by 'genii' a separate program defined after this one
 											// Calls subprogram stackmeWrapper
 
 program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
@@ -39,6 +39,9 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 	local multicntxt = "multicntxt"/*""*/			// Whether `cmd'P takes advantage of multi-context processing		 **
 	
 	local save0 = "`0'"
+	
+		   
+	scalar NMISCNTXT = 0							// Just for 'genii' we count N of contexts with no non-missing vars
 	
 	
 *	*************************
@@ -92,13 +95,14 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
   ***************************
 } //endif _rc & $SMreport								// End brace-delimited error-capture handling
   ***************************
-
 														// ABOVE WILL HAVE BEEN SKIPPED DUE TO CLUGED RC AFTER RETURN FROM WRAPPER
 														// (NEED TO FIX)
+
+
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
-  if _rc==0  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
+  if "$SMrc"!=""  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
   else scalar RC = 98765									// Else stash an unused return code
   if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
   macro drop _all											// Drop all macros (including $SMrc, if extant)
@@ -112,17 +116,16 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
 end // geniimpute			
 
 
+*****************************************************************************************************************************************
 
-************************************************** PROGRAM genii *********************************************************
 
-
-capture program drop genii
+capture drop genii
 
 program define genii
-															// (should that be needed)
-geniimpute `0'
+
+geniimpute `0'													// Invoke the command using its full name and append what user typed
 
 end genii
 
 
-*************************************************** END PROGRAM **********************************************************
+**************************************************** END GENII ****************************************************************************
