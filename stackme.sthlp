@@ -1,4 +1,4 @@
-*! Feb 23`26
+*! Mar 22`26
 {smcl}
 {cmd:help StackMe}
 {hline}
@@ -298,27 +298,28 @@ for which each observation will be coded 1 if that observation has the input val
 otherwise. This is very unlike Stata's {help tabulate} command (with the {opt generate} option) that would 
 produce two variables named {it:gender1} and {it:gender2} whatever two values were found in the data. And, 
 unlike Stata's {help indicator} variables, these dummy variables will actually exist in the dataset, once 
-defined, making them amenable to stacking (which indicator variables are not). See 
+defined, making them amenable to stacking (which indicator variables are not). See helpfile for 
 {help gendummies:{bf:{ul:gendu}mmies}} for details.{p_end}
-{p2col :{help geniimpute:{ul:genii}mpute}}(Context-wise) incremental simple or multiple imputation of 
-missing data within a set of variables, taking advantage of within-set interrelationships if the data are 
-not yet stacked (see {help geniimpute:{bf:{ul:genii}mute}} for details. The second "i" in "iimpute" stands 
-for "inflated" as, by default, imputed values are inflated using random perturbations that permit 
-iimputed data for multiple contexts to substitute for multiply-imputed datasets as employed by Stata's 
-{bf:{help mi:mi}} suite of commands – data for which the "mutiple" in "multiply-imputed" is obtained by 
-duplicating the original observations as many times as needed while adding random perturbations to 
-observations whose missing data have been plugged.{p_end}{p2col :{help gendist:{ul:gendi}st}}(Context-wise) 
-generation of distances between spatially-located self-placement variables and each member of a 
-corresponding battery of spatial items (e.g. political parties), with customizable treatment of missing data. 
-It makes no difference to the results whether this command is issued before or after stacking.{p_end}
+{p2col :{help geniimpute:{ul:genii}mpute}}(Context-wise) incremental simple or multiple imputation of missing 
+data within a set of variables, taking advantage of within-set interrelationships if the data are not yet stacked 
+(see {help geniimpute:{bf:{ul:genii}mute}} for details). The second "i" in "iimpute" stands for "inflated" as, by 
+default, imputed values are inflated using random perturbations that produce iimputed data for multiple contexts 
+that are conceptually equivalent to multiply-imputed datasets as employed by Stata's {bf:{help mi:mi}} suite of 
+commands – data for which the "mutiple" in "multiply-imputed" is obtained by duplicating the original observations 
+as many times as needed while adding random perturbations to observations whose missing data have been plugged  
+(c.f. King et al. 2001).{p_end}
+{p2col :{help gendist:{ul:gendi}st}}(Context-wise) generation of distances between spatially-located self-placement 
+variables and each member of a corresponding battery of spatial items (e.g. political parties), with customizable 
+treatment of missing data. It makes no difference to the results whether this command is issued before or after 
+stacking.{p_end}
 {p2col :{help genyhats:{ul:genyh}ats}}(Context-wise) generation of {it:y-hat} 
 {help stackme##Genericvariable:affinity measures} that can facilitate {help genstacks##Genericvariable:generic} 
-variable analysis in stacked data. Such variables can be generated either before or after stacking. But, 
-for both {help gendist:{ul:gendi}st} and {help genyhats:{ul:genyh}ats} it will generally be more economical 
-to generate the resulting measures after stacking. But the order in which these two commands are employed 
-(in relation to each other and in relation to command {help genstacks:{ul:genst}acks}) could matter in ways 
-that, to the best of our knowlede, have not yet been fully investigated. See under the heading 
-{help stackme##Workflow:Workflow}, below, for some relevant considerations.{p_end}
+variable analysis in stacked data. Such variables can be generated either before or after stacking. But, for both 
+{help gendist:{ul:gendi}st} and {help genyhats:{ul:genyh}ats} it will generally be more economical to generate 
+the resulting measures after stacking. But the order in which these two commands are employed (in relation to each 
+other and in relation to command {help genstacks:{ul:genst}acks}) could matter in ways that, to the best of our 
+knowlede, have not yet been fully investigated. See under the heading {help stackme##Workflow:Workflow}, below, 
+for some relevant considerations).{p_end}
 
 {p2col:{ul:Stacking command}}{p_end}
 
@@ -403,24 +404,23 @@ as an alternative stack identifier (if there is such) which it records in any da
 {help genstacks:{ul:genst}acks} under an additional special varname: {it:{cmd:SMitem}}. For details see 
 below under the heading {help stackme##stackmespecialnames:Special names}.
 
-
 {marker Workflow}
 {title:Workflow}
 
 {pstd}
 The {help genstacks:{ul:genst}acks} command normally operates on an unstacked dataset, {help reshape}ing it into 
-stacked format (but it may also be used to {help stackme##Doublystackeddata:doubly-stack} an already stacked 
-dataset). Other commands may operate on either stacked or unstacked data, except that command {help genplace:{ul:genpl}ace} 
+long format (but it may also be used to {help stackme##Doublystackeddata:doubly-stack} an already stacked dataset.
+Other commands may operate on either stacked or unstacked data, except that command {help genplace:{ul:genpl}ace} 
 requires stacked data because the objects this command {it:place}s (in spatial terms) or {it:codes} (in terms of 
 other attributes) consist of stacked batteries.{break}
 
 {pstd}Although having design features that separate commands into the three categories distinguished above, all 
-commands in the first list may be used with either stacked or unstacked data. But, as already mentioned, command 
-{help genplace:{ul:genpl}ace} makes no sense with unstacked data; and command {help genmeans:{ul:genme}ans} has very 
-limited functionality in datasets that have not been stacked. Other commands, when used with stacked data, can be 
-directed to ignore the stacked structure of the data and/or its contextual specificity by employing the {opt nosta:cks} 
-and/or {opt nocon:texts} options, although these options have no effect on {help gendummies:{ul:gendu}mmies} which 
-always operates at the level of analysis at which its {varlist} variables were defined or generated.{break}
+commands in the first list may be used with either stacked or unstacked data. But command {help genplace:{ul:genpl}ace} 
+makes no sense with unstacked data; and command {help genmeans:{ul:genme}anstats} has very limited functionality in 
+datasets that have not been stacked. Other commands, when used with stacked data, can be directed to ignore the stacked 
+structure of the data and/or its contextual specificity by employing the {opt nosta:cks} and/or {opt nocon:texts} 
+options, although these options have no effect on {help gendummies:{ul:gendu}mmies} which always operates at the level 
+of analysis at which its {varlist} variables were defined or generated.{break}
 
 {pstd}With stacked data, ignoring the separate contexts represented by each stack might make sense if exploratory 
 analyses had established that there is no stack-specific heterogeneity relevant to the estimation models for which 
@@ -465,16 +465,17 @@ transform indeps (those not already rendered tractable by being transformed into
 into y-hat {help stackme##Affinitymeasures:affinities} with the stacked depvar. Then command {help genstacks:{ul:genst}acks} 
 would be used to {help reshape} the data. The results might then be used in a final {help geniimpute:{ul:genii}mpute} 
 (with multiple {varlist}s) operation to cull remaining missing data (Stata's {help mi:{bf:mi}} command(s) might be viewed 
-as alternatives; but see the section on {bf:multiple imputation} in the help file for {help geniimpute:{ul:genii}mpute}).{p_end} 
+as alternatives). See the section on {help geniimpute##Multipleimputation:Multiple Imputation} in the help file for 
+{cmdab:genii:mpute}.{p_end}
 {pstd}
 Considerable flexibility is available to transform a dataset in any sequence thought appropriate, since any commands 
 except for {help genstacks:{ul:genst}acks} and {help genplace:{ul:genpl}ace} can be employed either before or after 
-stacking ({cmd:genstacks} can be used to "{stackme##Doublystackeddata:doubly-stack}" an already stacked dataset). 
-Moreover, the researcher can use the {opt nos:tacks} and {opt noc:ontexts} options to force the production of distances, 
-y-hats and missing data imputations that "average out" contextual differences by regarding all stacks (and perhaps also 
-certain higher-level contexts) as a single context. This might make sense after preliminary analyses had established 
-that there were no significant differences between these contexts in terms of the behavior of variables to be included 
-in an estimation model.{p_end}
+stacking ({help genstacks:{ul:genst}acks} can itself be used to {help stackme##Doublystacked:doubly-stack} an already 
+stacked dataset). Moreover, the researcher can use the {opt nos:tacks} and {opt noc:ontexts} options to force the 
+production of distances, y-hats and missing data imputations that "average out" contextual differences by regarding 
+all stacks (and perhaps also certain higher-level contexts) as a single context. This might make sense after preliminary 
+analyses had established that there were no significant differences between these contexts in terms of the behavior of 
+variables to be included in an estimation model.{p_end}
 
 {pstd}
 {bf:IMPORTANT NOTE ON KEEPING TRACK OF CONTEXTUAL DIFFERENCES} While country-year contexts are often collapsed into 
@@ -487,7 +488,6 @@ commands. For these, panel variables can be specified as needed for relevant est
 then be {help restore}d and employed to estimate other models without re-stacking.{break}
 {space 3}{bf:USER BEWARE:} most {cmd:stackeMe} commands themselves {help preserve} the data for each context in turn 
 and thus cannot be employed on data that the user has previously {help preserve}d.{p_end}
-
 
 {marker Variablenaming}
 {title:Variable naming conventions} 
@@ -507,9 +507,11 @@ earlier in this help text). Note that, while the {help genstacks:{ul:genst}acks}
 of variables named in either fashion, using post-stacking {it:stubname}s for that command requires less typing 
 and is more likely to avoid common naming errors.{break}
 {space 3}{bf:All other variables generated by stackMe commands} are distinguished by having names that are 
-prefixed with (by default) a two-character string separated by an underline character from the remainder of 
-the variable name), as will be explained.p_end}
-
+prefixed with (by default) a single-character string separated by an underline character from the remainder of 
+the variable name (see {help stackMe##prefixes:variable prefixes}). It follows that the names of variables to be 
+pre-processed by {bf:stackMe} may not themselves contain underline characters. A simple way to address any resulting 
+problems is to replace all underline characters ("_") occurring in variable names by dollar signs ("$") – the only 
+other non-aphanumeric character that {bf:Stata} allows in variable names).{p_end}
 
 {marker Variablelists}
 {title:Variable lists and option lists}
@@ -523,8 +525,9 @@ belonging to each (quasi-)battery. Where appropriate, each battery can be associ
 appropriate, a {varlist}) suffixed by a colon that preceeds the {varlist} proper. (More about prefix variables below). 
 This (set of) varlist(s) will generally be associated with an {it:{help option}}list, for example:{p_end}
 
-{p 5 14}
-{opt gendi:st} [{help varname:selfplace}:] {varlist} {ifin} {weight} || [{help varname:selfplace}:] {varlist} {weight} ... || {break}
+{p 5 13}
+{opt gendi:st}{space 1}[{help varname:selfplace}:] {varlist} {ifin} {weight} || [{help varname:selfplace}:] {varlist} 
+{weight} ... || {break}
 [{help varname:selfplace}:] {varlist} {weight}, {help options}{p_end}
 
 {pstd}
@@ -538,70 +541,90 @@ the first {varlist} in any set of varlists; the {weight} expression may follow a
 of {varlist}s. The ', {it:{help option}}s-list', that generally follows the 'varlist [if][in][weight] component of a 
 standard Stata command-line, on {cmd:stackMe} command-lines should follow the last of any such components.{p_end}
 
-
 {marker:prefixes}
 {title: Prefix strings and prefix variables}
+          
+{pstd}{bf:USERS WILLING TO ACCEPT DEFAULT VARIABLE NAMING CAN SKIP THE FOLLOWING RATHER DENSE SECTION}{p_end}
 
+{pstd}Most generated (outcome) variables are given names by {cmd:stackMe} commands that build on the names of those 
+existing (input) variables that were processed to yield the newly generated outcomes. The original input variable 
+names are sometimes used as 'stubs' (in commands {help gendummies:{ul:gendu}mmies} and {help genstacks:{ul:genst}acks}) 
+obtained by stripping numeric suffixes from the names of variables concerned. But, with many {bf:stackMe} commands, 
+several outcome variables can derive from the same input. To distinguish the several outcomes from each other, 
+{cmd:stackMe} outcome variables use 'prefix strings' – initially single-character strings separated from the prefixed 
+name by an underscore character ("_"). So {help gendist:{ul:gendi}st} uses the character "d_" to prefix the names of 
+distance measures that are a primary outcomes for that command. Other outcomes from {cmdab:gendi:st} use the prefix 
+"m_" for variables that indicate the original "missingness" of primary outcomes and "p_" for variables used for 
+'plugging' (filling in) the gaps left by those missing observations.{p_end}
 {pstd}
-Most generated (outcome) variables are given names by {cmd:stackMe} commands that derive from the names of existing 
-(input) variables, processed in some fashion so as to yield the newly generated measures. The original variable names 
-are sometimes used as 'stubs' (in commands {help gendummies:{ul:gendu}mmies} and {help genstacks:{ul:genst}acks}) 
-obtained by stripping numeric suffixes from the names of variables to be processed. Such stubs firmly link the 
-outcome variable names to the names of processed inputs; but with many {bf:stackMe} commands several outcome variables 
-derive from the same input. To distinguish the several outcomes from each other {cmd:stackMe} outcome variables use 
-'prefix strings' – two-character strings separated from the prefixed name by an underscore character ("_"). So 
-{help gendist:{ul:gendi}st} uses the character string "dm_" to prefix the names of variables that indicate the original 
-"missingness" of critical inputs, "dp_" to prefix the names of variables used for 'plugging' (filling in the holes left 
-by those missing observations) and  "dd_" to prefix the names of  outcome variables holding the distance measures that 
-give the command its name.{p_end}
-{pstd}
-{space 3}As should be evident, some of these prefix strings identify not the outcome of the command but an intermediate 
-result: a variable employed in the process of generating the outcome that is treated as a quasi-outcome, of possible 
-utility to the user of the command, who is given the choice of whether to keep it or not.{p_end}
-{pstd}
-{space 3}Not only strings serve as prefixes to variables but also variables can prefix other variables, going beyond 
-supplying stubnames, as mentioned above. Variables as prefixes can provide an additional input needed to produce the 
-desired outcome. Such prefix variables can be attached to the front of several {cmd:stackMe} commands' variable lists, 
-set off by a colon from the {varlist} proper, as was illustrated using a {cmdab:gendi:st} example a few lines above.{p_end}
-{pstd}
-{space 3}Such prefix variables can take the place of certain optioned input variables when {bf:stackMe} commands employ 
-multiple pipe-delimited varlists in the manner also described above. Recall that {cmd:stackMe} has as one of its main 
-objectives the speeding-up of command execution by processing as many {varlist}s as possible on a single pass through 
-the data. This is facilitated by keeping the same options in effect over multiple variable lists. Prefix variables 
-can be seen as a sleight-of-hand; a way to circumvent what would otherwise have been a debilitating inability, with 
-successive {varlist}s, to update variable choices that would have called for use of a now unavailable option.{break}
-{space 3}Going further, in command {cmdab:genyh:ats}, the appearance of a prefix variable, or not, can signal whether 
+{space 3}"m_" and "p_"-prefixed secondarly outcome variables might be handy in some circumstances, so users are 
+given the choice of whether to keep them or not. Some commands other than {cmdab:gendi:st} use the same secondary 
+prefix characters, generally distinguishable becauese they prefix different varnames (if not distinguishable, the 
+previously-created secondary variables will normally be dropped – see the section of this helpfile regarding 
+{help stackMe##Diagnostics:diagnostic checks}).{p_end}{pstd}
+{space 3}Not only strings serve as prefixes to variable names but also variables can prefix other variables, going 
+beyond supplying the stubnames mentioned above. Variables as prefixes can provide an additional input needed to produce 
+the desired outcome. Such variables can prefix the variable lists of several {bf:stackMe} commands, set off by a colon 
+from the {varlist} proper, as was illustrated using a {cmdab:gendi:st} example a few lines above.{p_end}
+{pstd}{space 3}Such prefix variables can take the place of certain optioned input variables when {bf:stackMe} commands 
+employ multiple pipe-delimited varlists in the manner also described above. Recall that {cmd:stackMe} has as one of its 
+main objectives the speeding-up of command execution by processing as many {varlist}s as possible on a single pass 
+through the data. This is facilitated by keeping the same options in effect over multiple variable lists. Prefix 
+variables can be seen as a sleight-of-hand; a way to circumvent what would otherwise have been a debilitating inability, 
+with successive {varlist}s, to update variable choices that would have called for use of a now unavailable option.{break}
+{space 3}Going further, in command {cmdab:genyh:ats}, the appearance of a prefix variable, or not, signals whether 
 the requested estimation process is multivariate or bivariate, so removing the need to update the relevant option and 
-permitting additional varlist(s) to be processed on the same pass through the data. Details can be found in help-files 
-named for the relevant commands.{p_end}
+permitting additional varlist(s) to be processed on the same pass through the data. Details regarding the functions 
+performed by prefix variables can be found in help-files named for the relevant commands.{p_end}
 {pstd}
-{space 3}When prefix variables are employed – a var-prefix or a stubname – these can themselves be prefixed by a  
-prefix-string. The string that prefixes a prefix variable signals a change in the name of that variable, which will now 
-be prefixed by that new string, differentiating between different versions of an outcome variable whose names would 
-otherwise have been the same, halting execution. So we can get names like {it:class_vote} and {it:religious_vote}, which 
-might also be preferred for aesthetic reasons. Such syntax variations bring opportunities for syntax errors, but {bf:stackMe} 
-commands go to considerable lengths to anticipate name clashes and avoid having a command run to completion before 
-detecting an error that would vitiate the time saved by such a command.{p_end}
-{pstd}
-{space 3}NOTE that the time saved through the use of judiciously chosen prefix strings is not just execution time for 
-the {cmd:stackMe} command concerned but, often more importantly, user time that would otherwise be spent renameing 
-outcome variables produced by one command before issuing another command involving the same variables.{p_end}
+{space 3}When prefix variables are employed – a var(list) or a (list of) stubnames – these can themselves be prefixed 
+by a prefix-string (set off by an "@" sign from the prefix variables that follow) as illustrated below:{p_end}
 
-{pstd}{bf:DETERMINING WHICH OPTIONS CAN BE OVERRIDEN BY PREFIX VARIABLES} has been made as easy as possible. In the helpfile 
-for any command that permits the use of prefixvars (all commands except {cmdab:genst:acks} and {cmdab:genme:anstats}) 
-the option that can be replaced by a prefixing list of variables (stubs in the case of {cmdab:gendu:mmies}) is the 
-first option listed in any list of available options. So a quick glance at the command's helpfile will be all that 
-is needed to verify which option is the one concerned (in {cmdab:genpl:ace} it can be either of the first two options 
-listed, as determined by the third option).{p_end}
+{p 8 17 11}
+{cmdab:genyh:ats} [yh@]{help varlist:{it:vote}}: {help varlist:{it:indepvarlist}} {ifin} {weight} [ ||  {break}
+[yi@]{help varlist:{it:vote}}: {help varlist:{it:indepvarlist}} {weight} ] [ || ... ]  || {break} 
+{help varlist:{it:indepvarlist}} {weight} , depvarname({it:vote}) other {help options}{p_end}
+
+{pstd}The "yh@" string in the first varlist signals a change in the name of the 'depvar' shown there, which would gain 
+the the prefix "yh_", differentiating it from the "yi_"-prefixed 'depvar' name that heads the next varlist – a name that 
+would otherwise have been the same. (Those prefixes are implausibe in practice but help to reinforce use of the "@" 
+symbol). In practice we would more likely see names like {it:class_vote} and {it:religious_vote}, as outcome names 
+for variables generated by a multivariate {help genyhats:{ul:genyh}ats} command. Such name choices might also be wanted 
+for aesthetic reasons.{break}
+{space 3}The final varlist in the above example illustrates invocation of a (set of) bivariate {help genyhats:{ul:genyh}ats} 
+within the framework of the same {cmdab:genyh:ats} command. The distinction lies in the omission of the variable prefix 
+that signals a multivariate analysis. Instead, in the final varlist, the depvarname is found as an option. (That option 
+would appear to have governed the previous two varlists as well, but in practice would have been overriden by the depvar 
+prefix variables in those cases).)
 
 {pstd}{bf:CUMULATING PREFIX STRINGS} are an inevitable feature of the {bf:stackMe} {help stackme##Workflow:Workflow} 
-described earlier, along with the use made of prefix strings to distinguish between variables generated by different 
-{bf:stackMe} commands. So a variable named "yi_ii_stk_dd_ii_vote" would have followed the {help stackme##Workflow:Workflow} 
-pattern suggested in an earlier section. It builds on a measure of vote choice by, first, imputing missing data among 
-battery members, then measuring reported distances between party placements and respondent self-placements, then 
-stacking the resulting measure and moving on to conduct a second set of imputations on the stacked data before 
-calculating a battery of yhat measures of affinity between independent variables and an optioned depvar.
+pattern suggested in an earlier section, when taken with the use made of prefix strings to distinguish between variables 
+generated by different {bf:stackMe} commands. So a variable named "{cmd:{it:yi$id_vote}}" would have followed the sequence 
+suggested earlier – building on a measure of vote choice by, first (working backwards from the prefix closest to the 
+variable name), measuring reported distances between party placements and respondent self-placements, then imputing 
+missing data among battery members, then stacking the resulting measure and moving on to conduct a second set of 
+imputations on the stacked data before calculating a battery of yhat measures of affinity between independent variables 
+and an optioned depvar.{p_end}
 
+{pstd}{bf:REDEFINING DEFAULT AND EXISTING PREFIX STRINGS} calls for use of prefix options that are central to the syntax of 
+every {bf:stackMe} command. So a user who doesn't want the "d_" prefix used in the naming of distance measures produced by 
+command {help gendist:{ul:gendi}st}, that user can invoke the command's {cmdab:dpr:efix()}" option to provide, between 
+parentheses, the string of characters they want to see used in place of the letter "d", and the same for every other 
+prefix. Once in place, however, the string prefix becomes part of the name of the outcome variable to which it was 
+prepended and can only be changed in two ways. The first is, obviously, to use {bf:Stata}'s {help rename} command to 
+change the prefix (presumably retaining the same variable name following the "_" character, although that is not required). 
+The second way in which a prefix string can be changed is by replacing the full set of prefixes optioned or retained by 
+the current command, through the use of an {cmdab:apr:efix} option provided by virtually all {bf:stackMe} commands. That 
+option replaces a set of existing prefixes by one single prefix (of any length) that will be the same for each of that 
+command's prefixed outcome variables (both primary and secondary). Details are in the help text for any relevant 
+{cmdab:?pr:efix()} option; except that command {help genmeanstats:{ul:genme}anstats} produces prefixes that must be 
+distinct for every outcome variable because each of them names a different statistic for the same input variable.{p_end}
+
+{pstd}{bf:DETERMINING WHICH OPTIONS CAN BE OVERRIDEN BY PREFIX VARIABLES} has been simplified by arranging each helpfile 
+so that the option that can be replaced by a prefixing list of variables (stubs in the case of {cmdab:gendu:mmies}) is 
+the {ul:first} option listed in any list of available options. So a quick glance at the command's helpfile will be all that 
+is needed to verify which option is the one concerned (for command {help genplace:genpl:ace} it can be either of the first 
+two options listed).{p_end}
 
 {marker stackmespecialnames}
 {title:stackMe special names}
@@ -649,34 +672,67 @@ by a space to delimit the end of the prefix.{p_end}
 doubly-stacked data. The doubly-stacked counterparts to the special names listed above are distinguished by replacing the 
 second letter ('M' in the above examples) by the number '2' ({it:{cmd:S2stkid}}, {it:{cmd:S2nstks}}, etc.). Also, special 
 names like "SMddMisCount" and "SMiiPlugCount" are used by {bf:stackMe} commands for variables that document the extent of 
-missing data found, overall, when generating the primary outcome variable(s) for each command. 
+missing data found, overall, when generating the primary outcome variable(s) for each command.{p_end}
 
+{marker Diagnostics}
+{title:Diagnostic checks}
+
+{pstd}({bf:Forthcoming}){p_end}
 
 {marker Regardingversion2}
 {title:Note regarding version 2.0}
 
 {pstd}
-This release of {cmd:StackMe} is actually Version 2 of what was originally named {cmd:PTVtools} (the acronym stands 
-for Propensity To Vote (Eijk et al 2006). It differs from {cmd:PTVtools} in having additional commands – 
+This release of {cmd:StackMe} is actually Version 2 of what was originally a package named {cmd:PTVtools} – the acronym 
+stands for Propensity To Vote (Eijk et al 2006). It differs from {cmd:PTVtools} in having additional commands – 
 {help genmeanstats:{ul:genme}anstats} and {help genplace:{ul:genpl}ace} (which also provides an interface to other 
-{bf:Stata} commands and to user-written 
-programs). {cmd:StackMe}’s user interface has been standardized across {cmd:StackMe} commands: pipe-delimited 
-{varlist}s are available with all {cmd:StackMe} commands, not just with {cmd:genyhats}; all {cmd:StackMe} commands 
-offer the same suite of options, invoked by the same option-names, to the extent that each option makes sense for the 
-command concerned. The package also provides additional functionality by including {ifin} and {weight} expressions, 
-along with double-stacking of datasets with nested contextual hierarchies.{break}
-{space 3}The concept of a "utility program" has been introduced, named with initial characters "SM" instead of "gen",
-along with facilities for linking to user-written programs that employ the same naming convention. Most importantly, 
-many {cmd:StackMe} commands run considerably faster by an order of magnitude; and, as already mentioned, considerable 
-effort has been put into early diagnosis of variable naming errors. This is especially true for {help genstacks}, 
-{help geniimpute} and {help genyhats} (the commands most likely to involve all substantively relevant variables in 
-a {cmd:StackMe} dataset). These elaborations to standard Stata syntax can be ignored if faster execution is not an issue. 
-Command {help genstacks:{ul:genst}acks}, the command that was most in need of accelleration, now runs an order of magnitude 
-faster even without use of these syntactical innovations.{break}
+{bf:Stata} commands and to user-written programs). {cmd:StackMe}’s user interface has been standardized across 
+{cmd:StackMe} commands: pipe-delimited {varlist}s are available with all {cmd:StackMe} commands, not just with 
+{cmd:genyhats}; all {cmd:StackMe} commands offer the same suite of options, invoked by the same option-names, to the 
+extent that each option makes sense for the command concerned. The package also provides additional functionality by 
+including {ifin} and {weight} expressions, along with double-stacking of datasets with nested contextual hierarchies.{break}
+{space 3}The concept of a "utility program" has been introduced, named with initial characters "SM" instead of "gen", 
+and providing various services to users. Considerable effort has been put into early diagnosis of variable naming 
+errors {bf:stackMe} commands are no longer apt to run to completion before reporting a naming error.{break}
+{space 3}In a departure from conventional data analysis packages, the {bf:stackMe} {help stackme##Workflow:workflow}, so 
+critical to its objectives, is largely self-documenting; with variables having string-prefixes (conceptually similar to 
+to tree-rings) one character for each {bf:stackMe} command that has pre-processed the variable concerned. More detailed 
+information about each step in a variable's pre-processing history is held in a {bf:Stata} {help char:Data Characteristic} 
+and can be displayed by the {help SMorigin:{ul:SMori}gin} utility program, that can also place a summary in the variable's 
+label.{break}
+{space 3}Most importantly, all {cmd:StackMe} commands now run faster by an order of magnitude or more. This is especially 
+true for {help genstacks}, {help geniimpute} and {help genyhats} (the commands most likely to involve all substantively 
+relevant variables in a {cmd:StackMe} dataset). The extra speed comes in part from various elaborations made to standard 
+{bf:Stata} syntax. These elaborations can be ignored if the fastest possible execution is not a primary concern.{break}
+
+{space 3}{bf:FOR PAST USERS OF PTVTOOLS:} A small number of minor changes (additional to the major innovations involving 
+multiple varlists) have been made to the syntax of {bf:PTVtools} commands. In {help gendist:{ul:gendi}st} the 
+{cmdab:res:pondent()} option has become a {cmdab:sel:fplace()} option. In several commands the {cmdab:mpr:efix()} option 
+has been removed because the {bf:stackMe} package no longer gives users access to "m_"-prefixed secondary outcome variables 
+indicating the original "missingness" of primary outcome variables (instead users are urged to employ {bf:Stata}'s 
+{help missing:{ul:mi}ssing()} function. Finally, instead of prefix strings for outcome variables that are always one 
+character in length (e.g. "y_" as a prefix for a 'yhat' outcome) the {help yhats:{ul:genyh}ats} command in the first 
+instance now produces the two-character prefix "yb_" (when the outcome iresults from a bivariate analysis) and "ym_" 
+when a multivariate estimation model was optioned. Certain commands that did not previously exist or did not use prefix  
+strings to identify their outcome variables now use two-character prefix strings for this purpose: "du" for 
+{help gendummies:{ul:gendu}mmies} and two-character abbreviations for the names of relevant univariate statistics from 
+{help genmeanstats:{ul:genme}anstats}. These two-character prefix strings morph into single characters (heopeflly still 
+helpful even if not totally unambiguous) when the prefix string is concatanated with those produced by earlier {bf:stackMe}  
+commands to provide a visual reminder of the workflow history that moulded each resulting variable ({cmdab:gendu:mmies} 
+and {cmdab:genme:anstats} do not produce prefix-strings that encapsulate their workflow history).{break}
+
 {space 3}Initially we are distributing a beta version of {cmd:StackMe} 2.0, which may still contain bugs and 
 infelicities. Any comments and/or suggestions for improvements should be emailed to mark.franklin@trincoll.edu 
 (if no response within a week, email the first author named below).{break}
 
+
+{marker References}
+{title:References}
+
+Eijk, Cees van der et al. (1996) "Rethinking the dependent variable in voting behavior: On the measurement and 
+analysis of electoral utilities." {it:Electoral Studies} (25:3) 434-447.
+King, Gary, et al. (2001) "Analyzing incomplete political science data: An alternative algorithm for multiple 
+imputation." {it:American political science review} (95:1) 49-69.
 
 {marker Authors}
 {title:Authors}
@@ -684,7 +740,6 @@ infelicities. Any comments and/or suggestions for improvements should be emailed
 {pstd}
 Lorenzo De Sio - European University Institute (now at LUISS): ldesio@luiss.it{break}
 Mark Franklin - European University Institute (now emeritus at Trinity College Connecticut): mark.franklin@trincoll.edu
-
 
 {marker citation}
 {title:Citations}
