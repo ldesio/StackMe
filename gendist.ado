@@ -1,4 +1,4 @@
-*! Feb 18'26
+*! Mar 22'26
 
 capture program drop gendist				// Calculates distances (now also proximities) between respondent's self-placed spatial 
 											// locations and the spatial location of battery items.
@@ -14,7 +14,7 @@ program define gendist										// Called by 'gendi' a separate program defined 
 
 version 9.0														
 
-											// (0) Here sets stackMe command-specific options and call the stackMe wrapper program;  
+											// (0 Here sets stackMe command-specific options and call the stackMe wrapper program;  
 											//    lines ending with "**" need to be tailored to specific stackMe commands
 
 global errloc "gendist(0)"									// $Records which codeblk is now executing, in case of Stata error
@@ -25,7 +25,7 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 															
 	local optMask = "SELfplace(varname) ITEmname(varname) MISsing(str) DPRefix(str) PPRefix(str) MPRefix(string) APRefix(string)"  ///
 				  + " XPRefix(str) MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMitdiag(integer -1) PROximities" ///
-				  + " PLUgall ROUnd NOREPlace NOSelfplace" 	// NOTE that 'noreplace' is not returned in macro 'replace'				**
+				  + " PLUgall ROUnd REPlace NOSelfplace" 	// NOTE that 'noreplace' is not returned in macro 'replace'				**
 	
 															// First option in optMask has special status, generally naming a var or
 															//  varlist	that may be overriden by a prefixing var or varlist (hence	
