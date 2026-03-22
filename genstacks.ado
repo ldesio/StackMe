@@ -1,4 +1,5 @@
-*! Feb 23`26
+*! Mar 22'26
+
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -91,7 +92,9 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 										
 														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY									***
 										
-	local namelist = "`anything'"						// Put user-supplied varlist into `namelist' 
+	stubsImpliedByVars `anything'						// Put 'genstacksO'- generated stubnames into `namelist'
+	local namelist = r(stubs)
+	
 														// (genstacks only has a single varlist; so no "||", no ":")	
 	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
 	local response = 0									// Local at top level to register responses within if or foreach		
@@ -99,7 +102,7 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
 	
 		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
-		
+
 			if real(substr("`var'",-1,1))==.  continue	// If final char is NOT numeric (real version IS missing)..
 														// ('continue' skips rest of foreach block, continues w' next var)
 			local label : variable label `var'			// See if that variable has a label		
@@ -136,13 +139,13 @@ global errloc "genstacks(2)"
 			
 
 			
-			else {										// No "==" so is not from a gendummies-built battery
+			else {										 // No "==" so is not from a gendummies-built battery
 			
-				if strpos("`label'", "`var'") > 0	{	// If it has an embedded varname ...
+				if strpos("`label'", "`var'") > 0	{	 // If it has an embedded varname ...
 					local loc = strpos("`label'", "`var'")
 					local label = substr("`label'",`loc'+strlen("`var'"), .)
 					local cc = (substr("`label'", 1, 1))
-					mata:st_numscalar("a",ascii("`cc'")) 	 // Get MATA to tell us the ascii value of `cc'
+					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
 
 					while (strpos("<=>?@[\/]_{|}~", "`cc'") < 1) & ("`cc'" != "") & ( (a<45 & a!=41) | a>126 )  {
 					   local label = substr("`label'", 2, .) // (strpos & 41 are good; a<45 & a>126 are not)
@@ -165,38 +168,41 @@ global errloc "genstacks(2)"
 		
 		   local varlabel = strtrim("`varlabel'")		// Trim off any leading or trailing blanks
 
-		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric
-			  local varlabel = substr("`varlabel'"-1,1) // shorten varlabel by one char from end of `varlabel'
-		   }											// Exit 'while' when last char of label is not numeric
+		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric (conversion to real is not missing)
+			  local varlabel = substr("`varlabel'",1,strlen("`varlabel'")-1) 
+		   }											// shorten varlabel by one char from end of `varlabel'
+														// (exits 'while' when last char of label is not numeric)
 
 		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
 		   quietly label var `stub' "`varlabel'"
 		   
 		} //endif 'varlabel'
 		
-														// NEXT WE ELIMINATE ANY "_" DIVIDERS FOLLOWING "stk_", except for final one
-		
-		if substr("`stub'",3,1)=="_"  {					// If `stub' startw with a string prefix ending in "_"
-		
-		   local tailpos = strrpos("`stub'","_") + 1	// Find start of name following final "_" in current stub (using `strr..')
-		
-		   local tail = substr("`stub'",`tailpos',.)	// Save that name in `tail'
-		   
-		   local body = subinstr("`stub'","_","",.)		// Substitute all "_" with "" so `body' contains `stub' with all "_" removed
-		   
-		   if "`body'"==""  rename `stub'  stk_`tail'	// If there is no `body' left, only use one "_"
-		   else rename `stub'  stk_`body'_`tail'			// Else reinstate the first and last "_", following "stk'" & preceeding `tail'
+														// NEXT WE ELIMINATE ANY PREFIX DIVIDERS ("_") except for final one
+														
+		if strpos("`stub'","_")>0 & strpos("`stub'","_")<4 { 
+														// First or only prefix might be either 1 char or 2 chars in length
+		   gettoken pfx1 tail : stub, parse("_")		// If `stub' starts with str pfx ending in "_", rest will go in `tail'
+		   if "`tail'"==""  local pfx1 = ""				// If `tail' is empty we need to empty `pfx1'
+		   else  {
+		   	  local tail = substr("`tail'",2,.) 		// Else `tail' is not empty, so trim "_" from its head
+		   }											// (unless the 'else' clause is enclosd in braces, things can go wrong)
+		   gettoken pfx2 rest : tail, parse("_") 		// If there is another prefix, its content will be in `prfx2'
+		   if "`rest'"==""  local pfx2 = ""				// If not, this is signalled by `rest'=="" and we must empty `pfx2'
+														// (maybe not)
+		   local pfx12 = "S`pfx1'`pfx2'"				// Concatanate the two prefixes 
+		   rename `stub'  `pfx12'`rest'					// Rename `stub' using concatanated prefix preceeded by "$"
 		   			
-		}
+		} //endif `strpos'
 		
-		else  rename `stub'  stk_`stub'					// Else prepend a 3-char prefix to mark transition to stacked data
+		else  rename `stub'  S_`stub'					// Else there is no "_" prepend "S_" to mark transition to stacked data
 	
 	} //next `stub'										// Find next now-reshaped var needing a label
 	 
 
 	 
 	 
-	label var SMstkid "stkid for vars `namelist'"		// Label var SMstkid with list of stubnames that were stacked
+	label var SMstkid "stkid for var(s) `namelist'"		// Label var SMstkid with list of stubnames that were stacked
 		 
 	label var SMunit "Sequential ID of observations that were units of analysis in the unstacked data"
 *					  12345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -510,23 +516,22 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
   } //endif _rc & ! `skipcapture'
   
 
-
   *****************
-capture } //endif $SMreport									// Close braces that delimit code skipped on return from error exit
+} //endif $SMreport									// Close braces that delimit code skipped on return from error exit
   ****************
+  
+capture }													// CLUGE PREVENTS SPURIONS "matching close brace not found" ERROR
 
   global multivarlst										// Clear this global, retained only for benefit of caller programs
   capture erase $origdta 									// (and erase the tempfile in which it was held, if any)
   global origdta											// Drop the global holding its name
-  capture confirm number $SMrc 								// See if $SMrc is numeric
-  if _rc  {													// If not a number..
-  	 if "$SMrc"==""  global SMrc = ""						// Initialize an empty textual global
-  }															// (leave unchanged if not empty)
-  else   {													// Else it is numeric
-  	 local rc = $SMrc
-  }
-  global SMreport											// And these, retained for error processing
-  global SMrc
+  if "$SMrc"!="" scalar RC = $SMrc 							// If return code indicates that it does, stash it in scalar RC
+  else scalar RC = 98765									// Else stash an unused return code
+  if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
+  macro drop _all											// Drop all macros (including $SMrc, if extant)
+  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
+  scalar drop _all 											// Drop all scalars, including RC
+
   exit `rc'
  
 end genstacks	
@@ -548,15 +553,3 @@ end genst
 
 
 *************************************************** END PROGRAMS **********************************************************
-
-
-/*
-		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-		sum `contexts'
-		tempvar rank
-		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
-		tab1 `rank'
-		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
-		label var SMnstks "Number of stacks identified by SMstkid per context"
-																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
-*/
