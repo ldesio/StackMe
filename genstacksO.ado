@@ -1,5 +1,6 @@
 Mar 22'26
 
+
 capture program drop genstacksO			// 'Opening' program for genstacksP, greatly reducing code executed for each context
 
 
