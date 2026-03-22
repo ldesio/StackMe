@@ -1,4 +1,4 @@
-*! Fwb20'26
+*! Mar 22'26
 
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
@@ -57,7 +57,7 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	local prx = 0
 	if "`proximities'"!="" local prx = 1					// Switch set true if proximities were optioned
 	
-	local mo = "meanonly"									// Set option for summarize, below
+	local mo = ", meanonly"									// Set option for summarize, below
 	if `prx'  local mo = ""
 	
 	
@@ -68,29 +68,11 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	local maxN = 0											// Make initial maxN really small
 	local nvl = 0											// Count of n of varlists processed
 	
-	while `nvl'<`nvarlst'  {					 			// Cycle thru set of varlists with same options
+	while `nvl'<`nvarlst'  {					 			// Cycle thru set of varlists with same options (`nvl' was optioned)
 	
 	  local nvl = `nvl'+1									// (any prefix is in `selfplace' or `precolon')	
-	  gettoken prepipes postpipes : anything, parse("||") 	//`postpipes' then starts with "||" or is empty at end of cmd
-	  if "`postpipes'"=="" local prepipes = "`anything'"	// (if empty make like imaginary pipes follow at end of cmd)
-		
-	  gettoken precolon postcolon : prepipes, parse(":") 	// See if varlist has prefixing selfplacement indicator 
-															// `precolon' gets all of varlist up to ":" or to end of string
-	  if "`postcolon'"!=""  {							 	// If `postcolon' is not empty we have a prefix var
-		local vars = strtrim(substr("`postcolon'",2,.)) 	// strip the leading "`prefix':" and following blanks from varlist
-		local selfplace = "`precolon'"						// Replace with `precolon' whatever was optioned for selfplace			**
-		gettoken preul postul : selfplace, parse("_")		// Skip over preul, if any (dealt with in cleanup)
-		if "`postul'"!=""  local selfplace = strtrim(substr("`postul'",2,.))
-	  } //endif 											// (start with pre-colon prefix)
-
-	  else local vars = "`prepipes'"						// If there was no colon then varlist was in `prepipes'
-	   
-*	  ***********************
-	  checkvars "`prepipes'"								// 'checkvars' elaborates unab; will collct invald vars in 'errlst'
-	  if "$SMreport"!=""  exit								// See if error was reported by program called above
-*	  ************************
-	  local varlist = r(checked)							// Else store returned vars in `varlistl'
-	  
+	  local varlist = VARLISTS`nvl'							// Retrieve varlist from scalar where it was stashed before wrapper(3)
+	  if (PRFXVARS`nvl'!="") & !missing(PRFXVARS`nvl')  local selfplace = PRFXVARS`nvl' // Ditto
 	  local nvars : list sizeof varlist
 	  tokenize `varlist'
 	  local first `1'
@@ -113,9 +95,9 @@ pause gendistP(3)
 
 											// (3) Diagnostics are displayed only for 1st context SHLD EVENTUALLY BE IN 'gendistO'	***
 	  
-	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st context)
+	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st varlist for 1st context)
  	
-		if ("`missing'"=="dif2" & "`plugall'"=="")  {
+		if ("`missing'"=="dif2" & "`plugall'"=="")  {		// If "dif2" is optioned we also need "plugall"
 	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – assumed if ok{txt}"
 		  capture stopbox rusure "Option {bf:missing(dif2)} requires option {bf:plugall} – assumed if ok"
 		  if _rc  {
@@ -125,8 +107,9 @@ pause gendistP(3)
 		}
 
 	    if `limitdiag' !=0   {								// If diagnostics were not silenced, display 1st diagnostic
-		  noisily display _newline "{p}{txt}Computing distances between R's position ({result:`selfplace'}) " _continue
-		  noisily display "and their placement of objects: ({result:`varlist'}) {p_end}{txt}"
+		  noisily display _newline "{p}{txt}Computing distances between R's position ({result:`selfplace'}) and their placement" _continue
+*											12345678901234567892345678901234567892345678901234567892345678901234567890{result:`'}
+		  noisily display "of objects: ({result:`varlist'}) {p_end}{txt}"
 		}		
 		
 	  } //endif`c'==1
@@ -152,43 +135,45 @@ global errloc "gendistP(4)"
 			
 		   local i = `i' + 1
 		   
-		   local var = word("`varlist'",`i')				// Put this varname into `var'
+		   local var = word("`varlist'",`i')					  // Put this varname into `var'
 		   
-		   scalar SKIP`i' = 0							
+*		   scalar SKIP`i' = 0							
 
-		   if "`missing'"=="all"  qui sum `var' `weight', `mo'	  // Use all obs for `missing'=="all"			
-		   if "`missing'"!="all" & "`missing'"!=""  {
-		   	  qui sum `var' `weight'  if `selfplace'!=`var', `mo' // (resulting mean works for "dif" & "dif2")							***
-		   }
-  
-		   if r(N)==0  {									// If there are no relevant observations for this var in this context
-			 scalar SKIP`i' = 1								// Flag used in next codeblock to skip this var
+		   if "`missing'"=="all"  qui sum `var' `weight' `mo'	  // If using all obs for `missing'=="all"			
+		   if "`missing'"!="all" & "`missing'"!=""  {			  // If using only obs where R places `var' other than `selfplace'
+		   	  qui sum `var' `weight'  if `selfplace'!=`var' `mo'  // (resulting mean works for "dif" & "dif2")							***
+		   }													  // Only one call on 'summarize' leaves return code accessd below
+   
+		   if r(N)==0  {										  // If there are no relevant observations for this var in this context
+*			 scalar SKIP = 1									  // Flag used in next codeblock to skip this var (NO MORE)
 			 if "`missing'"!="all" & "`missing'"!=""  {
 			 	local lbl = LBL
-			 	noisily display _newline "WARNING: No observations where 'selfplace'!=`var' in context `lbl'" _newline
-			 }
-		   }												
+*		 		noisily display _newline "WARNING: No observations where `selfplace'!=`var' in context `lbl'" _newline
+			 }													  // COMMENTED OUT BECAUSE TOO OBTRUSIVE; SAME INFO AVAILALE W EXTRADIAG
+		     continue											  // Continue with next var
 		   
-		   else  {
-		   	 scalar MEAN = r(mean)							// This is the correct mean for whichever plugging var was optioned
+		   } //endif r(N)==0
+
+		   else  {											  	  // Else there are non-missing observations
+			  scalar MEAN = r(mean)							  	  // This shld be the corrct mean for whichevr plugging var was optioned
 		   }
 		   
-		   gen m_`var' = missing(`var')						// Code m_var =0, or =1 if missing
-		   gen p_`var' = abs(`selfplace' - MEAN)			// Use appropriate mean to get plugging value, missing if misng `selfplace'
-		   gen d_`var' = abs(`selfplace' - `var')			// Default distance, missing when either component is missing
+		   gen m_`var' = missing(`var')							  // Code m_var =0, or =1 if missing
+		   gen p_`var' = abs(`selfplace' - MEAN)				  // Use apprriate mean to get pluggng value, missng if misng `selfplace'
+		   gen d_`var' = abs(`selfplace' - `var')				  // Default distance, missing when either component is missing
 		   
-		   if "`missing'"=="all"  replace d_`var' = p_`var' if m_`var'					  // Plug if `var' is missing
-		   if "`missing'"=="dif" replace d_`var' = p_`var' if `selfplace'!=`var'& m_`var' // Only replace missing values w appropriate
-		   if "`missing'"=="dif2" | "`plugall'"!="" replace d_`var' =  p_`var' 			  // Same as p_var 'cos 'plugall' is implied
+		   if "`missing'"=="all"  replace d_`var' = p_`var' if m_`var'					   // Plug if `var' is missing
+		   if "`missing'"=="dif"  replace d_`var' = p_`var' if `selfplace'!=`var'& m_`var' // Only replace missing values w appropriate
+		   if "`missing'"=="dif2" | "`plugall'"!=""  replace d_`var' =  p_`var' 		   // Same as p_var 'cos 'plugall' is implied
 		   
-		   if `prx'  {
-		   	  if "`missing'"=="all"  qui sum d_`var' `weight', `mo'	  // Use all obs for `missing'=="all"			
-			  if "`missing'"!="all" & "`missing'"!=""  {
-				 qui sum d_`var' `weight' if `selfplace'!=`var', `mo' // (resulting mean works for "dif" & "dif2")						***
-				 scalar MAX  = r(max)								  // The right MAX for appropriate summarize
-				 gen x_`var' = MAX - d_`var'
-			  }
-		   }
+		   if `prx'  {											  // If proximities were optioned..
+		   	 if "`missing'"=="all"  qui sum d_`var' `weight' `mo' // Use all obs for `missing'=="all"			
+			 if "`missing'"!="all" & "`missing'"!=""  {			  // Else use just obs where `selfplace'!=`var'
+			   qui sum d_`var' `weight' if `selfplace'!=`var'`mo' // (resulting mean works for "dif" & "dif2")							***
+			   scalar MAX  = r(max)								  // The right MAX for appropriate summarize
+			   gen x_`var' = MAX - d_`var'
+		  }
+		}
 			 
 		} //next var
 		
@@ -198,50 +183,12 @@ global errloc "gendistP(4)"
 
 
 global errloc "gendistP(5)"
-
-
-
-/*															// FINAL CODEBLOCK COMMENTED OUT `COS' CONTENT NOW SUPPLIED ABOVE
-	 
-											// (5) Get distances and replace with plugging values as required
-	
-	    local i = 0
-		while `i'<`nvars'  {								// Process each var separately
-		
-		  local i = `i' + 1
-		  local var = word("`varlist'",`i')
-		  if SKIP`i'  {										// scalar skip`i' was set in previous codeblock
-		    qui replace p_`var' = .							// Put relevant mean into p_`var' for all obs on each var
-*		  	continue										// If var was skipped above, skip it here as well
-		  }													// (continue with next var) COMMENTED OUT FOR SAME REASON AS ABOVE		***
-
-		  if "`plugall'"!="" qui gen d_`var' = abs(`selfplace'-p_`var') // Subtract same mean value for all obs if plugall
-		
-		  else  {											// Else plug only missing values (more if mis=="dif" optned)
-		
-		     qui gen d_`var' = abs(`selfplace' - `var')		// Default distance, missing when either component is missing
-			 if "`missing'"=="all"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif"  qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var'
-			 if "`missing'"=="dif2" qui replace d_`var' = abs(`selfplace' - p_`var') if m_`var' | `selfplace'==`var'
-															// dif2 treats `selfplace'==`var' as equivalent to missing
-		  } //endelse										// (requires `plugall'!="" 'cos otherwise variance is truncated)
-													
-		  if "`proximities'"!=""  qui gen x_`var' = .		// (if optioned, x_`var' will be processed in subprogram 'cleanup')
-		
-	    } //next var
-*/
-
-/*	    if `limitdiag'>=`c' /*"`smstkid'"*/ {				// `c' is updated for each different stack
-	  	  local lbl : label lname `c'
-	  	  noisily display "Vars in context `lbl' have at least `minN' and at most `maxN' valid obs"
-	    }													// COMMENTED OUT COS CURRENT CONTEXT LABELED IN WRAPPER W scalar LBL
-*/		 
 				 
 				 
 				 
-*	   **************				 
-	  } //end quietly
-*`	   **************
+*	  **************				 
+	  }  //end quietly
+*	  **************
 
 	
 	
@@ -256,16 +203,9 @@ global errloc "gendistP(6)"
 											// 	   (or pre-process syntax for next varlist)
 											
 
-	  if "`postpipes'"==""  {
 	  	local nvl = `nvarlst'+1
-*	  	continue, break										// Break out of `nvl' loop if `postpipes' is empty (redndnt?)
-	  }
-	  else {
-	    local anything =strltrim(substr("`postpipes'",3,.)) // Strip leading "||" and any blanks from head of `postpipes'
-															// (`anything' now contains next varlist and any later ones)
-	    local isprfx = ""									// Switch off the prefix flag if it was on
-	  }
-*	  if `nvl'>`nvarlst' continue, break
+
+	
 				   
 	} //next `nvl' 											// (next varlist having same options)
 	
@@ -292,6 +232,8 @@ if "`skipcapture'"==""  {									// If empty we got here due to stata error ear
 	}
 	
 } //endif 'skipcapture'
+	
+	
 	
 	
 end gendistP
@@ -321,4 +263,7 @@ end //createActive copy
 
 
 ************************************************** END SUBPROGRAM **********************************************************
+
+
+
 
