@@ -1,14 +1,18 @@
+*! Mar 22'26
 {smcl}
 {cmd:help genplace}
 {hline}
 
 {title:Title}
 
+
 {p2colset 4 16 16 2}{...}
 {p2col :{ul:genpl}ace {hline 2}}Generates customizable battery placements (e.g. averages) of lower-level 
 scores for variables constituting each named stack or other indicator (also providing an interface to 
 other Stata and user-written programs). See {help genplace##Placements:What are placements?}, below.{p_end}
 {p2colreset}{...}
+
+{p 4}(STILL UNDER DEVELOPMENT){p_end}
 
 
 {title:Syntax}
@@ -242,16 +246,15 @@ into unit-specific components stored in separate files and input into different 
 linkage variables that save much filespace (and perhaps also execution time) when using {cmd:genplace} 
 and other utilities).{p_end}
 {pstd}{space 3}NOTE (3): If multiple ||-delimeted batteries are listed in a {cmdab:genpl:ace} command-line 
-then all of these batteries will be treated in the same fashion, as established by options accompanying 
-that command, except that each input {varlist} can be prefixed by a list of {opt cweight} variables whose 
-number will determine how many outcome placements will be generated for each {varlist} variable. Those 
-outcome variables will be given compound names derived by prefixing the name of the input variable with 
-the name of the weight variable, separated by an underscore character. Any such optional prefix will override 
-any corresponding {opt cwe:ight} option. See {help genplace##Options:Options} (below) for more details. So the 
-user might place a government in terms of the position it takes regarding each of a number of policies, with 
-each policy creating as many variables as there are weight variables prefixing that policy varname. This 
-means that the battery-names listed in {it:varlist} must be batteries of items that pertain to the same 
-object. Only the user can verify that this is the case.{p_end}
+then all of these batteries will be treated in the same fashion, as established by options accompanying that 
+command, except that each input {varlist} can be prefixed by a list of {opt cweight} variables or of {opt indicator} 
+variables whose number will determine how many outcome placements will be generated for each input variable. 
+Those outcome variables will be given compound names derived by prefixing the name of the input variable with 
+the name prefix variable, separated by an underscore character. So the user might place a government in terms 
+of the position it takes regarding each of a number of policies with each policy creating as many variables 
+as there are weight variables prefixing that policy varname. Those different weight variables would determine 
+the final placement to the extent that more or less weight was given to the the contribution of each stack 
+item to the final average.{p_end}
 
 {pstd}Finally, genplace provides an interface to existing Stata (or user-written) commands that provide for 
 predicting outcome variables (or {bf:return}ing outcome values) to the calling – {cmdab:genpl:ace} – program 
@@ -291,13 +294,14 @@ of weight variable: one named in the {cmdab:genpl:ace} command line's [{help wei
 option for weighting higher-level items. More than one cweight variable can be listed in that option, 
 resulting in more than one outcome variable for each input variable being placed.
 
-{pstd}
+{marker multipleweights}{pstd}
 {bf:USING MULTIPLE INDICATORS OR CWEIGHTS:} As with {cmd:stackMe}'s command {cmdab:genii:mpute}, the optional 
 prefix introducing the {cmdab:genpl:ace} command's {varlist} can list more than a single variable. When 
 defining multiple indicators the purpose is evident: each prefix variable indicates a different pattern of 0,1 
 codes that determine which stacks will contribute to the indicator's measured value. Regarding multiple cweights, 
-as mentioned above, where stack-level data relating to political parties are used to place higher-level political objects such as governments, parliaments or policies, a number of different sources might supply relevant weights 
-(e.g. votes cast, seats or ministries controlled, etc.). Other research traditions may find similar diversity 
+as mentioned above, where stack-level data relating to political parties are used to place higher-level political 
+objects such as governments, parliaments or policies, a number of different sources might supply relevant weights 
+(e.g. votes cast, seats received or ministries controlled). Other research traditions may find similar diversity 
 in weighting criteria (education researchers might weight academic outcomes by class-size, student-age, 
 average expenditure per student, and so on). In electoral studies, and perhaps elsewhere, effects of 
 different weighting strategies have hardly been studied so {cmdab:genpl:ace} has been designed to permit 
@@ -312,7 +316,7 @@ multiple hypotheses regarding optimal weighting strategies to be readily tested.
 identifying the stacks that will contribute to placing the object(s) named by the indicator(s) on the basis of 
 mean values of indicated (=1) stacks (for example, government parties can be indicated by coding government 
 parties =1 and other parties =0). Alternatively, the keyword {bf:if} followed by a logical expression can 
-generate a singe {help tempvar}coded 1 if the expression is true and 0 otherwise. {bf:NOTE} that any indicator 
+generate a singe {help tempvar} coded 1 if the expression is true and 0 otherwise. {bf:NOTE} that any indicator 
 variable(s) established by this option is overridden by corresponding variable(s) named in a prefixvar list 
 prepended to the {cmdab:genpl:ace} {varlist}. In the absence of any such indicator(s) the stacks themselves 
 are placed on the basis of mean values of indicated stacks.{p_end}
@@ -334,7 +338,7 @@ option is overridden by corresponding variable(s) named in a prefix-list prepend
 {phang}
 {opt wtp:refixvars} if present, a signal for {cmdab:genpl:ace} to interpret any prefixvars (preceeding the 
 {cmd:genplace} varlist as naming a (set of) cweight variable(s) instead of naming a (set of) indicator variable(s) 
-– the default. To be clear, both {opt cwe:igt} and {opt ind:cators} can be optioned, but only one or the other 
+– the default. To be clear, both {opt cwe:ight} and {opt ind:icators} can be optioned, but only one or the other 
 can be provided as {varlist} prefixes.
 
 {phang}
@@ -356,7 +360,7 @@ the original responses, perhaps so as to facilitate research into consequences o
 (e.g. projection/assimilation effects) on the resulting placements.
 
 {phang}
-{opth SMc:all(subprogramname [args] | [, options])} invoke a (generally) user-written subprogram by specifying, 
+{opth SMc:all(subprogramname [args] | [, options])} invoke a (generally user-written) subprogram by specifying, 
 in the first argument, the name of the subprogram and, in subsequent arguments, either the the names of locals 
 to be passed to that program as positional arguments or, following a comma, a standard Stata optionslist. See 
 help {help genWriteYourOwn} for details and two model programs, one of which calculates polarization measures 
@@ -365,7 +369,7 @@ each of a number of listed political parties, estimates the yield in votes to be
 gives to that issue the maximum possible amount of emphasis.{p_end}
 
 {phang}
-{opth gen:call(commandname [, options])} invoke a (generally) existing Stata command by placing, in the string 
+{opth gen:call(commandname [, options])} invoke a (generally existing) Stata command by placing, in the string 
 argument, a complete Stata commandline, including any relevant options needed by that command, to which can 
 be added any additional options common to all {bf:stackMe} {bf:gen...} commands (such as {opt nocon:texts} 
 and {opt lim:itdiag}) as needed. This existing command could be the {bf:stackMe} command {cmdab:genme:anstats}, that 
@@ -481,6 +485,5 @@ To understand the function of {opt SMc:all(iyield...)}, whose utility will likel
 subfield of electoral studies) see:{break}
 De Sio, L., and Weber, T. (2014). "Issue Yield: A Model of Party Strategy in Multidimensional Space." 
 {it:American Political Science Review}, 108(4): 870-885.{break}
-For an example of the use of MCA to create a quasi-affinity measure in multi-level data see Weber, T and 
-Franklin, M. (2018) "A behavioral theory of electoral structure." {it:Political Behavior}, 40: 831–856.
-
+For an example of the use of MCA to create a quasi-affinity measure in multi-level data see:{break} 
+Weber, T and Franklin, M. (2018) "A behavioral theory of electoral structure." {it:Political Behavior}, 40: 831–856.
