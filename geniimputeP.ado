@@ -1,6 +1,4 @@
-*! Feb 21'26
-
-
+*! Mar 22'26
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
@@ -10,17 +8,14 @@ program define geniimputeP
 *! geniimputeP (was geniimpute) version 2 is called by stackmeWrapper version 2 to run under Stata versions 9/16, updated Feb,Apr'23 by MNF
 *! Minor tweaks in Nov 2024. Reorganized in March 2025 when previous geiimputeP became geniimputeO; here iimputeP_body becomes iimputeP
 
-	// This program is called by stackmeWrapper once for each context, if user employs piped syntax. It, in turn, calls geniimpute_body, 
-	// which impliments the multi-varlist technology to process on one pass all varlists grouped by the wrapper on the basis that
-	// they have identical options in effect.
-	// (below) once for each context, having first created needed variables and local vars (passed as arguments to geniimpute_body)
+	// This program is called by stackmeWrapper once for each context. It, in turn, calls geniimpute_P they have identical options in effect.
+
 	//    Lines terminating in "**" should be inspected if this code is adapted for use in a different `cmd'							**
-	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								**
+	//    Lines terminating in "***" are for Lorenzo to inspect and hopefully agree with changes in logic								***
 	 
-*pause on
 
 
-	version 11													// geniimputeP version 2.0
+version 11														// geniimputeP version 2.0
 
 	
 global errloc "geniiP"											// Global that keeps track of execution location for benefit of 'errexit'
@@ -82,6 +77,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	
 	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
 																// MAYBE REVISE THIS USE EXISTING SCALARS TO REPLACE GLOBALS			***
+
 	  local vlnvl = "vl`nvl'"
 	  local varlist = "$`vlnvl'" 								// Varlist for each nlv was stored in global by geniimputeO
 *	  global `vlnvl' = ""										// Empty that global after transferring contents to local `varlist'
