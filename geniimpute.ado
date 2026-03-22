@@ -3,7 +3,7 @@
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
 											
-											// Called by 'genii' a separate program defined after this one
+											// Called by 'gendu' a separate program defined after this one
 											// Calls subprogram stackmeWrapper
 
 program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
@@ -116,16 +116,21 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
 end // geniimpute			
 
 
-*****************************************************************************************************************************************
+************************************************* END geniimpute **********************************************************
 
 
-capture drop genii
+
+
+************************************************** PROGRAM genii **********************************************************
+
+
+capture program drop genii
 
 program define genii
-
-geniimpute `0'													// Invoke the command using its full name and append what user typed
+															// (should that be needed)
+geniimpute `0'
 
 end genii
 
 
-**************************************************** END GENII ****************************************************************************
+*************************************************** END genii **********************************************************
