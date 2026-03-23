@@ -1,3 +1,4 @@
+*! Mar22'26
 
 capture program drop genyhatsP					// Originally `genyhats', in Version 2 is called by `stackmeWrapper'
 
@@ -54,9 +55,11 @@ capture noisily {												// introduces codeblocks within which any error wil
 global errloc "genyh(1)"
 	
 	
+	
+
 											// (1) deal with options (these are the same for all varlists in set)
 											
-	if MULTIVARIATE !=""  local multivariate = "yes"
+	global multivariate = "`multiveriate'"  					// Global will tell 'predcen' what user optioned
 	
 	local isprfx = ""											// By default there is no prefix, so not a multivariate analysis
 																// (unless `multivariate' was optd (now in $multivariate))
@@ -67,17 +70,19 @@ global errloc "genyh(1)"
 		if `limitdiag'<=`c'  local limitdiag = 0				// And `limitdiag' becomes =0 if  `c' is >=`limitdiag'
 	}
 	
-	if `c'==1  {												// MOVE THIS CODEBLOCK TO genyhatsO WHEN IMPLEMENTED				***
+/*	if `c'==1  {												// MOVE THIS CODEBLOCK TO genyhatsO WHEN IMPLEMENTED				***
 		local apr = "_"											// By default `apr' contains just the final "_" of var prefix
 		if "`aprefix'"!=""  local apr = "`aprefix'"				// If `aprefix' was optioned it replaces that "_"
-	
+																// `genyhats' AND EVENTUALLY OTHERS USE OUTCOME NAMES NOT INTERIMS	***
+		if substr("`dprefix'",-1,1)=="_"  local dprefix = substr("`dprefix'",1,strlen("`dprefix'")-1)
 		local dpr = "d`apr'"									// By default `dpr' is "d" followed by `apr' (usually just "_")
 		if "`dprefix'"!="" local dpr = "`dprefix``apr'"			// If a different `dprefix' was optioned, it replaces the "d"
 	
+		if substr("`iprefix'",-1,1)=="_"  local iprefix = substr("`iprefix'",1,strlen("`iprefix'")-1)
 		local ipr = "i`apr'"									// Ditto for `ipr'
 		if "`iprefix'"!=""  local ipr = "`iprefix'`apr'"
-	}	
-																// WEIGHT IS APPLIED SEPARATELY FOR EACH nvarlst, below
+*	}	
+*/																// WEIGHT IS APPLIED SEPARATELY FOR EACH nvarlst, below
 	if "`adjust'"!=""  {
 	   local cen = substr("`adjust'",1,3)						// Require only 1st 3 chars of keyword								***
 	   foreach str in "mea con no"  {
@@ -104,7 +109,7 @@ global errloc "genyh(1)"
 				
 				
 				
-				
+pause genyh(2)				
 global errloc "genyh(2)"
 
 				
@@ -120,19 +125,21 @@ global errloc "genyh(2)"
 	forvalues nvl = 1/`nvarlst'  {						 		// Cycle thru varlists included in possible multivarlist
 																// (default prefix is in option `depvarname')
 		 local isprfx = ""										// Flag tells 'predcent' if this is a multivariate analysis
-		 local dvar = GOTAT`nvl'								// If there was a yh@ prefix, depvar is in scalar (else use optd versn)
-		 if "`dvar'"==""  local dvar = "`depvarname'"			// `dvar' is local version of (prhps optd) `depvarname', which is default
-		 local prfxvars = PRFXVARS`nvl'							// Retrieve any prefixvar from relevant scalar primed before wrapper(3)
-		 if "`prfxvars'"!="" & "`prfxvars'"!="."  {				// If prefixvar is non-empty/non-missing this is a multivariate analysis
+		 local dvar = "`depvarname'"							// `dvar' is local version of (prhps optd) `depvarname', which is default
+		 local prfxvar = PRFXVARS`nvl'							// Retrieve any prefixvar from relevant scalar primed before wrapper(3)
+		 
+		 if "`prfxvar'"!="" & "`prfxvar'"!="."  {				// If prefixvar is non-empty/non-missing this is a multivariate analysis
+		   local dvar = "`prfxvar'"								// (if there was a yd_ prefix, depvar is in scalar; else use optd vrsion)
 		   local isprfx = "yes"									// If there is a prefixvar then this is a multivariate genyhats
-		   local prfxstr = PRFXSTRS`nvl'						// Retrieve string prefix to that var, if any
-		   if "`prfxstr'"!=""  {
-		   	  if "`prfxstr'"=="yh"  local prfxstr = "yd"
+/*		   local prfxstr = PRFXSTRS`nvl'						// Retrieve string prefix to that var, if any
+		   if "`prfxstr'"!=""  {								// COMMENTED OUT 'COS HAPPENS IN 'cleanup'								***
+		   	  if "`prfxstr'"=="yh"  local prfxstr = "y"
 		   	  local dpr = "`prfxstr'`apr'"						// If `prfxstr' is not empty, override any existing `dpr' (set above)
 		   } //endif `prfxstr'
-		 } //endif `prfxvars'									// Else will generate bivariate yhats (unless user optn overode default)
+*/		   
+		 } //endif `prfxvar'									// Else will generate bivariate yhats (unless user optn overode default)
 																// SEEMINGLY A LOT OF REDUNDANCY ABOVE									***
-																
+						   							
 		 local indepvars = VARLISTS`nvl'
 
 		 if `c'==1  {				 							// Display these diagnostcs while processng 1st contxt					**
@@ -166,7 +173,7 @@ global errloc "genyh(2)"
 		
 		
 global errloc "genyh(3)"
-	
+pause 	
 	
 	
 	
@@ -175,8 +182,10 @@ global errloc "genyh(3)"
 											
 set tracedepth 5
 *		 ********
-		 predcent `indepvars' `wtexp', depvarname(`dvar') cen(`cen') isprfx(`isprfx') logit(`logit') limitdiag(`limitdiag')
+		 predcent `indepvars' `wtexp', depvarname(`dvar') cen(`cen') isprfx(`isprfx') logit(`logit') limitdiag(`limitdiag') nvl(`nvl') ///
+				   dpr("`dpr'") ipr("`ipr'")
 *		 ********												// Code for called program follows code for this one
+
 set tracedepth 4
 				
 
@@ -237,23 +246,23 @@ global errloc "genyh(4)"
 global errloc "genyh(5)"
 	
 											// (5) Break out of `nvl' loop if `postpipes' is empty
-											// 	   (or pre-process syntax for next varlist)
+											// 	   (or pre-process syntax for next varlist) COMMENTED OUT `COS NOW USING SCALARS
 
-		 if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `postpipes' is empty 
+/*		 if "`postpipes'"==""  continue, break					// Break out of `nvl' loop if `postpipes' is empty 
 																// Else ...
 		 local anything = strltrim(substr("`postpipes'",3,.))	// Strip leading "||" and any blanks from head of `postpipes'
-																// (`anything' now contains next varlist and any later ones)
+*/																// (`anything' now contains next varlist and any later ones)
 		 local isprfx = ""										// Switch off the prefix flag if it was on
 
 				   
 				   
-	   } //next `nvl' 											// (next list of vars having same options)
+	} //next `nvl' 												// (next list of vars having same options)
 				
-/*	   if $exit==0 {											// COMMENTED OUT COS NOW DONE IN WRAPPER
-		  if (`nc' > 1 &`limitdiag'!=0  &`c'<`limitdiag') { 	// Display diagnostics, if optioned
-			 noisily display _newline "Context {result:`c'} ({result:`contextlabel'}) has `numobs' cases"
-		  }
-	   }
+/*	if $exit==0 {												// COMMENTED OUT COS NOW DONE IN WRAPPER
+		if (`nc' > 1 &`limitdiag'!=0  &`c'<`limitdiag') { 	// Display diagnostics, if optioned
+			noisily display _newline "Context {result:`c'} ({result:`contextlabel'}) has `numobs' cases"
+		}
+	}
 */			
 
 
@@ -262,7 +271,7 @@ global errloc "genyh(5)"
 
 	
 * *************
-} //end capture
+capture } //end capture											// CAPTURE ADDRESSES "not a valid command" ERROR
 * *************
 
 
@@ -274,8 +283,11 @@ if _rc & "`skipcapture'"==""  {
 
 } //endif _rc
 			
-	
 
+capture }														// STATA DID NOT FIND CLOSING BRACES – DK WHY				***
+																// (all braces are balanced according to me)
+																
+															
 end genyhatsP
 
 
@@ -297,7 +309,8 @@ program define predcent   					// Program to predict and center variable(s) on t
 
 	version 9.0
 
-	syntax varlist [aw fw iw pw] , depvarname(varname) cen(string) [ logit(str) isprfx(str) extradiag(str) * ]
+	syntax varlist [aw fw iw pw] , depvarname(varname) cen(string) [ logit(str) isprfx(str) extradiag(str) nvl(integer 0) ] ///
+								   [ dpr(str) ipr(str) * ]
 								   
 								 
 								 
@@ -311,42 +324,43 @@ capture noisily {											// introduces codeblocks within which any error will
 *****************
 
 
+	if "`isprfx'"!=""  local multivariate = "yes"			// `isprfx' was established in caller
 
-								 
-								 
+	local varlist = VARLISTS`nvl'							// (same as in `varlist' if analysis is not multivariate)
+	
 	if "`cen'"=="null"  local cen = ""						// Argument cannot travel as an empty string; should be absent
 	
 	if "`weight'"!="" local wt = "[`weight'`exp']"
 	if "`extradiag'"==""  local quietly = "quietly"			// By default `quietly' is empty
 
-	local dvar = "`depvarname'"
-*	local cen = "`center'"
-	local nvars = wordcount("`varlist'")
+	local dvar = "`depvarname'"								// Default user-optioned depvar
+	if  PRFXVARS`nvl'!=""  local dvar = PRFXVARS`nvl'		// Override with varname found in var(list) that preceed a colon
+
+	if "`multivariate'"!=""  {								// If this varlist is multivariate (whether optioned or string-prefixed)..
 	
-	
-	if "`isprfx'"!="" | "$multivariate"!=""  {				// Multivariate analysis for which `varlist' provides indeps
-*		global multivariate = "multivariate"				// (SHOULD HAVE BEEN DONE IN wrapper)
-															// (global established in wrapper according to user option)
-		local yhat = /*"`ydprefix'"*/"d_`depvarname'"		// (yhats have additional "y" prefix but NOW DONE IN 'cleanup')
- 
+		local yhat = "m_`dvar'"								// For multivariate yhat there can only be one outcomename in this `nvl'
+															// (WE USE `outcmnames' SINCE NAME CAN CHANGE FROM VARLIST TO VARLIST)
+*		global interims = "`yhat'"							// For multivariate yhats the interim is the outcmname
+															// AS FOR OTHER `cmd's W' VARLIST-SPECIFIC OUTCOMES, PUT IN GLOBAL – NOT! ***
+		
 		capture quietly generate `yhat' = .					// By default make the yhat missing
 
 		if "`logit'"==""  {									// If `logit' was NOT optioned ...
+*			*******************************************		// Initiate a regression analysis
 			`quietly' capture reg `dvar' `varlist' `wt'		// `quietly' is effected unless `extradiag' was optioned above
-			local rc = _rc									// Save RC for use below
-/*															// NEXT LINES COMMENTED OUT 'COS DONT WANT 'reg' CMD TWICE		***
-			if "`extradiag'"!="" reg `dvar' `varlist' `wt'  // If insufficient obs or other error, leave result missing
-			else  qui capture reg `dvar' `varlist' `wt'		// Quietly unless extradiag was optioned
-*/		}
+*			*******************************************
+			local rc = _rc									// Save RC in local for use below
+		}
 		
-		else  {												// Else `logit' WAS optioned
-*			qui capture logit `dvar' `varlist' `wt' 		// COMMENTED OUT 'COS DONT WANT 'logid' CMD TWICE
-			`quietly' logit `dvar' `varlist' `wt' 			// `quietly' is effected unless `extradiag' was optioned above
-*			else qui logit `dvar' `varlist' `wt'			// COMMENTED OUT 'COS DONT WANT 'logit' CMD TWICE
+		else  {												// Else `logit' was optioned
+*			********************************************
+			`quietly' capture logit `dvar' `varlist' `wt' 	// `quietly' is effected unless `extradiag' was optioned above
+*			*********************************************	// COMMENTED OUT 'COS DONT WANT 'logit' CMD TWICE
 			local rc = _rc									// If insufficient obs or other error, leave result missing
 		}
 
 		if `rc'==0  {										// If there are sufficient cases for this analysis
+		
 			tempvar NN			
 			quietly predict `NN'							// Tempvar holds prediction that will replace `yhat'
 			quietly replace `yhat' = `NN'
@@ -361,7 +375,7 @@ capture noisily {											// introduces codeblocks within which any error will
 					local adj = r(mean)
 				}
 
-				if "`logit'"==""  {
+				if "`logit'"==""  {							// If logit flag is empty..
 					quietly replace `yhat' = `yhat' - `adj' // This is a regression adjustment (straightforward)
 				}											
 
@@ -385,27 +399,40 @@ capture noisily {											// introduces codeblocks within which any error will
 			drop `NN'
 				
 		} //endif _rc
+		
+		
+		else  {												// Else there was a non-zero return code
+		
+			if `rc'==2000  {
+				scalar NOOBS = NOOBS + " `nvl'"
+			}
+			else  {
+				errexit, msg("Stata reports error `rc' from command $cmd") rc(`rc')
+				exit 1
+			}
+		}
 
 	} //endif $multivariate
 
 
 		
-	else  {											 		// Multiple bivariate analyses: one analysis for each indep
+	else  {											 		// This is a multiple bivariate analyses: one analysis for each indep
+			
+		local nl = wordcount("`varlist'")					// N of vars found by 'syntax' (same as in VARLISTS`nvl' pre-wraooer(3))
 
-		foreach indep of local varlist  {					// (yhats have `iprefix') 
-
-			local yhat = "i_`indep'"
+		forvalues i = 1/`nl'  {
+			
+			local iname = word("`varlist'",`i')				// (and initialized in the same order)
+			local yhat = "b_`iname'"						// Standard interim has just the initial letter of cmdname as prefix
 			capture quietly generate `yhat' = .				// By default make the yhat missing
 
 			if "`logit'"==""  {								// If `logit' was NOT optioned ...
-				capture `quietly' reg `dvar' `indep' `wt'
+				capture `quietly' reg `dvar' `iname' `wt'
 				local rc = _rc								// If insufficient obs or other error, leave result missing
-*				if (`rc' == 0 & "`extradiag'"!="") reg `dvar' `indep' `wt'
-			}												// ABOVE LINE COMMENTED OUT 'COS DONT WANT `reg' CMD TWICE
+			}
 
 			else {											// Else `logit' was optioned
-				capture logit `dvar' `indep' `wt'
-				if (_rc == 0 & "`extradiag'"!="") logit `dvar' `indep' `wt'
+				capture `quietly' logit `dvar' `iname' `wt'
 				local rc = _rc								// If insufficient obs or other error, leave result missing
 			}
 				
@@ -432,6 +459,7 @@ capture noisily {											// introduces codeblocks within which any error will
 					else  {					
 						tempvar exponNN						// Else this is a logit adjustment ...
 						qui gen `exponNN' = logit(`yhat')
+						
 						if "`cen'"=="con"  {
 							replace `yhat' = invlogit(expon`NN'-_b[_cons])
 						}									// (both _b and _cons are system _variables (see 'help _variables'))
@@ -439,8 +467,9 @@ capture noisily {											// introduces codeblocks within which any error will
 						else  {								// Need weighted mean of the logit(`yhat')					***
 							quietly sum `exponNN' `wt', meanonly 
 							quietly replace `yhat' = invlogit(`exponNN'-r(mean))
-							capture drop `exponNN'
 						}
+						
+						capture drop `exponNN'
 
 					} //end else logit adjustment
 
@@ -450,7 +479,7 @@ capture noisily {											// introduces codeblocks within which any error will
 
 			} //endif _rc
 
-		} //next `indep'
+		} //next `iname'
 
 	} //end else bivariate
 	
@@ -467,8 +496,8 @@ capture noisily {											// introduces codeblocks within which any error will
 
 if _rc & "`skipcapture'"!=""  {
 	
-	errexit "program error"
-	
+	errexit "Stata has diagnosed a program error in genyhats' 'predcen'"
+	exit _rc
 }
 
 	
@@ -479,5 +508,3 @@ end predcent
 
 
 ***************************************************** END SUBROUTING predcent **************************************************
-
-
