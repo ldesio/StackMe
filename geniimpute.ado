@@ -1,4 +1,4 @@
-*! Mar 22'26
+*! Apr 14'26
 
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
@@ -40,8 +40,6 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 	
 	local save0 = "`0'"
 	
-		   
-	scalar NMISCNTXT = 0							// Just for 'genii' we count N of contexts with no non-missing vars
 	
 	
 *	*************************
@@ -63,7 +61,7 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 										
 										
 											
-local rc = _rc							// HOW DO WE GET A NON-ZERO RC WHEN WRAPPER TERMINATED W exit 0
+local rc = _rc							
 
 local rc = 0
 
@@ -116,12 +114,8 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
 end // geniimpute			
 
 
-************************************************* END geniimpute **********************************************************
 
-
-
-
-************************************************** PROGRAM genii **********************************************************
+************************************************** PROGRAM genii *********************************************************
 
 
 capture program drop genii
@@ -133,4 +127,4 @@ geniimpute `0'
 end genii
 
 
-*************************************************** END genii **********************************************************
+*************************************************** END PROGRAM **********************************************************
