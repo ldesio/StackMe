@@ -1,6 +1,6 @@
-Mar 22'26
+*! Apr 14'26
 
-capture program drop genstacksP							// Program that does the actual reshaping of data, context by context			
+capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
 program define genstacksP								// Called from 'stackmeWrapper', makes no calls on other subprograms
 
@@ -11,7 +11,7 @@ program define genstacksP								// Called from 'stackmeWrapper', makes no calls
 *!  However, reshape is not the slow part. A faster merge command would be good!
 
 
-	version 16.1										// stackMe's genstacks version 2.0, June 2022, updated 2'23, Aug'24, Nov'24
+	version 16.1				// stackMe's genstacks version 2.0, June 2022, updated 2'23, Aug'24, Nov'24
 	
 	// This version of genstacks reshapes each context separately. It does labeling of vars and data in `cmd' caller. It  
 	// doesn't use Stata's code for duplicating variables that are not reshaped. Instead it saves those variables and later   
@@ -26,7 +26,7 @@ program define genstacksP								// Called from 'stackmeWrapper', makes no calls
 	// get the version # (I was unable to discover how to get the version number from Stata itself.) thus: 
 	// 'mata: st_numscalar("temp", statasetversion()', returns versn # in scalar 'temp'. But frames proved slower than tempfiles.
 
-
+*set trace on
 
 
 global errloc "genstacksP(1)"								// Global that keeps track of execution location for benefit of 'errexit'
