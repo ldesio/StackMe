@@ -1,5 +1,5 @@
-*! Fwb 23`26
-
+*!Apr 14'26
+*! Apr 14'26
 {smcl}
 {cmd:help {cmdab:genst:acks}}
 {hline}
@@ -33,7 +33,11 @@ typing and provides less opportunity for error.
 {p 2 2 2}
 Stubnames must be the same for all variables in a battery. If a battery's variables do not have consistent 
 stubnames, each with a numeric suffix that distinguishes one battery item from the next, then they need to be 
-{help rename}d before invoking {cmdab:gens:tacks}. See {bf:Stata}'s {help rename group}, especially rule 17.
+{help rename}d before invoking {cmdab:gens:tacks}. See {bf:Stata}'s {help rename group}, especially rule 17. 
+{bf:IF STUBNAMES OVERLAP} (e.g. {it:rsym1-rsym9, rsymr1-rsymr9 and rsyms1-rsyms9}) only the variables with the 
+longest stub(s) in such a set (in this example there are two batteries of variables with equally long stubnames) 
+can be defined using Syntax 2. Remaining variables in such a set (in this example just one such battery of 
+variables) {ul:must} be defined using Syntax 1.
 
 {p 2 2 2}
 Variables that are not battery members will be retained in the stacked data without themselves being reshaped. 
@@ -293,4 +297,3 @@ identifies individual stacks across the entire doubly-stacked dataset. Command {
 determines whether to doubly-stack the data based on whether the data are already stacked and the 
 manner in which the {opt S2u:nit} option is operationalized takes account of the same 
 considerations.{p_end}
-
