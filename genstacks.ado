@@ -1,5 +1,4 @@
-Mar 22'26
-
+*! Apr 14'26
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -15,7 +14,7 @@ program define genstacks									// Called by 'genst' a separate program defined
 
 
 global errloc "genstacks(0)"								// Records which codeblk is now executing, in case of Stata error
-
+pause genstacks(0)
 
 
 
@@ -86,14 +85,18 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 	
 	
 	
-										// Next codeblocks post-process new variables created in genstacksP
+pause genstacks(2)	
+global errloc "genstacks(2)"
+	
+										// NEXT CODEBLOCKS POST-PROCESS NEW VARIABLES CREATED IN 'genstacksP'
 
 										// (2) Make labels for reshaped vars, based on first var in each battery ...
 										
+										
 														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY									***
 										
-	stubsImpliedByVars `anything'						// Put 'genstacksO'- generated stubnames into `namelist'
-	local namelist = r(stubs)
+	local stubsImpliedByVars = GENSTKSTBS
+	local namelist = "`stubsImpliedByVars'"				// Put 'genstacksO'- generated stubnames into `namelist'
 	
 														// (genstacks only has a single varlist; so no "||", no ":")	
 	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
@@ -101,19 +104,21 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 														// (apparently unused)															***
 	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
 	
+		if "`stub'"=="."  continue						// If this word of `namelist' is missing, continue w next stub
+	
 		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
 
-			if real(substr("`var'",-1,1))==.  continue	// If final char is NOT numeric (real version IS missing)..
+			if real(substr("`var'",-1,1))==.  continue	// If final char of `var' is NOT numeric (real version IS missing)..
 														// ('continue' skips rest of foreach block, continues w' next var)
 			local label : variable label `var'			// See if that variable has a label		
 			if "`label'"=="" {							// If this var has no label, provide dummy label
-			   local varlabel = "stkd `var'"			// Use varname as label 
+			   local varlabel = "stkd `var'"			// Use varname preceeded by "stkd" as label 
 			   continue, break							// Break out of varlist loop because have label for stub (same as other stubs)
 			}
 
 			local loc = strpos("`label'", "==")			// Otherwise see if the label contains "==" (from gendummies)
 														// (meaning it starts with the associated varname)
-			if `loc'>0  & `loc'<15 {					// If 	label' contains varname, placed by 'gendummies' recover it
+			if `loc'>0  & `loc'<33 {					// If label' contains varname, placed by 'gendummies' recover it
 				
 				local varname = strtrim(substr("`label'", 1,`loc'-1)) // Assume "==" follows end of varname
 				capture confirm variable `varname'		// See if gendummies kept original varname at start of label			
@@ -128,30 +133,24 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 				local label : variable label `var'		// So proceed as above, providing..
 				if "`varlabel'"=="" {					// If this var has no label, provide dummy label
 					local varlabel = "stkd `var'"		// Use varname as label 
-					continue, break						// Break out of varlist loop because have label for stub
+					continue, break						// Break out of varlist loop because have label for stub (same for all stubs)
 				}
 				
 			} //endif 'loc'	
 			
-
-			
-global errloc "genstacks(2)"
-			
-
 			
 			else {										 // No "==" so is not from a gendummies-built battery
 			
-				if strpos("`label'", "`var'") > 0	{	 // If it has an embedded varname ...
-					local loc = strpos("`label'", "`var'")
-					local label = substr("`label'",`loc'+strlen("`var'"), .)
-					local cc = (substr("`label'", 1, 1))
+				if strpos("`label'", "`var'")  {	 	 // If it has an embedded varname ...
+					local label = stritrim(subinstr("`label'", "`var'","",.)) // Remove as many as found, & resulting " "
+					local cc = (substr("`label'", 1, 1)) // Get first char of "label"
 					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
 
 					while (strpos("<=>?@[\/]_{|}~", "`cc'") < 1) & ("`cc'" != "") & ( (a<45 & a!=41) | a>126 )  {
 					   local label = substr("`label'", 2, .) // (strpos & 41 are good; a<45 & a>126 are not)
 					   local cc =(substr("`label'"),1,1) 	 // Trim chars other than "good" above from front of label
 					   mata: st_numscalar("a", ascii("`cc'"))
-					}										 // (the above doesnt include " " so leading spaces get trimmed)
+					}										 // (the above doesnt include " " so trim leading spaces w nxt cmd)
 					local varlabel = "stkd " + strtrim("`label'")
 					continue, break							 // Break out of foreach 'var' because 1st var is all we need
 				}
@@ -168,11 +167,11 @@ global errloc "genstacks(2)"
 		
 		   local varlabel = strtrim("`varlabel'")		// Trim off any leading or trailing blanks
 
-		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric (conversion to real is not missing)
+/*		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric (conversion to real is not missing)
 			  local varlabel = substr("`varlabel'",1,strlen("`varlabel'")-1) 
 		   }											// shorten varlabel by one char from end of `varlabel'
 														// (exits 'while' when last char of label is not numeric)
-
+*/														// COMMENTED OUT IN CASE THIS WAS A GENDUMMIES LABEL
 		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
 		   quietly label var `stub' "`varlabel'"
 		   
@@ -185,7 +184,7 @@ global errloc "genstacks(2)"
 		   gettoken pfx1 tail : stub, parse("_")		// If `stub' starts with str pfx ending in "_", rest will go in `tail'
 		   if "`tail'"==""  local pfx1 = ""				// If `tail' is empty we need to empty `pfx1'
 		   else  {
-		   	  local tail = substr("`tail'",2,.) 		// Else `tail' is not empty, so trim "_" from its head
+		   	 local tail = strtrim(substr("`tail'",2,.)) // Else `tail' is not empty, so trim "_" from its head
 		   }											// (unless the 'else' clause is enclosd in braces, things can go wrong)
 		   gettoken pfx2 rest : tail, parse("_") 		// If there is another prefix, its content will be in `prfx2'
 		   if "`rest'"==""  local pfx2 = ""				// If not, this is signalled by `rest'=="" and we must empty `pfx2'
@@ -199,6 +198,12 @@ global errloc "genstacks(2)"
 	
 	} //next `stub'										// Find next now-reshaped var needing a label
 	 
+
+
+	 
+pause genstacks(3)		
+global errloc "genstacks(3)"
+			
 
 	 
 	 
@@ -230,9 +235,11 @@ global errloc "genstacks(2)"
 	 
 
 	 
-global errloc "genstacks(3)"
+pause genstacks(4)
+global errloc "genstacks(4)"
+
 		  
-									// (3) Drop unstackd versns of now stackd vars if 'replace' optiond; process any `itemname'
+									// (4) Drop unstackd versns of now stackd vars if 'replace' optiond; process any `itemname'
 									
 									
 	if "`replace'"=="replace" {							// If  commandline contains option "replace" (or allowed abbreviation)
@@ -291,13 +298,6 @@ global errloc "genstacks(3)"
 	} //endif
 
 
-
-	
-global errloc "genstacks(4)"
-
-
-
-
 	else  {													// Else `itemname' was not optioned ...	
 	
 	  if `limitdiag' {
@@ -307,7 +307,7 @@ global errloc "genstacks(4)"
 			display as error "NOTE: With no 'itemname' option, battery items are identfied only by var SMstkid{txt}"
 			display as error "Is there a variable in this dataset that labels the battery items appropriately?{txt}"
 *                        	  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window rusure ///
+			capture window stopbox rusure ///
 			"If there is a variable in this dataset that labels the battery items appropriately, can you name it?"
 			if _rc==0  {
 			  noisily display ///
@@ -350,39 +350,14 @@ global errloc "genstacks(4)"
 
 
 global errloc "genstacks(5)"
-/*															// COMMENTED OUT SINCE ALREADY DID THIS IN CODEBLK 2				***
-									// (5) Tidy & rename stackMe special vars if optioned ...
-									
-	local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
-	
-	if "$dblystkd"==""  {									// If this dataset has just been stacked for first time
-	   label var SMstkid "Sequential ID of stacks that were battery items in the unstacked data"
-	   egen SMnstks = max(SMstkid), by(`contexts')			// Tidy the SM variables created while stacking
-	   label var SMnstks "Number of stacks for each context in the single-stacked data"
-
-	   egen SMaxstk = max(SMstkid), by(`contexts')
-	   label var SMxstks "Maximum N of stacks for any context in the single-stacked data"
-	   drop `SMmxstks'
-	}
-	
-	else {													// If this dataset has just been doubly-stacked
-	   label var S2stkid "Sequential ID of secondary stacks in the double-stacked data"
-	   egen S2nstks = max(S2stkid), by(`contexts')
-	   label var S2nstks "Number of secondary stacks for each context in the double-stacked data"
-	   tempvar S2axstk
-	   egen `S2axstk' = max(S2stkid)
-	   qui replace S2xstks = `S2mxstks'
-	   label var S2xstks "Maximum N of stacks for any context in the double-stacked data"
-	   drop `S2mxstks'
-	}
-*/	
+pause genstacks(5)
 	
 	
 	
-									// (6)  Name the stacked (or doubly-stacked) file
+									// (5)  Name the stacked (or doubly-stacked) file
 	  	   
 	
-global errloc "genstacks(6)"								  // Store message locating source of any reported error
+															  // Store message locating source of any reported error
 
 	   
 	local report = "not saved."								  // Default is to save nothing
@@ -501,41 +476,56 @@ global errloc "genstacks(6)"								  // Store message locating source of any re
 	capture window stopbox rusure "`err'; retain partially post-processed data in memory and clean it up yourself – ok?"
 	
 	if _rc  {
-		display as err "Absent ok for retaining data to post-process, unstacked data will be restored"
-*              		    12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		window stopbox note "Absent ok for retaining data to post-process, on 'OK' unstacked data will be restored before exit"
-		use $origdta, clear
-		exit $SMrc
+		errexit "Absent ok for retaining data to post-process, unstacked data will be restored"
+*              	 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		exit 1
 	}
 	
 	else {													// Else 'ok' was clicked
-		errexit "(Partially) post-processed data is retained in memory."
-		exit $SMrc
+		noisily display "(Partially) post-processed data is retained in memory."
+		capture window stopbox stop "(Partially) post-processed data is retained in memory.
+		exit 1
 	}
 
-  } //endif _rc & ! `skipcapture'
+  } //endif _rc & ! `skipcapture'&..
   
 
   *****************
-} //endif $SMreport									// Close braces that delimit code skipped on return from error exit
-  ****************
+} //endif $SMreport											// Close braces that delimit code skipped on return from error exit
+  ****************											// (prefix avoids "} is not a valid command name" error w' errexit')
+		
+capture }													// Cluge should avoid "matching close brace not found" on errexit
+
+		
+    if "$SMreport"==""	{									// Lack of $SMreport means did not already tidy up; do so now ...
+															// Drop all globals, restoring those needed by succeeding stackMe commands
+	  scalar origdta = "$origdta"							// Ditto for $origdta
+	  scalar multivarlst = "$multivarlst"					// Ditto for $multivarlst
+	  scalar limitdiag = "$limitdiag" 						// And for $limitdiag
+	  scalar SMreport = "initialized"						// Need this work-around in case "$SMreport was never set non-empty
+	  scalar SMreport = "$SMreport"							// (an undefined scalar cannot be defined by assigning it an empty global)
+	  capture confirm number $SMrc
+	  if _rc  {												// If not a numeric return code
+	  	if "$SMrc"=="" global SMrc = ""						// If empty ensure it is initialized
+	  }														// (leave unchanged if not empt)
+	  macro drop _all										// Drops above globals (along with many others and all locals) before exit
+	
+	  global origdta = origdta								// Global origdta is needed by caller programs, re-entered on 'end' below
+	  global multivarlst = multivarlst						// Ditto for $multivarlst (used in many caller programs)
+	  global limitdiag = limitdiag							// And for limitdiag (used ubiquitously)
+	  if SMreport !="initialized" global SMreport =SMreport // And $SMreport, if its scalar's "initialized" flag has been replaced
+	
+	  scalar drop _all										// Drop all scalars before exit
+	  
+	  capture drop ___*										// Drop all quasi-temporary vars
+	  exit 0												// Exit with return code 0 even if there were no tempvars to drop
+	
+    } //endif $SMreport 									// ABOVE DROPS scalars VARLISTS#, PRFXVARS# & PRFXSTRS BUT WE CAN KEEP
+
   
-capture }													// CLUGE PREVENTS SPURIONS "matching close brace not found" ERROR
-
-  global multivarlst										// Clear this global, retained only for benefit of caller programs
-  capture erase $origdta 									// (and erase the tempfile in which it was held, if any)
-  global origdta											// Drop the global holding its name
-  if "$SMrc"!="" scalar RC = $SMrc 							// If return code indicates that it does, stash it in scalar RC
-  else scalar RC = 98765									// Else stash an unused return code
-  if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
-  macro drop _all											// Drop all macros (including $SMrc, if extant)
-  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
-  scalar drop _all 											// Drop all scalars, including RC
-
-  exit `rc'
+exit														// Cluge avoids "close brace not found" on 'errexit'
  
 end genstacks	
-
 
 
 ************************************************** program genst *********************************************************
@@ -553,3 +543,4 @@ end genst
 
 
 *************************************************** END PROGRAMS **********************************************************
+
