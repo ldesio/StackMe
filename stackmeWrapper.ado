@@ -1,4 +1,14 @@
-Mar 22'26
+*! Apr 14'26
+*!
+*! Version 9d attempts to deal with command lines that contain varlists consisting of either stubnames or varnames (in ||-separated 
+*! lists) instead of assuming that all ||-separated varlists are the same (either all stublists or all varlists). THIS INVOLVES
+*1 restoring previous version of 'varsImpliedByStubs' and moving into 'genstacksO' code from the interim version of 'varsImpliedBy..'
+*! (commented out below restored version) code that parses the user-typed varlist into separate varlists of each type; then calling
+*! the new version of 'varsImplied..' only for varlists that did contain only stubs.
+
+
+*! THIS VERSION EXPECTS `CMD'P-GENERATED INTERIMS TO HAVE VARNAMES THAT INCORPORATE (PERHAPS STRPRFX-ORIGINATED) `aprefix'ed VARNAMES
+*! (INITIALLY ONLY genyhatsP HAS THE NECESSARY CODE)
 
 capture program drop stackmeWrapper
 
@@ -124,10 +134,8 @@ scalar pauseon = "$PAUSEON"
 		macro drop _all					// Global flags, etc., may have remained active on earlier error exit, so this cmd is issued
 		global save0 = SAVE0			// here – the earliest point where all stackMe commands share the same lines of program code.
 		global PAUSEON = pauseon		// We don't want this turned off at start of every stacmMe command ('save0' & 'pauson' are 
-		global nmiscntxt = NMISCNTXT	// This is just for 'geniimpute'
 		scalar drop _all				// scalars set at top of left-hand column; similar scalar useage is seen in program 'errexit'
 *		************************		// and in final codeblock of each caller program.
-		scalar NMISCNTXT = $nmiscntxt 	// Retrieve this scalar, used in geniimputeO
 		capture drop ___*				// Drop quasi-temporary variables used to deal with name conflicts, remaining after error exit
 										
 *		**************************		// Used by subprogram 'errexit' where un-anticipated Stata-reported non-zero return codes are 
@@ -413,21 +421,6 @@ pause (1)
 		if ("`nostacks'" != "")  local stackid = "" 		// But treating stacked data as unstacked is still possible					***
 															// (except in genstacks, where it is treated as an error – see 'cmd'O)
 														
-		if "`stackid'"!=""  {								// Else have SMstkid
-		
-			capture confirm variable S2stkid				// So check if also have S2stkid
-			if _rc==0  {
-				local dblystkd = "dblystkd"
-				if `limitdiag' noisily display "NOTE: This dataset appears to be double-stacked (has S2stkid variable){txt}"
-*						 		                1234567890123456789012345678901234567890123456789012345678901234567890123
-			}
-			else  {											// Stacked but not doubly-stacked
-			    if `limitdiag' noisily display "NOTE: This dataset appears to be stacked (has SMstkid variable){txt}"				
-			}
-			
-		} //endif 'stackid'									// SMstkid and other such will be put in working data 
-															// (after 'origdta' has been saved)
-		
 		
 		if "`cmd'"=="gendist"  {
 		   if "`missing'"!=""  {
@@ -1082,7 +1075,7 @@ pause (2.1)
 		 } //next `while'											// End of codeblks processing successive varlists within multivarlst
 *	     ****************											// Local lists processed below cover all varlists in multivarlst	
 *																	********************************************************************
-pause on
+
 pause endwhile
 pause off											
 	
@@ -1198,7 +1191,7 @@ pause off
 		  qui generate `indicator' = 0							// So generate a new var named 'indicator', 0 by default
 		  qui replace `indicator' = 1 if `rest'					// Replace values of that variable to accord with 'ifind' expression
 	   }														// ('ifind' may include varname(s) but don't need to keep those)
-	   else unab "`indicator'"									// Else 'indicator' contains a varname; unabbreviate it
+	   else unab indicator : `indicator'						// Else 'indicator' contains a varname; unabbreviate it
 																// ('unab' will exit with appropriate error msg if no such var)
 	} //endif 'cmd'=='genplace'									// ('indicator' local now names either original or tempvar variable)
 	
@@ -1343,10 +1336,10 @@ pause (5)
 		
 			if "`cmd'"=="gendist" & strpos("SMdmisCount SMdmisPlugCount","`v'")>0  global exists = "$exists `v'"
 			if "`cmd'"=="gendiimpute" & strpos("SMimisCount SMimisImpCount","`v'")>0  global exists = "$exists `v'"
-			if "`cmd'"=="genstacks" &"`dblystkd'"=="" &strpos("SMstkid S2stkid SMnstks S2nstks SMitem S2item SMunit S2unit","`v'")>0 ///
+			if "`cmd'"=="genstacks" & strpos("SMstkid S2stkid SMnstks S2nstks SMitem S2item SMunit S2unit","`v'")>0 ///
 				global exists = "$exists `v'"				// $exists already holds any conflicted varnames found by 'getprfxdvars'
 			if "`cmd'"=="genstacks" & "`dblystkd'"!="" & strpos("S2stkid S2nstks S2item S2unit","`v'")>0 ///
-				global exists = "$exists `v'"
+				global exists = "$exists `v'"				// For doubly-stacked data keep both SM.. & S2.. vars
 															// (invoked in codeblock 5.0)
 		} //next `v'
 		
@@ -1365,7 +1358,6 @@ pause (5.1)
 										// (5.1) Call on '_mkcross' to enumerate all contexts identified by a single variable
 										//		 that increases monotonically in increments of a single unit across contexts
 										//		 (the final variable we need to include in the working dtaset)
-										//		 Also check whether data has Stata missing data codes (>=.)
 										//		 ****************************************************************************
 *	  *************************		
 	  checkvars "`contextvars'"								// Just in case these contain a hyphenated varlst – see 1st call in 1.1
@@ -1451,18 +1443,20 @@ pause (6)								//		 **********************************************************
 		local temp = ""	
 		if "`cmd'" == "genstacks"  {						// Command genstacks deals with own varlist/stublist
 		
-		   local temp = r(impliedvars)						// (other sources supply 'multivarlst' for other 'cmd's)
+		   local temp = r(impliedVars)						// (other sources supply 'multivarlst' for other 'cmd's)
 		   if "`temp'"=="."  local temp = ""
-		   if "`temp'"!=""  global genstkvars = "`temp'"	// SEEMINGLY EMPTY										  ******************	***
+		   if "`temp'"!=""  global genstkvars = "`temp'"	// SEEMINGLY EMPTY `COS ISING SCALAR					  ******************
 		   local keep="`keepvars' `temp' `keepimpliedvars'"	// Append impliedvars to keepvars AND SAVE BOTH IN 'keep' HERE MORPH HAPPENS
 		   local inputs = "`temp'"							//														  ******************
-		   local multivarlst = r(reshapeStubs)				// Used in `cmd'P call, feeding 'reshapeStubs' to `cmd'P.
+		   local multivarlst = r(reshapeStubs)				// Used in `cmd'P call, feeding 'reshapeStubs' to `cmd'P (misnamed as vars)
+		   scalar GENSTKVARS = "`temp'"						// DK WHY THIS IS NOT COMING FROM 'genstO' – MAYBE DUE TO MISMATCHD PAREN?	***
+		   scalar GENSTKSTBS = "`multivarlst'"				// Feeds stublist to genstacks caller
 		   local multivarlst = subinstr("`multivarlst'",".","",.)   // Remove any missing variable symbols
 		   local multivarlst = subinstr("`multivarlst'",":"," ",.)  // Remove any colons
 		   local multivarlst = subinstr("`multivarlst'","||"," ",.) // Remove any pipes
 		   local multivarlst = strtrim(stritrim("`multivarlst'"))	// Remove any superfluous spaces
-
-		   local dups : list dups multivarlst				// Remove all ":" & "||"; trim all leading, trailing & internal extra blanks
+															// Remove all ":" & "||"; trim all leading, trailing & internal extra blanks
+		   local dups : list dups multivarlst	
 		   if "`dups'"!=""  {								
 			  local ndups = wordcount("`dups'")				// ******************************************************************
 			  local duplen = strlen("`dups'")				// THIS CODEBLOCK copied from 'getprfxdvars' to do same for genstacks
@@ -1478,7 +1472,7 @@ pause (6)								//		 **********************************************************
 				 capture window stopbox rusure "`rmsg'"
 			  } //enelse `ndups'
 			  if _rc {
-			  	 errexit "Lacking permission to drop duplicate varnames"
+			  	 errexit "Lacking permission to drop duplicate varname(s)"
 				 exit _rc
 			  }
 			  
@@ -1486,7 +1480,7 @@ pause (6)								//		 **********************************************************
 			  
 		   } //endif 'dups'									// END OF CODEBLK COPIED FROM `getprfxdvars'
 		   
-		   local outcomes = "$genstkvars"					// NAME IS ANOMOLOUS SINCE GENSTACK OUTCOMES ARE VARS THAT WERE STUBS
+		   local outcomes = GENSTKVARS						// NAME IS ANOMOLOUS SINCE GENSTACK OUTCOMES ARE VARS THAT WERE STUBS
 														    // (but wrapper does not know that)
 		} //endif 'cmd'=='genstacks'
 		
@@ -1515,8 +1509,6 @@ pause (6)								//		 **********************************************************
 	
 
 	
-
-	
 	if "`cmd'"!="genstacks"  {								// Get list of all outcomes for whatever command this may be
 	  	local outcomes = ""									// (genstacks outcomes were already filled from r(impliedvars), above)
 	  	forvalues nvl = 1/`nvarlst'  {
@@ -1524,22 +1516,35 @@ pause (6)								//		 **********************************************************
 		}
 	} //endif
 	  
-
+	
+/*	local lastvar = word("`outcomes'",-1)					// Record this so can we tell when the last var has been tested
+	
+	
+	capture confirm variable `lastvar'						// If final outcome is not a variable it must be a stub
+	if _rc  {
+*	   *****************************
+	   varsImpliedByStubs `outcomes'						// So convert those stubnames to varnames
+*	   *****************************
+	   local keep = r(keepv)
+	}														// This gets us a list of all vars starting with this stub
+*/															// ABOVE COMMENTED OUT AS NO WAY TO HANDLE MISSING DATA IN GENSTACKS
+															// (should be sufficient that each missing value will produce a stack)
 	  
 	tempvar count											// Check whether Stata missing data codes are in use
-	local lastvar = word("`outcomes'",-1)					// Record this so can we tell when the last var has been tested
-				
-	foreach var  of  local outcomes  {						// (similar code in 5.2 only if `showdiag'; & here overhead is small)
+															
+	if "`cmd'"!="genstacks"  {								// For now assume user will notice missing data stacks
+		
+	  foreach var  of  local keep  {						// If 'varsImplied..' was not invoked, `keep' has vars saved above
 
-		egen `count' = count(`var'>=.)  					// Count any observations with values >= missing
-
-		if `count' in 1  continue, break					// Break out of loop with first Stata missing data code found
+		quietly count if `var'>=.  							// Count any observations with values >= missing
+		
+		if r(N)<_N  continue, break							// Break out of loop with first Stata missing data code found
 		
 		if "`var'"=="`lastvar'"  {							// If this was the final variable in 'outcomes'..
 			local msg = "No variable in the working dataset has any Stata missing data codes"
 *					 	 12345678901234567890123456789012345678901234567890123456789012345678901234567890 
 			display as error "`msg'; continue?{txt}"
-			capture window stopbox rusure "`msg'; click 'cancel' and recode your missing data – or 'ok' to continue anyway"
+			capture window stopbox rusure "`msg'; click 'cancel' and recode your missing data – or 'OK' to continue anyway"
 			if _rc  {										// If user did not click 'OK'
 				errexit, msg("Recode missing data") displ	// Display msg in results window as well as stopbox
 				exit _rc
@@ -1548,35 +1553,44 @@ pause (6)								//		 **********************************************************
 		
 		noisily display "Execution continues..."
 		
-	} //next var
+	  } //next var
 			
-	drop `count'											// Drop this tempvar
+	  capture drop `count'									// Drop this tempvar (if it still exists)
 
-
+	} //endif !`genstacks'
+	
+	
 	
 *	***********************									// Check that all vars to be kept are actual vars
-	if "`keep'"!=""  {
+	if "`keep'"!="." & "`keep'"!=""  {						// If `keep' is neither missing nor empty..
 		checkvars "`keep'"									// See 1st call on checkvars in wrapper(1.1) for purpose
 		if "$SMreport"!="" exit 1							// Exit takes us straight back to caller, skipping rest of wrapper
 		local keep = r(checked)								// (May include SMitem or S2item generated just above)
-	}
-*	***********************										
+	} // ***********************							// (`keep' emerges from this 'if'-block not empty)
 		
-	local keepvars : list uniq keep							// Stata-provided macro function to delete duplicate vars
-															// (put in global so can be accessed by 'cmd' caller and subprograms)
+	else local keepvars = ""								// Else `keep' is, so far, empty; which eusures an empty `keepvars' 
+		
+	if "`keep'"!=""  {										// If we did not make `keepvars' empty then `keep' is not empty
+		local keepvars : list uniq keep						// Stata-provided macro function to delete duplicate vars
+		local keepvars = stritrim(subinstr("`keepvars'",".","",.)) // remove any missing variable indicators
+	} 														// (put in global so can be accessed by 'cmd' caller and subprograms)
 															// (`keepimpliedvars' is a list of varnames BEFORE stacking)
 	global keepvars	= "`keepvars' `_temp_ctx'"				// ($keepvars' has all varlists and optioned vars with dups removed)
 	
-															// ***************************************************************
+	
+	
+*	**************											// ***************************************************************
 *	**************											// HERE DROP UNWANTED VARIABLES FROM WORKING DATA FOR ALL CONTEXTS
 	keep $keepvars			 								// Keep only vars involved in generating desired results
 *	**************											// ***************************************************************
-
+*	**************
 
 
 *										*************************************************************
 										// NOTE THAT, JUST ABOVE, 'keep' MORPHED BACK INTO 'keepvars'
 *										*************************************************************
+	
+	
 	
 					
 global errloc "wrapper(6.1)"				
@@ -1587,11 +1601,10 @@ pause (6.1)								//		 ********************************************************
 										//		 ***********************************************************************************
 
 	if `nc'==1  local multiCntxt = ""						// If only 1 context after ifin, make like this was intended			
-															// (seemingly unused)															***
+															// (seemingly unused)														***
 	if "`multiCntxt'"==""  local nc = 1						// If "`multiCntxt' is empty then there is only 1 context
-															// ('multiCntxt' was initialized in `cmd'.ado)
-	local batwt = ""																  
-
+															// (above convoluted logic ensures we get only 1 context either way)
+															
 *	********************									************************************
 	forvalues c = 1/`nc'  {									// Cycle thru successive contexts (`c')
 *	********************									************************************
@@ -1763,7 +1776,7 @@ set tracedepth 5													// For 'genstacks' `multivarlist' is actually a stu
 	
 	
 	
-*pause on	
+	
 global errloc "wrapper(8)"										    // This codeblock is only executed if 'skipsave' is not true
 pause (8)				
 
@@ -1890,7 +1903,7 @@ pause (8)
 	if "`noobslst'"!=""  {
 		local msg = "No observations in context varlist(s):`noobslst'"
 		local msg = substr("`msg'",1,strlen("`msg'")-1)				// Remove final ";" from `msg'
-		errexit("`msg'")
+		errexit "`msg'"
 		exit 1
 	}
 	
@@ -2037,10 +2050,12 @@ pause (10)
 *  ***********
  
 *if _rc  exit _rc											// Apparently, a non-zero RC does not survive a higher-level end capture	***
-															// COMMENTED OUT TO SEE IF NUMEOUS NEW 'exit 1' CMDS, ABOVE, DO THE TRICK
-pause wrapper(11)
-											
-
+															// COMMENTED OUT TO SEE IF NUMEROUS NEW 'exit 1' CMDS, ABOVE, DO THE TRICK
+	
+	
+	
+	
+pause wrapper(11)											// SEEMINGLY SO!
 global errloc "wrapper(11)"
 
 
@@ -2054,9 +2069,11 @@ global errloc "wrapper(11)"
 	 exit 1
 
   } //endif _rc & ...
-															// (option 'display' sends msg to console as well to stopbox)
-															// (any call on errexit sends msg to stopbox)
-																														
+  
+* *****************************
+  if "`cmd'"=="genstacks"  exit								// If this is cmd 'genstacks' we return to its caller for cleanup
+* *****************************								// (and following commands are executed at the end of THAT subprogram)
+
     if "$SMreport"==""	{									// Lack of $SMreport means did not already tidy up; do so now ...
 															// Drop all globals, restoring those needed by succeeding stackMe commands
 	  scalar origdta = "$origdta"							// Ditto for $origdta
@@ -2130,11 +2147,159 @@ end //stackmeWrapper										// Here return to `cmd' caller for data post-proce
 
 
 
+********************************************************************************************************************************
+
+
+
+* THIS VERSION RETRIEVED FROM stackmeWrapper2c TO REPLACE MISGUIDED ATTEMPT AT DUPLICATING JOB OF `genstacksO', COMMENTED OUT BELOW
+
+																	 
+capture program drop checkvars					// Called from wrapper and several subprograms; elaborates unab
+												// (Should be renamed 'unablist' for "unab list of vars")
+		
+program checkvars, rclass						// Checks for valid input/outcome vars. Partially overcomes intermittant
+												//  error when unab is presented with a hyphentated list of varnames
+												// (with hyphentd AND non-hyphenated it can wrongly send non-zero return code)
+												// ("partially" because 'unablist' exits on first bad 'var-var' varlist, whereas
+												//	the whole point of this subprogram is to build a list of all bad varnames)
+												// In practice all bad varnames are listed unless interrupted by bad var-var
+local errloc = "$errloc"
+gettoken caller rest : errloc,  parse( "(" )					// Local `caller' gets name of program that called this subprogram
+
+global errloc "checkvars"										// Establish general location of any error that may be found below
+
+																// ORIGINALLY SENT varlist AS ARGUMENT, BUT THAT COULDN'T HANDLE PREFIXS
+*	args check noexit											// IF 1ST VARNAME IN 'check' IS PREFIXED, IT IS TAKEN AS THE ONLY VAR	***
+																// (may include hyphenated varlist(s))
+																
+*	****************	
+	capture noisily {
+*	****************
+
+	local anything = `0'										// Retrieve `anything' from `0', where 'syntax' expects to find it
+																// (substituting a null string for each double quotion markl)
+	if word("`anything'",-1)=="noexit"  {						// If last "var" in any varlist is "noexit", that is NOT a variable
+		local noexit = "noexit"									// (so put it in the local where this subprogram expects to find it)
+		local check = subinstr("`anything'","noexit","",1)		// And substitute null string for `noexit' string and put rest in `check'
+	}															// (where the rest of this subprogram expects to find it)
+	else  local check = "`anything'"							// If no `noexit' trailing arg, put all of `anything' into `check'
+	
+
+	local errlst = ""											// List of invalid vars and invalid hyphenatd varlsts
+										
+	if strpos("`check'","-")==0  {								// If there are no hyphenated varlists
+		foreach var  of  local check  {							// Cycle thru un-hyphenated vars in varlist
+			capture unab var : `var'							// If 0 not returned then variable does not exist
+			local rc = _rc										// Not sure if _rc persists beyond next command
+			if "`var'"=="."  continue							// If `var' is missing continue with next var
+			if `rc'  {											// Else if the `rc' saved just above is non-zero..
+				local errlst = "`errlst' `var'"					// Add that invalid var to 'errlst' if not missing
+			}
+			else local checked = "`checked' `var'"				// Else add that valid `var' to 'checked'
+		} // next `var'
+	} //endif 'strpos'
+		
+	else  {														// Else there are one or more hyphenated varlists
+		
+		local chklist = "`check'"								// Want to keep 'check' untouched for SM search, below
+		local checked = ""										// {portion of }
+																
+		while strpos("`chklist'","-") >0  {						// While there is an(other) unexpanded varlist in 'chklist'
+																// (chklist has 'head' to 'test2' removed at end of 'while')
+			local loc = strpos("`chklist'","-")					// Find loc of hyphen that defines the list
+			local head = substr("`chklist'",1,`loc'-1) 			// Extract string preceeding hyphen
+			local test1 = word("`head'",-1)						// Extract last word in 'head' (word before hyphen)
+			local tail = strtrim(substr("`chklist'",`loc'+1,.))	// Extract string followng hyphen (may contain another "-")
+			local test2 = word("`tail'",1)						// Extract the 1-word varname following the hyphen
+			local test3 = word("`tail'",2)						// Word following `test2', if any
+			
+			local t1loc = strpos("`chklist'","`test1'")			// Get loc of first word in hypnenated varlist
+			if `t1loc'>1  {										// If there are vars before 'test1', evaluate those
+			   local pret1 = substr("`chklist'",1,`t1loc'-1)	// These vars end before 'test1'; put them in 'pret1'
+			   foreach var  of  local pret1  {					// And evaluate each one
+			   	  capture unab var : `var'						// If 0 not returned...
+				  if "`var'"=="."  continue						// if `var' was returned missing, continue with next var
+				  if _rc  local errlst = "`errlst' `var'" 		// Add any invalid varname to 'errlst' if not missing
+				  else  {
+				  	local checked = "`checked' `var'"			// Else add the valid varname to `checked'
+				  }
+			   }
+			}								
+			local t12vars = "`test1'-`test2'"					// 't12vars' will be string "'test1'-'test2'" inclusive
+
+			capture unab t12vars : `t12vars'					// Put the unabbreviated list of vars into `t12vars'
+			if _rc {
+				errexit "Cannot process `t12vars' – perhaps non-var or in wrong order?"
+*						 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+				exit 1											// In this case, override `noexit' argument, if any
+			}
+			local checked = "`checked' `t12vars'"				// String of checked vars up to end of var `test2'
+			
+			if "`test3'"!=""  {									// If "`tail'" holds anything beyond end of hyphenated list
+				local loc = strpos("`tail'","`test3'")			// Get loc of start of that remaining tail (after any blanks)
+				local chklist = substr("`tail'",`loc', .)		// Put remaining tail (following any blanks) into checklist
+			}
+			else  continue, break								// If `test3' is empty, break out of while loop
+			
+			if strpos("`chklist'","-")  continue				// If it contains another hyphen, continue with that
+			
+			
+			foreach var  of  local chklist  {					// Otherwise check validity of remaining vars
+
+			   capture unab var : `var'
+			   if "`var'"=="."  continue						// If var was returned missing, continue with next var
+			   if _rc  {
+				  local errlst ="`errlst' `var'" 				// If _rc !=0 add any invalid vars to 'errlst'
+			   }
+			   else  {											// THESE BRACES ARE NEEDED, OR STATA DISREGARDS 'else'	?				***
+				 local checked = "`checked' `var'"				// Else add to list of checked vars
+			   }
+
+			} //next var
+			
+		} //next while
+			
+	} //endelse	`strpos'										// End of codeblock dealing with hyphated varlist(s)
+		
+	if "`errlst'"!="" & "`noexit'"==""  {						// If any bad varnames were identified (but not anticipated) ...
+		
+		dispLine "Invalid variable name(s): `errlst'" "aserr"	// May need multiple lines to display this error message
+		if "`noexit'"==""  {									// If `noexit' was not optioned on call to this subprogram..
+			errexit, msg("Invalid variable name(s): `errlst'")	// Then exit with stopbox message but no addtional display
+			exit 1												// 'errexit' w opt & w'out ',display' suppresses display
+		}														// Else return errlst to caller (next command after endif)
+	} //endif
+		
+	return local errlst `errlst'								// If not empty would already have caused an error exit
+	return local checked `checked'								// Return unabbreviated un-hyphenated vars in r(checked)
+																// (not clear we need to do this)
+	local skipcapture = "skip"
+
+		
+		
+		
+*	 *************	
+	} //endcapture
+*	 *************
+	
+	
+    if _rc & "`skipcapture'"==""  {
+   	   errexit "Error in $errloc"
+       exit _rc
+    }
+														
+	
+
+end checkvars
+
+
+
+*************************************************** end checkvars *****************************************************************
 
 capture program drop checkSM						// Called from stackmeWrapper (SMvars should be read as SMnames)
 
 program define checkSM, rclass						// Checks whether varlist creates any SMname vars (special names) & their linkags
-													// (those names should match already extant varnames)
+												// (those names should match already extant varnames)
 
 local errloc = "$errloc"
 gettoken caller rest : errloc,  parse( "(" )					  // Local `caller' gets name of program that called this subprogram
@@ -2258,149 +2423,6 @@ end checkSM
 
 
 
-********************************************************************************************************************************
-
-
-																	 
-capture program drop checkvars					// Called from wrapper and several subprograms; elaborates unab
-												// (Should be renamed 'unablist' for "unab list of vars")
-		
-program checkvars, rclass						// Checks for valid input/outcome vars. Partially overcomes intermittant
-												//  error when unab is presented with a hyphentated list of varnames
-												// (with hyphentd AND non-hyphenated it can wrongly send non-zero return code)
-												// ("partially" because 'unablist' exits on first bad 'var-var' varlist, whereas
-												//	the whole point of this subprogram is to build a list of all bad varnames)
-												// In practice all bad varnames are listed unless interrupted by bad var-var
-local errloc = "$errloc"
-gettoken caller rest : errloc,  parse( "(" )					// Local `caller' gets name of program that called this subprogram
-
-global errloc "checkvars"										// Establish general location of any error that may be found below
-
-																// ORIGINALLY SENT varlist AS ARGUMENT, BUT THAT COULDN'T HANDLE PREFIXS
-*	args check noexit											// IF 1ST VARNAME IN 'check' IS PREFIXED, IT IS TAKEN AS THE ONLY VAR	***
-																// (may include hyphenated varlist(s))
-																
-*	****************	
-	capture noisily {
-*	****************
-
-	local anything = `0'										// Retrieve `anything' from `0', where 'syntax' expects to find it
-																// (substituting a null string for each double quotion markl)
-	if word("`anything'",-1)=="noexit"  {						// If last "var" in any varlist is "noexit", that is NOT a variable
-		local noexit = "noexit"									// (so put it in the local where this subprogram expects to find it)
-		local check = subinstr("`anything'","noexit","",1)		// And substitute null string for `noexit' string and put rest in `check'
-	}															// (where the rest of this subprogram expects to find it)
-	else  local check = "`anything'"							// If no `noexit' trailing arg, put all of `anything' into `check'
-	
-
-	local errlst = ""											// List of invalid vars and invalid hyphenatd varlsts
-										
-	if strpos("`check'","-")==0  {								// If there are no hyphenated varlists
-		foreach var  of  local check  {							// Cycle thru un-hyphenated vars in varlist
-			capture unab var : `var'							// If 0 not returned then variable does not exist
-			local rc = _rc										// Not sure if _rc persists beyond next command
-			if "`var'"=="."  continue							// If `var' is missing continue with next var
-			if `rc'  {											// Else if the `rc' saved just above is non-zero..
-				local errlst = "`errlst' `var'"					// Add that invalid var to 'errlst' if not missing
-			}
-			else local checked = "`checked' `var'"				// Else add that valid `var' to 'checked'
-		} // next `var'
-	} //endif 'strpos'
-		
-	else  {														// Else there are one or more hyphenated varlists
-		
-		local chklist = "`check'"								// Want to keep 'check' untouched for SM search, below
-		local checked = ""										// {portion of }
-																
-		while strpos("`chklist'","-") >0  {						// While there is an(other) unexpanded varlist in 'chklist'
-																// (chklist has 'head' to 'test2' removed at end of 'while')
-			local loc = strpos("`chklist'","-")					// Find loc of hyphen that defines the list
-			local head = substr("`chklist'",1,`loc'-1) 			// Extract string preceeding hyphen
-			local test1 = word("`head'",-1)						// Extract last word in 'head' (word before hyphen)
-			local tail = strtrim(substr("`chklist'",`loc'+1,.))	// Extract string followng hyphen (may contain another "-")
-			local test2 = word("`tail'",1)						// Extract the 1-word varname following the hyphen
-			local test3 = word("`tail'",2)						// Word following `test2', if any
-			
-			local t1loc = strpos("`chklist'","`test1'")			// Get loc of first word in hypnenated varlist
-			if `t1loc'>1  {										// If there are vars before 'test1', evaluate those
-			   local pret1 = substr("`chklist'",1,`t1loc'-1)	// These vars end before 'test1'; put them in 'pret1'
-			   foreach var  of  local pret1  {					// And evaluate each one
-			   	  capture unab var : `var'						// If 0 not returned...
-				  if "`var'"=="."  continue						// if `var' was returned missing, continue with next var
-				  if _rc  local errlst = "`errlst' `var'" 		// Add any invalid varname to 'errlst' if not missing
-				  else  {
-				  	local checked = "`checked' `var'"			// Else add the valid varname to `checked'
-				  }
-			   }
-			}								
-			local t12vars = "`test1'-`test2'"					// 't12vars' will be string "'test1'-'test2'" inclusive
-
-			capture unab t12vars : `t12vars'					// Put the unabbreviated list of vars into `t12vars'
-			if _rc {
-				errexit "Cannot unabbreviate `t12vars' – perhaps one or more don't exist?"
-				exit											// In this case, override `noexit' argument, if any
-			}
-			local checked = "`checked' `t12vars'"				// String of checked vars up to end of var `test2'
-			
-			if "`test3'"!=""  {									// If "`tail'" holds anything beyond end of hyphenated list
-				local loc = strpos("`tail'","`test3'")			// Get loc of start of that remaining tail (after any blanks)
-				local chklist = substr("`tail'",`loc', .)		// Put remaining tail (following any blanks) into checklist
-			}
-			else  continue, break								// If `test3' is empty, break out of while loop
-			
-			if strpos("`chklist'","-")  continue				// If it contains another hyphen, continue with that
-			
-			
-			foreach var  of  local chklist  {					// Otherwise check validity of remaining vars
-
-			   capture unab var : `var'
-			   if "`var'"=="."  continue						// If var was returned missing, continue with next var
-			   if _rc  {
-				  local errlst ="`errlst' `var'" 				// If _rc !=0 add any invalid vars to 'errlst'
-			   }
-			   else  {											// THESE BRACES ARE NEEDED, OR STATA DISREGARDS 'else'	?				***
-				 local checked = "`checked' `var'"				// Else add to list of checked vars
-			   }
-
-			} //next var
-			
-		} //next while
-			
-	} //endelse	`strpos'										// End of codeblock dealing with hyphated varlist(s)
-		
-	if "`errlst'"!="" & "`noexit'"==""  {						// If any bad varnames were identified (but not anticipated) ...
-		
-		dispLine "Invalid variable name(s): `errlst'" "aserr"	// May need multiple lines to display this error message
-		if "`noexit'"==""  {									// If `noexit' was not optioned on call to this subprogram..
-			errexit, msg("Invalid variable name(s): `errlst'")	// Then exit with stopbox message but no addtional display
-			exit 1												// 'errexit' w opt & w'out ',display' suppresses display
-		}														// Else return errlst to caller (next command after endif)
-	} //endif
-		
-	return local errlst `errlst'								// If not empty would already have caused an error exit
-	return local checked `checked'								// Return unabbreviated un-hyphenated vars in r(checked)
-																// (not clear we need to do this)
-	local skipcapture = "skip"
-
-		
-		
-		
-*	 *************	
-	} //endcapture
-*	 *************
-	
-	
-    if _rc & "`skipcapture'"==""  {
-   	   errexit "Error in $errloc"
-       exit _rc
-    }
-														
-	
-
-end checkvars
-
-
-
 
 ********************************************************************************************************************************
 
@@ -2457,11 +2479,13 @@ local cmd = "$cmd"											// (in subprogram 'getoutcmnames', below).
 															// THIS SUBPROG COULD GAIN IN CLARITY BY USING THE PRE-wrapper(3) scalars.
 															// See explanatory comment block at end of 'getprfxdvars', below.
 															// ***********************************************************************
-noisily display "inputnames `inputnames'; outcmnames `outcmnames'"
-										
+*noisily display "inputnames `inputnames'; outcmnames `outcmnames'"
+
+
+*pause on							
 pause cleanup(0)											// Establish general location of any error that may be captured below
 global errloc "cleanUp(0)"									// Currently executing codeblock helps diagnose program & user errors
-
+pause off
 
 
 
@@ -2474,9 +2498,6 @@ global errloc "cleanUp(0)"									// Currently executing codeblock helps diagno
 
 
 
-
-pause cleanup(0.1)
-global errloc cleanup(0.1)	
 
 									
 										//(0.1) Reduce all prefix-strs to single- or double-char; then prepare for labeling vars 
@@ -2507,8 +2528,8 @@ global errloc cleanup(0.1)
 	
 	
 
-pause cleanup(0.2)							
-global errloc cleanup(0.2)
+pause cleanup(0.1)							
+global errloc cleanup(0.1)
 
 	
 										// (0.2) Discover what prefixes will have been used for interim variabls generatd by this cmd's
@@ -2590,10 +2611,10 @@ global errloc cleanup(0.2)
 	
 	
 	
-pause on
+
 pause cleanup(1)
 global errloc cleanup(1)
-pause off	
+	
 
 											// (1) HERE PREPARE TO GET PROXIMITIES FROM DISTANCES & DISPLAY USER CHOICES
 	
@@ -2748,7 +2769,10 @@ global errloc cleanup(1.2)
 	  if "`cmd'"=="gendummies"  {
 	   	
 	   	 if "`lbl'"!=""  {									// If the input variable was labeled..
-		  	local lbl1 = "`lbl1': `lbl'"					// Use that label to extend the generic (default) label from codeblk 1.2
+		   if substr("`lbl'",1,5)=="gend-"  {				// Since this codeblk is limited to `gendu' we can take a short-cut
+			 local lbl =subinstr("`lbl'","gend-","gendu-",1) // Cluge replaces overly-abbreviated "gendu" in `lbl'
+			}
+		   local lbl1 = "`lbl1': `lbl'"						// Use that label to extend the generic (default) label from codeblk 1.2
 		 }
 
 	  } //endif `cmd'==gendummies
@@ -2761,7 +2785,7 @@ global errloc cleanup(1.2)
 				  
 				  
 				  
-*pause on			
+			
 pause cleanup(1.3)
 global errloc cleanup(1.3)
 
@@ -2775,7 +2799,7 @@ global errloc cleanup(1.3)
 	  	
 		 if substr("`interim'",1,2)=="i_"  {				// Remove 'interim' from list of vars used to impute it
 															// (and make the result part of `lbl1')
-			local lbl1 = "Missng values imputd from " + stritrim(subinstr("`uniqnames'","`interim'","",1))
+			local lbl1 = "Missng values imputd from " + stritrim(subinstr("`interims'","`interim'","",1))
 			if strlen("`lbl1'")>73 & "`addvars'"!=""  local lbl1 = substr("`lbl1'",1,73) + ".. `addvars'"
 			if strlen("`lbl1'")>80  local lbl1 = substr("`lbl1'",1,78) + ".."
 															// Put result in `lbl1' to be applied below
@@ -2820,12 +2844,7 @@ global errloc cleanup(1.3)
 		  }
 					
 	  } //endif `cmd'										// End of codeblks for var with existing label
-	
-
-
-*pause on
-pause label		
-	  
+		  
 															
 	  if "`lbl1'"!="" 	{									// IF `lbl1' IS NOT EMPTY, TRUNCATE IT AS NEEDED TO FIT ON AN 80-COL LINE
 															// (if IS empty this will be because this interim does not get a `lbl1')
@@ -2836,13 +2855,13 @@ pause label
 	  
 	  
 *	  ****************************							// ************************************************************************
-	  label var `interim' "`lbl1'"							// THIS IS WHERE INTERIM VARS RECEIVE THEIR LABELS (kept when renamd below)
+	  capture label var `interim' "`lbl1'"					// THIS IS WHERE INTERIM VARS RECEIVE THEIR LABELS (kept when renamd below)
 *	  ****************************							// ************************************************************************
 *								
-
+if _rc  local labelerr = "`labelerr' `interim'"
 	
 
-*pause on
+
 		
 pause cleanup(2)
 global errloc cleanup(2)
@@ -2851,7 +2870,10 @@ pause off
 
 			
 															// AS WE PROCEED..
-	   quietly count if !missing(`interim')					// Make list of all-missing interims – counts are for the entire dataset
+	   capture quietly count if !missing(`interim')			// Make list of all-missing interims – counts are for the entire dataset
+	   if _rc  {
+	   	   local counterr = "`counterr' `interim'"
+	   }
 	   if r(N)==0  {										// (unlike the counts by context made in  'showdiag2'<-'stackmeWrapper')		
 		  local skipvars = "`skipvars' `interim'"			// 'skipvars' has names of `cmd'P-genrtd interms with no obs in any contxt
 	   }													// (`skipvars' cumulate across varlists for use in 'cleanup'(10.3))
@@ -2867,6 +2889,13 @@ pause off
 	} //next 'interim'										// Continue with next `cmd'P-generated interim variable
 *	****************
 
+if "`labelerr'"!=""  {
+	dispLine "Labeling error with: `labelerr'"
+}
+if "`counterr'"!=""  {
+	dispLine "`counterr'"
+}
+*if "`labelerr'"!="" | "`counterr'"!="" exit 1
 
 															// (`non2missing' is legacy from when we took each varlist separately)
 	local skipvars : list uniq skipvars 					// (Still here in case we later revert to that - more consistent - code)
@@ -2887,10 +2916,9 @@ pause off
 
 	
 	
-*pause on
+
 pause cleanUp(2.1)
 global errloc "cleanUp(2.1)"
-pause off
 
 
 
@@ -3096,10 +3124,9 @@ global errloc "cleanUp(3)"
   	
 		
 
-pause on
+*pause on
 pause cleanUp(4)
 global errloc "cleanUp(4)"
-
 pause off
 											// (4)	This is where `ic'-prefixed variables are renamed to include respective cmd prefix 
 											//		chars and genmeanstats outcome vars are labeled (othr vars were labled in blks 1-2). 
@@ -3118,31 +3145,40 @@ pause off
 		}													    // THERE SHOULD BE A BETTER LOCATION FOR THIS CHECK, IF NEEDED				***
 		
 		local in = word("`inputnames'",`i')						// Get the originaly input name that the user typed 
-*		local out = word("`outcmnames'",`i')					// Get the outcome names constructed in 'getoutcm(3). IT'S THE FOREACH VAR	
-		local interim = word("`interims'",`i')				    // Put the `cmd'P-genrated interim name into `iname' (saved in cleanup(1.1))		
+		local interim = word("`interims'",`i')				    // Put the `cmd'P-genratd interim name into `interim' (saved in cleanup(1.1))		
 
-*		gettoken pfx in : in, parse("_")						// See if the input name was prefixed as a result of prev stackme command
+		if strpos("`skipvars'","`interim'")  continue			// If interim with this name has no observations, skip to next var
 		
 		if "`var'"!=""  {										// If `var' is not empty then there is a prefix
 			if "`pfx'_"!="`ic'_"  local out ="`ic'`out'" 		// Here we add the missing `ic' prefix (see comment block above), if needed
 		}														// (only if the input name is prefixed)
-		if strpos("`skipvars'","`interim'")  continue		    // If interim with this name has no observations, skip to next var
-		if "`interim'"=="`out'"  continue  	   				    // Don't rename if `oname' is same as `pfx'_`iname'
-																
-		capture confirm variable `out'					   
-		if _rc==0  drop `out'									// SOMEHOW A PREVIOUS `oname' CAN STILL EXIST (SHLD HAVE REPORTD ERROR?)	***	
-									
-*		*********************									// `oname' already has the needed intricately-constructed outcome prefix
-		rename `interim' `out'									// `out' is a revision of `outcmname' reconstucted in 'cleanup'(1))
-*		*********************									// `interim' is the varname that, in this case, may need a prefix added
+
+		if ! strpos("gendummies genmeanstats","`cmd'")  {		// If `cmd' is NOT gendu or genme, determine whether should be renamed
+																// (gendu and genme already have their final names, subject to user option)
+		  if "`interim'"!="`out'"  {			   				// Don't rename if `oname' is same as `pfx'_`iname'
+
+			capture confirm variable `out'					   
+			if _rc==0  drop `out'								// SOMEHOW A PREVIOUS `oname' CAN STILL EXIST (SHLD HAVE REPORTD ERROR?)	***	
+								
+*			*********************								// `oname' already has the needed intricately-constructed outcome prefix
+			rename `interim' `out'								// `out' is a revision of `outcmname' reconstucted in 'cleanup'(1))
+*			*********************								// `interim' is the varname that, in this case, may need a prefix added
+
+		  } //endif `interim'
+
+		} //endif !`strpos'
+		
 		char define `out'[origvar] `iname'						// Record origin of outcome var in terms of input varname
 		local shortcmd = substr("`cmd'",1,5)					// Produce a short-form command name (first 5 characters)
 		char define `out'[origcmd] `shortcmd'					// Store orign of outcm var in terms of cmd (used in cdblk cleanup 1.1)
-		local cumulate = CUMULATE`out'							// Retrieve `cumulate' flag from scalar where it was stashed in getoutcm(4)
-		scalar CUMULATE`out' = ""								// (could not store characteristic in 'outcm(4)' `cos var didn't yet exist)
-		if "`cumulate'"==""  local cumulate = "no"	   			// "no" will be revised to empty when char is retrieved
-		char define `out'[cumulate] `cumulate'					// Flag determins if cumulating history of past stackMe cmds for outcmvar
-																// (determination was made in 'getoutcm(3))
+		
+		if ! strpos("gendummies genmeanstats","`cmd'")  {		// If this is NOT a gendu or genme command..
+		   local cumulate = CUMULATE`out'						// Retrieve `cumulate' flag from scalar where it was stashed in getoutcm(4)
+		   scalar CUMULATE`out' = ""							// (could not store characteristic in 'outcm(4)' `cos var didn't yet exist)
+		   if "`cumulate'"==""  local cumulate = "no"	   		// "no" will be revised to empty when char is retrieved
+		   char define `out'[cumulate] `cumulate'				// Flag determins if cumulating history of past stackMe cmds for outcmvar
+		}														// (determination was made in 'getoutcm(3))
+		
 	} //next oname
 
 	
@@ -3174,15 +3210,16 @@ pause off
 		local skipvars = strtrim(stritrim("`skipvars'"))
 		local skipvars : list uniq skipvars					// Remove duplicates from `skipvars'
 
-		dispLine "For variables listed here, no valid observations were found in any context: `skipvars'; drop these vars?"
+		dispLine "For variables listed here, no valid observations were found in any context: `skipvars'; continue anyway?"
 *				  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		local rmsg = "`r(msg)'"
 		
 		capture window stopbox rusure "`rmsg'"
 		if _rc  {
-			errexit "Lacking permission to delete these variables, they will be kept"
+			errexit "Lacking permission to continue anyway, will exit on 'ok'"
+			exit 1
 		}
-		else  drop `skipvars'
+*		else  drop `skipvars'
 
 	} //endif `skipvars'
   
@@ -3190,10 +3227,11 @@ pause off
 															// (his cmd executes if there was no error between the capture braces
 	
 *  *************											 *************************************************************************
-  } //endcapture											 // Close brace enclosing code, back to top, whose errors will be captured
+capture  } //endcapture										 // Close brace enclosing code, back to top, whose errors will be captured
 *  *************											 // (any error found there will cause execution to skip to following code)
 *														  	 *************************************************************************
-	
+capture }													 // Cluge avoids "close brace not found" on error exit
+
 	
   if _rc & "`skipcapture'"==""  {
   	
@@ -3202,8 +3240,9 @@ pause off
 	
   }
   
-  
-  
+exit 														// Needed if extra } is provided			
+															// PROBLEM SEEMS TO ARISE FROM ERROR EXIT IN COURSE OF AN IF/ENDIF CLAUSE
+															
 end cleanUp
 	
 
@@ -3406,7 +3445,7 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 	   if _rc  {								// Not numeric so "$SMrc" holds the command line that caused the error
 	   
 		  if "`msg'"==""  local msg = "Stata reports likely data error in $errloc"  
-		  if DISPLAY !=""  display as error "``msg'{txt}" // (DISPLAY is a scalar flag, set on entry to this SUBprogram)
+		  if DISPLAY !=""  display as error "`msg'{txt}" // (DISPLAY is a scalar flag, set on entry to this SUBprogram)
 		  
 		  if strpos("`msg'","blue")==0 window stopbox note "`msg'; will exit on 'OK'" // Version if no "return code" in 'msg'
 		  else window stopbox note "`loc2'`msg' – click on blue return code for details; will exit on 'OK'" // Else this version
@@ -3414,31 +3453,40 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 	   } 
 	
 	   else  {									// Else $SMrc is numeric so likely a captured return code
-							
-		  if "`msg'"==""  {						// IF `msg' IS EMPTY THEN THERE IS ONLY A RETURN CODE
-		  	 noisily display "Likely program error `rc' in $errloc – click blue return code for details" 
-*		   							   12345678901234567890123456789012345678901234567890123456789012345678901234567890 
-			 window stopbox note "Likely program error `rc' in $errloc – click blue return code for details"
-			 exit
-		  } //endif `msg'
-		  else  {								// Else there was a message with the return code
-			 dispLine "`msg'; will exit on OK" "aserr" 1 // limit to 1 line of text displayed in output window
+		 if $SMrc!=0  {
+		   if "`msg'"==""  {					// IF `msg' IS EMPTY THEN THERE IS ONLY A RETURN CODE
+		  	 noisily display "Likely program error `rc' in $errloc – click on return code for details" 
+*		   					  12345678901234567890123456789012345678901234567890123456789012345678901234567890 
+			 window stopbox note "Likely program error `rc' in $errloc – click on return code for details"
+			 exit 1
+		   } //endif `msg'
+		   else  {								// Else there was a message with the return code
+			 dispLine "`msg'; will exit on OK" "aserr" // limit to 1 line of text displayed in output window
 			 local stop = "stop"
-			 window stopbox stop "`msg'; will exit on 'OK'"       // No limit for stopbox display
-		  }
+			 window stopbox stop "`msg'; will exit on 'OK'"
+			 exit 1
+		   }       								// No effective limit for stopbox display
+		 } //endif $SMrc
+		 else  {								// Else return code IS zero so display and DON'T EXIT
+		 	dispLine "`msg'; continue anyway?"  // limit to 1 line of text displayed in output window
+			capture window stopbox rusure "`msg'; continue anyway?"
+			if _rc  exit 1
+		 }
 		    
 		} //endelse  $SMrc
+		
+		scalar DISPLAY = ""						// Ensure message is not displayed again below
 		
 	} //endif $SMrc
 	
 		  
-	if DISPLAY !=""  {							// IF DISPLAY SCALAR FLAG WAS SET NON-EMPTY earlier in program)
+	if DISPLAY !=""  {							// IF DISPLAY SCALAR FLAG WAS SET NON-EMPTY earlier in program..
 	
 	   if "`msg'"!=""  {	
 		  if strpos("`msg'","click")  { 		// If 'msg' contains a 'click on blue..' clause
 			 display as error "`msg'"
 			 window stopbox note "`msg'; will exit on 'OK'" 
-			 exit				  				// Above will be displayed if there was no "return code" in 'msg'			***
+			 exit 1				  				// Above will be displayed if there was no "return code" in 'msg'			***
 		  }
 												// Else this is a standard errorexit with two variants ..
 												// If `msg' is non-empty, add "in $errloc" and "will exit on 'OK' as needed
@@ -3446,32 +3494,23 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 		  if strpos("`msg'","permission to") & ! strpos("`msg'","will exit")  { // Add "will exit" if ditto
 			 dispLine "`msg'; will exit on 'OK'" "aserr" 1	// limit to 1 line of text displayed in output window
 			 window stopbox note "`msg'; will exit on 'OK'" // No limit for stopbox display
-			 exit
+			 exit 1
 		  } //endif
 		  else  {
 		  	 dispLine "`msg'"
 			 window stopbox note "`r(err)'"
-			 exit
+			 exit 1
 		  }
 		  
 	   } //endif `msg'
 	   
 	} //endif DISPLAY	
 	
-/*												// FOLLOWING CODE MAY COME IN HANDY BUT SEEMS NO LONGER RELEVANT		  
-	else  {										// Else $SMrc is empty
-	   if DISPLAY !=""  {						// DISPLAY is a scalar; it shows 'display' was implied or optd earlier in ['errexit']
-	     if strlen("`loc'`msg'")>80  {			// If total length (including any for `loc') >80...
-		   dispLine "`loc'`msg'" "aserr"		// Use more that one line, if needed, to add "In $errloc"
-		 }
-		 else noisily display as error "`loc'`msg'"
-		 window stopbox note "`loc2'`msg'; will exit on next 'OK'"
-	   }
-	}	
-*/
 
-	scalar drop SMmsg FILENAME DIRPATH ERRLOC EXIT MULTIVARLST LIMITDIAG 
-												// Drop scalars used to secure above macros (not including scalar display)
+	capture confirm exists FILENAME				// If FILENAME does not exist all of following were pewsumbly dropped already
+	if _rc==0  {
+	   scalar drop SMmsg FILENAME DIRPATH ERRLOC EXIT MULTIVARLST LIMITDIAG 
+	}											// Drop scalars used to secure above macros (not including scalar display)
 	exit										// Exit 0 will be turned into exit 1 (a BREAK exit) for final exit
 	
 	local skipcapture = "skip"					// Flag to skip capture code if that code was entered from here
@@ -3487,9 +3526,9 @@ capture noisily {								// Open capture brace marks start of codeblock within w
 if  _rc & "`skipcapture'"==""  {				// If entered this block without 'skipcapture' being set, 2 lines up, ..
 												// (that means the error occurred in the captured part of above code)
 	if "`stop'"!="" exit _rc					// `stop' was flagged if 'stopbox stop' was called, above
-	noisily display as error "'errexit' diagnosed an error within itself – click blue RC for details{txt}"
+	noisily display as error "'errexit' diagnosed an error within itself – click on return code for details{txt}"
 *					          12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	window stopbox note "'errexit' diagnosed an error within itself – click blue return code for details"
+	window stopbox note "'errexit' diagnosed an error within itself – click on return code for details"
 	exit 1
 }
 
@@ -3886,8 +3925,8 @@ global errloc = "getoutcm(3.1)"
 				local spfxlst = "`spfxlst' `spfx'"			 // 'genmeanstats' uses `stat' as prefix for `cmd'P interim names
 				local outcmnames = "`outcmnames' `spfx'`v'"  // There is no `opfx' for 'genme'; instead we use `spfx' again
 				local varlistno = "`varlistno' `nvl'"		 // Links outcome var to its origin in the varlist typed by user	
-*				****************   ******************	
-															 // Note that we do not cumulate genme prefixes
+*				****************   ******************		 // Note that we do not cumulate genme prefixes
+													
 
 			} //endif `cmd'=="genmeanstats"				 // END OF PROCESSING FOR COMMAND 'genmeanstats'
 			 
@@ -3901,7 +3940,7 @@ global errloc = "getoutcm(3.1)"
 /*	  local outcmnames`nvl'="`outcmnames`nvl'' `outcmnames'" // Provides access to `outcmnames' per varlist
 	  scalar OUTCMNAMES`nvl' = "`outcmnames'`nvl'"			 // NOTE DIFFERENCE BETWEEN 'outcmnames' & 'outcmnames`nvl''
 */															 // (NOTE DIFFERENCE BETWEEN OUTCMNAMES`nvl' & UN-POSTFIXED VERSION BELOW)
-															 // COMMENTED OUT `COS SUPERFLUOUS; ALSO THERE IS NO `outcmnames`nvl'')
+															 // COMMENTED OUT 'COS REDUNDANT
 	} //next 'nvl'
 	
 
@@ -3909,7 +3948,7 @@ global errloc = "getoutcm(3.1)"
 	
 	
 	
-pause on
+*pause on
 pause getoutcm(4)
 global errloc = "getoutcm(4)"
 pause off	
@@ -3979,7 +4018,7 @@ pause off
 	
 		
 *  *************	
- capture } //endcapture											// Close praces end codeblocks in which coding errors will be captured
+ capture } //endcapture										// Close praces end codeblocks in which coding errors will be captured
 *  *************
 	
 	
@@ -3987,8 +4026,12 @@ pause off
      errexit "Error in $errloc"
      exit 1
   }
-													
+	
+  exit														// CLUGE AVOIDS "matching close brace not found" msg on errexit
 
+  
+  
+  
 end getoutcmnames
 
 
@@ -4369,6 +4412,105 @@ end //isnewvar
 
 
 
+********************************************************************************************************************************
+
+
+
+capture program drop stubsImpliedByVars			// Called from 'genstacksO'
+
+program define stubsImpliedByVars, rclass		// Subprogram produces a list of stubs corresponding to multiple varlists
+												// (checks those names in case they match already extant varnames)
+
+global errloc "stubsImpl"
+
+
+* *****************
+  capture noisily {
+* *****************
+
+
+	global errloc "stubsImpl"
+
+	local stubslist = ""										// Will hold suffix-free pipes-free copy of what user typed
+				
+	local postpipes = "`0'"										// Pretend what user typed started with "||", now stripped
+	
+	while "`postpipes'"!=""  {									// While there is anything left in what user typed
+	
+	   gettoken prepipes postpipes : postpipes, parse("||")		// Get all up to "||", if any, or end of commandline
+	   if substr(strtrim("`postpipes'"),1,2)=="||"  {			// If (trimmed) postpipes starts with (more) pipes
+		  local postpipes = substr("`postpipes'",3,.)			// Strip them from head of postpipes
+	   }
+*	   **********************	   
+	   checkvars "`prepipes'"									// 'checkvars' elaborates unab; will collct invald vars in 'errlst'
+	   if "$SMreport"!="" exit 1								// See if error was reported by program called above
+*	   **********************
+	   local errlst = r(errlst)
+	   if "`errlst'"=="."  local errlst = ""					// SEEMINGLY r(errlst) RETURNS "." RATHER THAN ""					***
+	   if "`errlst'"!=""  {										// If there are any such...
+		   if wordcount("`errlst'")==1  {
+		   	  errexit "Varname `errlst' is invalid"
+			  exit
+		   }
+		   else  {
+		   	  dispLine "Invalid varnames: `errlst'" "aserr"
+			  errexit, msg("Invalid varnames – see displayed list")
+		   }
+	   }
+	   
+	   local vars = r(checked)
+	   if "`vars'"==""  {
+	   	  errexit "Stubs do not yield any corresponding variables"	// ??															***
+		  exit
+	   }
+	   
+	   local 0 = "`vars'"										// Pretend user typed only one varlist; put back in '0'
+
+*	   **************************
+	   syntax namelist(name=keep)								// Put names into local 'keep'
+*	   **************************
+
+	   local stlist = ""										// Stublist derived from this one varlist
+	
+	   while "`keep'"!=""  {
+		  gettoken s keep : keep								// 's' is each word in 'keep', one at a time
+		  while real(substr("`s'",-1,1))<.  {					// While last char is numeric
+			local s = substr("`s'",1,strlen("`s'")-1)  			// Shorten `s' by one trailing numeral
+		  }														// Exit while with `s' shorn of numeric suffix
+		  if "`s'"!= word("`stlist'",-1)  {						// If this stub is not the same as previous one..
+		     local stlist = "`stlist' `s'"						// Append it to `stlist'
+		  }					
+	   } //next `keep'											// (and cumulating across successive varlists)
+	  				  
+	   if wordcount("`stlist'")>1  {
+			errexit "Variables in battery do not all have same stub: `stlist'"
+			exit 1
+	   }			  
+	   local stub = "`stlist'"									// Holds the unique stub from stlist
+	   
+	   local stubslist = "`stubslist' `stub'"					// Append to stub
+	   
+	} //next pipes
+	
+	return local stubs `stubslist'								// Put accumulated stubs into r(stubs)
+	
+	local skipcapture = "skip"
+
+* **************
+  } //endcapture
+* **************
+  
+   if _rc & "`skipcapture'"==""  {
+   	  errexit "Error in $errloc"
+      exit
+   }
+														
+
+																	
+end stubsImpliedByVars
+
+
+
 
 ********************************************************************************************************************************
 
@@ -4392,13 +4534,14 @@ global errloc "showdiag1"
 		
 		if "$cmd"=="genstacks" {									  // For cmd genstacks we by-pass normal sources for vartest
 			if `nvarlst'==0  local nvarlst = 1
-			local vartest = "$genstkvars"
+			local vartest = GENSTKVARS									
 		}
 		
 		forvalues nvl = 1/`nvarlst'  {
 
-				if "$cmd"!="genstacks"  local vartest = VARLISTS`nvarlst' // For most cmds get 'vartest' from this scalar
-
+				   if "$cmd"!="genstacks" local vartest = VARLISTS`nvarlst' // For most cmds get 'vartest' from this scalar
+																	  // (	'genstacks' got its `vartest' just above)
+																	  
 				   local vartest = subinstr("`vartest'",".","",.)	  // Remove any missing-symbols (DK where they come from)
 				   unab vartest : `vartest'	
 
@@ -4438,8 +4581,8 @@ global errloc "showdiag1"
 				
 		if !_rc  {								  		  		// Only execute this codeblk if an error has not called for exit 
 			if `rc'!=0 & `rc'!=2000 {						  	// If there was a different error in any 'count' command...
-				errexit "Stata error `rc' at $errloc in contxt `lbl' – click blue RC for details" // LBL IS A SCALAR; 'lbl' a local
-*						          12345678901234567890123456789012345678901234567890123456789012345678901234567890 
+				errexit "Stata error `rc' at $errloc in contxt `lbl' – click on return code for details" // LBL IS A SCALAR; 'lbl' a local
+*						 12345678901234567890123456789012345678901234567890123456789012345678901234567890 
 				exit `rc'									  	// Set flag for wrapper to exit after restoring origdata
 			}
 				   
@@ -4589,6 +4732,338 @@ end showdiag2
 ********************************************************************************************************************************
 
 
+
+capture program drop varsImpliedByStubs
+
+program define varsImpliedByStubs, rclass		// Subprogram converts list of variable stubnames to a list of vars implied 
+												// (eliminating false positives with longer stubs)
+global errloc "varsImpl"
+
+
+* ****************
+  capture noisily {
+* ****************
+												
+
+	local true = 1												// By default we expect command followed by list of stubnames
+	local isStub = 1											// Set up logical requirements for test that follows
+	
+	local maybevar = word("`0'",1)								// Get first word following command-name in string typed by user
+
+/*	capture confirm variable `maybevar', exact					// 'exact' option ensures abbreviations dont count
+*/																// APPARENTLY NOT !
+	if real(substr("`maybevar'",-1,1))>=. local isStub = `true' // If supposed stub has no numeric suffix (convert to real failed)
+	else  {
+	   errexit "Program error 'varsImpliedByStubs' expects a stublist"
+	   exit 1
+	}															// Else, given 'stackMe' syntax rules, we should have a stub
+
+*	**************************																
+	syntax namelist(name=keep)									// Put stubs into `keep'
+*	**************************	
+	
+	local varlist = ""											// Accumulating list of vars implied by each stub in turn
+	local keepv = ""											// Accumulating list of vars verified as having numeric suffix
+	local nstubs = wordcount("`keep'")
+	local prevstub = ""											// Initially there is no previous stub
+	
+	forvalues h = 1/`nstubs'  {									// We know that `keep' was filled with stubs by caller 
+	
+		gettoken k keep : keep									// Repeatedly peel off first word of `keep' (list of stubnames)
+		if real(substr("`k'",-1,1))<.  {						// If last char of 'k' is numeric (conversion is not missing)
+			errexit "Supposed stub '`k'' ends with numeric char – ensure same-initialed stubs are ordered by increasing stublength"
+*					 1234567801234567890123456780123456789012345678012345678901234567801234567890
+			exit 1
+		}
+		local lenstub = strlen("`k'")							// Get # of chars in stub
+		capture unab vars : `k'*								// Get list of supposed vars with this stub 
+		if _rc	{												// If 'unab' finds no vars..
+			errexit "Stata finds no vars with wupposed stub"	// Exit with error msg
+			exit 1
+		}													
+												
+												// LIST MIGHT INCLUDE ADDITIONAL VARS WITH LONGER STUBS; DON'T ADD THOSE TO 'keepv'
+		foreach supvar of local vars  {							// Check each supposed var in turn
+			local suffix = substr("`supvar'",`lenstub'+1,.)		// Abstract expected suffix for each var (starts after `lenstub')
+			capture confirm integer number `suffix'				// See if whole suffix is an integer number
+			if _rc  continue, break								// Suffix is not numeric suggests longer stub so continue w next stub
+			else  {  											// Else return code is zero, so suffix is numeric
+			   capture confirm variable `supvar'				// This check should be superfluous
+			   if _rc==0  local keepv = "`keepv' `supvar'"		// Append supposed var to varlist if its whole suffix is numeric
+			   else  {
+				  errexit "Supposed variable not confirmed as such: `var'"
+			   }
+			} //endelse
+		} //next 'var'
+		
+	} //next stub
+	
+	return local keepv `keepv'
+	
+	local skipcapture = "skip"
+	
+	
+*  *************
+  } //endcapture
+*  *************
+
+
+   if _rc & "`skipcapture'"==""  {
+   	  errexit "Error in varsImplied"
+      exit
+   }
+														
+  
+	
+end varsImpliedByStubs
+
+
+
+
+********************************************************************************************************************************
+
+
+/* MISGUIDED ATTEMPT AT REWRITING 'checkvars' TO DO THE WORK OF 'genstacksO'
+
+
+																 
+capture program drop checkvars					// Called from wrapper and several subprograms; elaborates unab
+												// (Should be renamed 'unablist' for "unab list of vars")
+		
+program checkvars, rclass						// Checks for valid input/outcome vars. Partially overcomes intermittant
+												//  error when unab is presented with a hyphentated list of varnames
+												// (with hyphentd AND non-hyphenated it can wrongly send non-zero return code)
+												// ("partially" because 'unablist' exits on first bad 'var-var' varlist, whereas
+												//	the whole point of this subprogram is to build a list of all bad varnames)
+												// In practice all bad varnames are listed unless interrupted by bad var-var
+  local errloc = "$errloc"
+  gettoken caller rest : errloc,  parse( "(" )					// Local `caller' gets name of program that called this subprogram
+
+  global errloc "checkvars"										// Establish general location of any error that may be found below
+
+																// ORIGINALLY SENT varlist AS ARGUMENT, BUT THAT COULDN'T HANDLE PREFIXS
+* args check noexit												// IF 1ST VARNAME IN 'check' IS PREFIXED, IT IS TAKEN AS THE ONLY VAR	***
+																// (may include hyphenated varlist(s))
+
+* *****************	
+  capture noisily {
+* *****************
+
+
+	local cmd = "$cmd"											// Retrieve `cmd'-name from global; saved there in wrapper
+	if "`caller'"=="genstacksO" local cmd = "genstO"			// Substitute caller if it is 'genstacksO'
+
+	local anything = `0'										// Retrieve `anything' from `0', where 'syntax' expects to find it
+																// (substituting a null string for each double quotion markl)
+	if word("`anything'",-1)=="noexit"  {						// If last "var" in any varlist is "noexit", that is NOT a variable
+		local noexit = "noexit"									// (so put it in the local where this subprogram expects to find it)
+		local check = subinstr("`anything'","noexit","",1)		// And substitute null string for `noexit' string and put rest in `check'
+	}															// (where the rest of this subprogram expects to find it)
+	else  local check = "`anything'"							// If no `noexit' trailing arg, put all of `anything' into `check'
+	
+
+	local errlst = ""											// List of invalid vars and invalid hyphenatd varlsts
+	local checked = ""											// List of unabbreviated vars (hyphens will be addressed below)
+	local stblst = ""											// List of stubs for 'genstacks'
+
+	if strpos("`check'","-")==0  {								// If no hyphenated varlists status depends on whether cmd is 'genstacks'
+																// *********************************************************************
+																// Cmd 'genstacks' can have either a hyphenated varlist or set of stubs.
+																// Stubs must not already exist as vars. Other cmds can have any kind of 
+																// varlist, integer-suffixed or not; hyphenated (checkd below) or not.
+																//**********************************************************************
+	  local ns = 0												// Count the number of stubs
+	  local nv = 0												// Count the number of existing vars
+	  foreach var  of  local check  {							// Cycle thru un-hyphenated vars/stubs in varlist
+	  
+		 if "`cmd'"!="genstO" & "`cmd'"!=""  {					// If `cmd' is NOT 'genstO' (&!empty – DK why empty)..
+			capture unab var : `var'							// If return code is not zero then variable does not exist
+			local rc = _rc										// Save return code as a local
+			if "`var'"=="."  continue							// If `var' is missing continue with next var
+			if `rc'  {											// Else if the `rc' saved just above is non-zero..
+			  local errlst = "`errlst' `var'"					// Add that invalid var to 'errlst'
+			}
+			else local checked = "`checked' `var'"				// Else add that valid `var' to 'checked'
+		 } //endif 'real'
+		 
+		 else  {												// Else `cmd' IS 'genstacks'
+		 	if real(substr("`var'",-1,1))<. { 					// If last char of varname converts to real without error (is numeric)
+			   if `ns'>0  {										// If list had previous stubs, that's an error
+				  errexit "Apparent stublist should not contain varname: `var'"
+				  exit 1										// So make a break-exit
+			   }
+			   else  {											// Else there was no previous stub
+				  local nv = `nv' + 1
+			   	  local checked = "`checked' `var'"				// So add to list of checked vars
+			   }
+			} //endif `real'
+			
+			else  {												// Else no numeric suffix
+			   if `nv'>0  {										// If list had previous vars..
+				  errexit "Supposed varname '`var'' does not have required numeric suffix"
+			   	  exit 1
+			   }
+			   else  {
+			   	  local ns = `ns' + 1							// Else there was no previous var		
+				  local stblst = "`stblst' `var'"				// Add to 'genstacks' stublist
+			   }
+			} //endelse 'real'
+			
+		 } //endelse `cmd'=='genst'
+
+	  } //next `var'											// Repeat whole rigmarole for next var
+
+	} //endif 'strpos'											// End of codeblock dealing with varlists w'out hyphens
+		
+
+	else  {														// Else this varlist is hyphenated.
+																// (if `cmd' is 'genstacks' there can only be one such pre-pipes)
+	   local chklist = strtrim("`check'")						// Want to keep 'check' untouched for reference
+	   local prechkd = ""										// Will hold list of unabbed 'genst' vars not yet fully checked
+	   local checked = ""										// Will hold finalized non-'genst' list of checked vars
+		
+	   while strpos("`chklist'","-")  {							// While there is an(other) unexpanded varlist in 'chklist'
+																// (chklist has 'head' to 'test2' removed at end of 'while')
+		  local loc = strpos("`chklist'","-")					// Find loc of hyphen that defines the list
+		  local head = substr("`chklist'",1,`loc'-1) 			// Extract string preceeding hyphen
+			
+		  local test1 = word("`head'",-1)						// Extract last word in 'head' (excludes trailing hyphen)
+
+		  if "`cmd'"=="genstacks"  {
+			 local t1 = "`test1'"								// Will use `t1' to find stub and stublength of `test1'
+			 while real(substr("`t1'",-1,1))<.  {				// While last char can be converted to real without error..
+			    local t1 = substr("`t1'", 1, strlen("`t1'")-1)	// Shorten `t1' by one char if above test was passed
+			 } //endwhile 										// Exit loop here if char is not numeric so is last char of a stub
+
+			 local stub = "`t1'"								// Make copy of `t1' in `stub'
+			 local lst = strlen("`stub'")						// And save its length
+			 local gs = 1										// Switch =1 for "got stub" in gendist command (used below)
+		  } //endif 'genstacks'
+		  
+		  else  {												// Else command is not 'genstacks' 
+			 capture confirm variable `test1'
+			 if _rc  local errlst ="`errlst' `var'"				// Store in errlst if not a var
+			 local gs = 0										// Switch =0 if not 'genst' command (used below to save an 'if')
+		  }														// BACK TO CODE APPLYING TO ALL COMMANDS
+		  
+																// (`loc', just below, was found earlier)
+		  local tail = strtrim(substr("`chklist'",`loc'+1,.))	// Extract string following hyphen (may contain another "-")
+		  local test2 = word("`tail'",1)						// Extract the 1-word varname following the hyphen
+		  local test3 = word("`tail'",2)						// Word following `test2', if any
+			
+		  local t1loc = strpos("`chklist'","`test1'")			// Get loc in `chklist' of first word in hypnenated varlist
+		  
+		  if `t1loc'>1  {										// If there are vars before 'test1', evaluate those
+			 local pret1 = substr("`chklist'",1,`t1loc'-1)		// These vars end before 'test1'; put them in 'pret1'
+			 foreach var  of  local pret1  {					// And evaluate each one in turn (differently for cmd 'genst')
+				if `gs' & real(substr("`var'",-1,1))>=. 	   /// If error in convertn of last char of `var' to real (not numeric)
+								local errlst = "`errlst' `var'"	// Add to `errlst' if cmd is 'genst' & converstion fails
+				capture unab var : `var'						// See if 'unab' did not accept it as a variable ..
+				if "`var'"=="."  continue						// if `var' was returned missing, continue with next var
+				if _rc & word("`errlst'",-1)!="`var'"  		   /// Add to `errlst' if _rc is non-zero
+								local errlst = "`errlst' `var'"	// (and not already put there 4 lines up)
+				else  {											
+				   local prechkd = "`prechkd' `var'"			// Else add the valid varname to `prechkd'
+				}												// (hyphenated 'genst' vars still need an additional check
+			 } //next `var'										//  that will only be conducted for 'genstacks' cmds)
+		  } //endif `t1loc'										// End of codeblock dealing with vars before `test1'
+		
+		
+		  local t12vars = "`test1'-`test2'"						// 't12vars' will be string "'test1'-'test2'" inclusive
+																// HERE CHECK FOR INCORRECT STUBNAMES (eg m_prefix ALSO i_prefix)
+		  capture unab prechkd : `t12vars'						// Put the unabbreviated list of vars into `prechkd'
+		  if _rc {
+			 errexit "Cannot process `t12vars' – perhaps one or both don't exist or in wrong order?"
+*					  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			 exit 1												// In this case, override `noexit' argument, if any
+		  }
+		  
+		  if "`cmd'"=="genstacks"  {							// Fpr 'genst' command still must check that stubs match
+		
+		    foreach var  of  local prechkd  {					// Cycle thru all prechecked vars
+		     
+			   local lcs = strlen("`var'")						// Length of current stub, to compare with `lst' (len of 1st stub,)
+			   if substr("`stub'",1,min(`lcs',`lst'))!=substr("`var'",1,min(`lcs',`lst'))  continue
+																// Continue with next var if stubs don't match
+			   else  {
+			      local checked =  "`checked' `var'"			// String of checked vars up to end of var `test2'
+			   }
+			 
+		    } //next `var'
+			
+		  } //endif
+			
+		  if strtrim("`tail'")!=""  {							// If "`tail'" holds any non-blanks beyond end of hyphentd list
+			 local loc = strpos("`tail'","`test3'")				// Get loc of start of that remaining tail (after any blanks)
+			 local chklist = strtrim(substr("`tail'",`loc',.))	// Put remaining tail (w'out leading blanks) into chcklist
+		  }
+		  else  continue, break									// If `tail' is empty, break out of while loop
+			
+		  if strpos("`chklist'","-")  continue					// If it contains another hyphen, continue with that
+																// (so skip remainder of while loop and repeat 'while strpos...')
+			
+		  foreach var  of  local chklist  {						// Otherwise check validity of remaining vars
+
+			 capture unab var : `var'
+			 if "`var'"=="."  continue							// If var was returned missing, continue with next var
+			 if _rc  local errlst ="`errlst' `var'" 			// If _rc !=0 add any invalid vars to 'errlst'
+			 else  {											// THESE BRACES ARE NEEDED, OR STATA DISREGARDS 'else'	?				***
+				local checked = "`checked' `var'"				// Else add `var' to list of checked vars
+			 }
+
+		  } //next var
+			
+	   } //next while
+			
+	} //endelse	`strpos'										// End of codeblock dealing with hyphated varlist(s)
+		
+	if "`errlst'"!="" & "`noexit'"==""  {						// If any bad varnames were identified (but not anticipated) ...
+		
+		dispLine "Invalid variable name(s): `errlst'" "aserr"	// May need multiple lines to display this error message
+		if "`noexit'"==""  {									// If `noexit' was not optioned on call to this subprogram..
+			errexit, msg("Invalid variable name(s): `errlst'")	// Then exit with stopbox message but no addtional display
+			exit 1												// 'errexit' w opt & w'out ',display' suppresses display
+		}														// Else return errlst to caller (next command after endif)
+	} //endif
+		
+	return local errlst `errlst'								// If not empty would already have caused an error exit
+	return local checked `checked'								// Return unabbreviated un-hyphenated vars in r(checked)
+																// (not clear we need to do this)
+																
+	local skipcapture = "skip"									// No syntax or other Stata error as far as here
+																// (so any captured error comes from caller)
+		
+		
+		
+* **************	
+  } //endcapture
+* **************
+	
+	
+  if _rc & "`skipcapture'"==""  {
+   	 errexit "Error in $errloc"
+     exit _rc
+  }
+														
+	
+
+end checkvars
+
+
+*/
+
+*********************************************** end checkvars ***********************************************************
+
+
+
+************************************************************************************************************************
+
+
+
+* FOLLOWING IS V9c ATTEMPT AT RE-WRITING 'stubsImpliedByVars' TO HANDLE STUBNAMES WITH INITIAL CHARACTERS THAT COINCIDE;
+* EVENTUALLY DISCARDED IN FAVOR OF ADVICE TO USERS TO USE VARLIST FORMAT FOR SHORTER OF ANY TWO SUCH BATTERIES.
+
+/*
 capture program drop stubsImpliedByVars			// Called from 'genstacksO'
 
 program define stubsImpliedByVars, rclass		// Subprogram produces a list of stubs corresponding to multiple varlists
@@ -4749,6 +5224,8 @@ end subinoptarg
 
 ********************************************************************************************************************************
 
+* THIS 'wrapper9C' SUBPROGRAM TRIED TO DEAL WITH POSSIBLY CONFLICTING STUBS OF DIFFERENT LENGTHS. REPLACED BY 'wrapper9b' VERSION
+
 
 capture program drop varsImpliedByStubs			// Called from 'genstacksO', 'cleanup'
 
@@ -4768,55 +5245,134 @@ global errloc "varsImpl"
 
 	if strpos("`keep'","||")>0  {
 		errexit "Stublist should not contain '||'"
-		exit													// Ensure stublist has no pipes
+		exit 1													// Ensure stublist has no pipes (legacy code)
 	}
 	
-	local varlist = ""											// Accumulating list of vars implied by each stub in turn
-	local keepv = ""											// Accumulating list of vars verified as having numeric suffix
-	local nstubs = wordcount("`keep'")
 	
-	forvalues h = 1/`nstubs'  {									// We know that `keep' was filled with stubs by caller 
+	local keepv = ""											// Accumultes a list of existng vars havng expectd numric suffix
+																// (typed by user and retrieved by 'syntax' cmd above)	
+	local errkept = ""											// List of stubnames rejected by unab as not sufficiently distinct
+	local prevkeep = "word("`keep'",1)"							// List of previous stubs to check for matching chars 
+	local prevlen = strlen("`prevkeep'")						// Length of previous (initially first) stub in `keep'
 	
-		gettoken k keep : keep									// Repeatedly peel off first word of `keep' (list of stubnames)
-		local lenstub = strlen("`k'")							// Get # of chars in stub
-		capture unab vars : `k'*								// Get list of vars with this stub
-		if _rc  {
-			errexit "Stub `k' has no corresponding variables"
-			exit _rc
-		}
-		
-												
-											// LIST MIGHT INCLUDE ADDITIONAL VARS WITH LONGER STUBS; DON'T ADD THOSE TO 'keepv'
-		foreach var  of  varlist `vars'  {
-			local suffix = substr("`var'",`lenstub'+1,.)		// Abstract the suffix for each var
-			capture confirm integer number `suffix'				// See if whole suffix is an integer number
-			if _rc  continue									// Suffix is not numeric means longer stub so continue w next v
-			else  {  											// Else return code is zero, so suffix is numeric
-				local keepv = "`keepv' `var'"					// Append var to varlist if its whole suffix is numeric
-			}
-		} //next 'var'
-		
-	} //next stub
+	while "`keep'"!=""  {										// While `keep' is not empty
+																// (We know that `keep' was filled with stubs by calling program) 
+	   gettoken kept keep : keep								// Repeatedly peel off first stub held in `keep' list of stubnmes
+	   quietly unab K : `kept'*									// `K' will hold a list of vars with the `kept' stubname
+																// But this strategy does not work with similar stubs (see below)
+	   if _rc  {												// If return code is non-zero..
+		  local errkept = "`errkept' `kept'"					// Keep list of stubs deemed insufficiently distinct by 'unab'
+		  continue												// Continue with next word in `keep'
+	   }
+	   
+	   local lcs = strlen("`kept'")								// Get length of current stub to see if any later stubs overlap
+	   if wordcount("`keep'")>1  {								// Only relevant if there is more than the current one left
+		  local wrd = 0											// Count word-gap between two stubs being compared
+		  foreach stub  of  local keep  {						// `keep' holds remaining stubs
+		  	 local wrd = `wrd' + 1								// Initially the two are adjacent
+		  	 local lens = strlen("`stub'")
+			 if substr("`stub'",1,min(`lcs',`lens'))==substr("`kept'",1,min(`lcs',`lens')) & `lcs' > `lens'  {
+			 	local msg = "Order same-initial stubs with different stublengths in ascendng order of stublen"
+						  // 12345678901234567890123456789012345678901234567890123456789012345678901234567890 
+				local msg = "`msg'; stub `stub' should preceed `kept'"
+				if `wrd' > 1 local msg = "`msg' – and preferably adjacent"
+				dispLine "`msg'"
+				errexit, msg("`msg'")
+		  }
+	   }														// Check  
+	   
+	   
+	   foreach k of local K  {									// We build new varnames from each `kept' stub by appending `k'
+																
+		  local keepv = "`keepv' `k'"							// Append varname to list of names associated with this stub
+		  
+	   } // next `k'											// Move on to next var associated with this stub
+
+	   if "`keep'"!=""	{										// Move on to next stub, if any, in list of stubs held in `keep'
+																// (`keep' is empty after final `kept' has been peeled off)
+		  local thisk = word("`keep'",1)						// This is the word that will become `kept' on the next 'while'
+		  local lcs = strlen("`thisk'"))						// Length of this (current) stub
+		  
+		  if substr("`thisk'",1,min(`lcs',`prevlen'))==substr("`prevkeep'",1,min(`lcs',`prevlen')) & `lcs' < `prevlen'  {
+																// If length of this current stub is less than len of prev stub..
+																// (while strings of length both stubs have in common are the same)
+			 errexit "Order same-initial stubs with different stublengths in ascendng order of stublen"
+			 exit 1 // 12345678901234567890123456789012345678901234567890123456789012345678901234567890 
+		  }	 //endif											// Above errexit ensures tractbilty for stubs of differnt lengths
+		  
+		  else  {
+		  	 local prevlen = `lcs'								// Else we assign length of current stub to `prevlen'
+			 local prevkeep = "`kept'"
+	   } //endif `keep'											// (before moving on to next `while `keep'')
+	   
+	} //next `while `keep''
+	
+	if "`errkept'"!=""  {
+		dispLine  "Stata reports error `rc' for var(s) `errkept': perhaps ambiguous stubname(s)"
+		errexit, msg("Stata reports error `rc' for var(s) `errkept': perhaps ambiguous stubname(s)")
+	}															// Call on errexit with optioned msg suppresses 2nd 'dispLine'	
 	
 	return local keepv `keepv'
 	
-	local skipcapture = "skip"
+	scalar GENSTKVARS = "`keepv'"								// Scalar originally intended for 'genstacks'
+	
+	local skipcapture = "skip"									// If execution reaches this point, there were no captured errors
 	
 	
-*  *************
-  } //endcapture
-*  *************
+	
+*  *********************
+} //endcapture
+*  *********************
 
+capture }														// Cluge to ensure error in 'levelsof' is captured
+		
 
-   if _rc & "`skipcapture'"==""  {
-   	  errexit "Error in varsImplied"
-      exit
-   }
-														
+  if _rc & "`skipcapture'"==""  {
+	  local rc = _rc
+	  errexit "Stata reports error `rc': `kept' may be an ambiguous stubname – try renaming"
+	 exit 1 // 12345678901234567890123456789012345678901234567890123456789012345678901234567890 
+  }
+
   
+exit															// ATTEMPT TO AVOID "close brace not found" ERROR
+	
+	
 	
 end varsImpliedByStubs
 
-
+*/
 
 ****************************************************** END OF SUBPROGRAMS *****************************************************
+
+
+
+/*											// TEST CODE MIGHT BE USEFUL
+
+	local kept = "du_RVOTE"
+	quietly unab kept : `kept'*								// `K' will hold a list of distinct values that `kept' can have
+	display "`kept'"
+
+	mata:st_numscalar("a",ascii("A")) 		// Get MATA to tell us the ascii value of char following "_"
+	display a  /*–  upper case A is 65;  upper case Z is 90 */
+*/
+/*
+*set trace on
+local v = "REDU1"
+	   while real(substr("`v'",-1,1))<.  {					// If conversion to real is not missing, last char is a number
+		  local `v' = substr("`v'",1,strlen("`v'")-1) 		// (so remove that char from end of string and repeat)
+		  display "`v'"
+	   } //next while										// Hopefully string now ends in generic name, not specific value
+*/
+
+/*
+local nvl = 1
+global varlists`nvl' = VARLISTS`nvl'
+*local varlist = "$varlists`nvl'"
+local varlist = VARLISTS`nvl'
+display "`varlist'"
+foreach var  of  local varlist {
+	
+	display "`var'"
+}
+*/
+
