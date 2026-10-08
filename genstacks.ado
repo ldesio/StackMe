@@ -1,4 +1,5 @@
-*! Apr 14'26
+*! Oct 7'26
+
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
@@ -43,7 +44,7 @@ pause genstacks(0)
 										
 
 *	************************
-	stackmeWrapper genstacks `0' \prfxtyp(`prfxtyp') `multicntxt' `optMask' 	// Space after "\" must go from all calling progs		**			
+	stackmeWrapper genstacks `0' \ `multicntxt' `prfxtyp' `optMask' // Space after "\" must go from all calling progs					**			
 *	************************								// `0' is what user typed; `prfxtyp' & `optMask' strings were filled	
 															//  above; `prfxtyp', placed for convenience, will be moved to follow 
 															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1)
@@ -95,7 +96,7 @@ global errloc "genstacks(2)"
 										
 														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY									***
 										
-	local stubsImpliedByVars = GENSTKSTBS
+	local stubsImpliedByVars : char _dta[GENSTKSTBS]
 	local namelist = "`stubsImpliedByVars'"				// Put 'genstacksO'- generated stubnames into `namelist'
 	
 														// (genstacks only has a single varlist; so no "||", no ":")	
@@ -544,3 +545,14 @@ end genst
 
 *************************************************** END PROGRAMS **********************************************************
 
+
+/*
+		local contexts :  char _dta[contextvars]				// Need this to generate SMnstks and SMmxstks
+		sum `contexts'
+		tempvar rank
+		qui egen `rank' = rank(SMstkid), field by(`contexts')   // Unique values taken on by SMstkid
+		tab1 `rank'
+		qui egen SMnstks = max(`rank'), by(`contexts') 			// Max rank (which should be the number of different ranks)
+		label var SMnstks "Number of stacks identified by SMstkid per context"
+																// THIS DOES NOT PRODUCE VALUES OF SMstkid AS EXPECTED
+*/
