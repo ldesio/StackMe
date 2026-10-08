@@ -1,4 +1,4 @@
-*! Apr 14'26
+*! Oct 7'26
 
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
@@ -27,7 +27,7 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 
 																				
 																
-	local prfxtyp = "var"/*"othr" "none"*/			// Nature of varlist prefix – var(list) or other. (`stubname'  //	 **
+	local prfxtyp = "var"/*"othr" "none"*/ // Nature of varlist prefix – var(list) or other. (`stubname'  //	 		 **
 								// will be referred to as `opt1', the first word of `optMask', in codeblock 
 								// (0) of stackmeWrapper called just below). `opt1' is always the name 
 								// of an option that holds a varname or varlist (which must be referred
@@ -37,13 +37,13 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 		
 		
 	local multicntxt = "multicntxt"/*""*/			// Whether `cmd'P takes advantage of multi-context processing		 **
-	
-	local save0 = "`0'"
-	
+													// (alternative is an empty `multicntxt')
+	local save0 = "`0'"								// Save what user typed in local save0, to retrieve on return
+													//  from 'stackmeWrapper' (legacy code)
 	
 	
 *	*************************
-	stackmeWrapper geniimpute `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd & rest of cmd-line				
+	stackmeWrapper geniimpute `0' \ `multicntxt' `prfxtyp' `optMask' // Name of stackme cmd & rest of cmd-line				
 *	*************************						// (`0' is what user typed; `prfxtyp' & `optMask' were set above)	
 													// (`prfxtyp' placed for convenience; will be moved to follow optns)
 													// ( that happens on fifth line of stackmeCaller's codeblock 0)
@@ -61,7 +61,7 @@ program define geniimpute					// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR 
 										
 										
 											
-local rc = _rc							
+local rc = _rc							// HOW DO WE GET A NON-ZERO RC WHEN WRAPPER TERMINATED W exit 0
 
 local rc = 0
 
@@ -100,7 +100,9 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
   
   capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
-  if "$SMrc"!=""  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
+  if _rc==0  {
+  	if "$SMrc"!=""  scalar RC = $SMrc 						// If return code indicates that it does, stash it in scalar RC
+  }
   else scalar RC = 98765									// Else stash an unused return code
   if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
   macro drop _all											// Drop all macros (including $SMrc, if extant)
