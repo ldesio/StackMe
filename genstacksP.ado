@@ -1,4 +1,5 @@
-*! Apr 14'26
+*! Oct 7'26
+
 
 capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
@@ -38,21 +39,22 @@ capture noisily {											// Open capture braces mark start ot code where erro
 
 
 
-  syntax anything [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
+  syntax [anything] [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
 				  [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(integer -1) EXTradiag NOCheck  ] ///
 				  [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) * ] 
 
 							   
 							   
+  local namelist = "`anything'"								/*: char _dta[GENSTKVARS] */			   
 							   
-							   
-							   
+  local show = "namelist: `namelist'"							   
 							   
 							   // (1) Following codeblock executed for each context established in wrapper & recorded in `c'
 					
 
   local w = 1												// By default warnings are displayed
   
+  local limitdiag : char _dta[LIMITDIAG]					// Overrides varlist version that may not have been updated
   if `limitdiag'>0 & `c'>`limitdiag' local w = 0			// If limit not -1 & context>limit turn warnings off
 															// (`w' flags diagnostics for this context, `nodiag' for any context)
 															// (NOTE that nodiag is backwards; 0=none, !0=some)
