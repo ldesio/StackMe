@@ -1,4 +1,4 @@
-*! OCT 7'26
+*! Oct 7'26
 
 capture program drop geniimputeO							// Preparations that can be done before calling geniiP for each context
 
@@ -23,7 +23,24 @@ global errloc "geniimputeO"									// Global that keeps track of execution loca
 capture noisily {											// Open capture braces mark start ot code where errors will be captured
 ********	
 	
-	syntax anything  ,   ///		
+	
+	mata: st_numscalar("VERSION", statasetversion())		// Get stata verion # (*100) from Mata (PUT SCALAR IN ALL CAPS)
+															// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
+	local cmd = "geniimpute" 
+	
+	local nvarlsts : char _dta[NVARLISTS]
+	
+	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
+	local allPTVs = ""										// Ditto for all ptvs
+	
+	forvalues nvl = 1/`nvarlsts'  {
+		
+		local varlist : char _dta[VARLISTS`nvl']
+		local options : char _dta[OPTLIST`nvl']
+		
+		local 0 = ", `options'`nvl'"						// Put the options list where 'syntax' expects to find it
+		
+	    syntax ,   ///		
 		[ ADDvars(varlist) CONtextvars(varlist) STAckid(varname) IPRefix(name) MPRefix(name) ROUndedvalues BOUndedvalues SELected ] ///	**
 		[ LIMitdiag(integer -1) NODIAg EXTradiag KEEpmissing REPlace NOInflate FASt MINofvalues(integer 0) MAXofvalues(integer 0) ]	///	**
 		[ RANgeofvalues(str) NOCONtexts NOSTAcks NVArlst(integer 1) ctxvar(varname) nc(integer 0) c(integer 0) wtexplst(string) * ] //	**
@@ -31,50 +48,41 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		// contextvars, nocontexts, stackid, nostacks handled in wrapper; rounded, bounded, range, keep & replace in caller; 
 		// addvars, selected, noinflate, fast, nvarlst, ctxvar nc, c, & wtexplst are only optiones handled here
 		
-																// MCOuntname and MIMputedcountname dropped to conform with gendist 	***
-	local cmd = "geniimpute" 
-
-	
-	mata: st_numscalar("VERSION", statasetversion())			// Get stata verion # (*100) from Mata (PUT SCALAR IN ALL CAPS)
-
-
 	
 	
 												// Convert original default options (or revised defaults) for piped syntax
 	
-	if "`rangeofvalues'"!=""  {															// If user optioned a range of values ..
-	  gettoken minofvalues maxofvalues : rangeofvalues, parse(",")						// See if there is a comma
-	  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues, parse("-") // a hyphen
-	  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues 			// a blanm
-	  if "`maxofrange'"==""  {
-		errexit "Incorrect rangeofvalues specification"
-		exit 1
-	  }
-	} //endif `rangeofvalues'									// Else min & max may still be optioned
+		if "`rangeofvalues'"!=""  {															// If user optioned a range of values ..
+		  gettoken minofrange maxofrange : rangeofvalues, parse(",")						// See if there is a comma
+		  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues, parse("-") // a hyphen
+		  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues 			// a blank
+		  if "`maxofrange'"==""  {
+			errexit "Incorrect rangeofvalues specification"
+			exit 1
+		  }
+		} //endif `rangeofvalues'								// Else min & max may still be optioned
 
-	local imputeprefix = "i_"									// This and next cmds set documented default prefix strings
-	local missingflagprefix = "m_"		
+		local imputeprefix = "i_"								// This and next cmds set documented default prefix strings
+		local missingflagprefix = "m_"		
 	
 	
-	set more off	
+		set more off	
 												// Variable processing moved here from geniimpute_body, below
 												// Pre-process multi-varlist, variables saved by iimpute, and contextvars
 
-	local allPTVs = ""
-	local totPTVs = 0										// Initialize count of max # of vars to be imputed
-	local alladdv = ""										// Will hold list of all additional vars supportng all imputatns
-	local totaddv = 0										// Will hold count of max # of additional vars
-	local nonmisPTVs = ""									// Will hold list of non-missing PTVs
-	local prfxdPTVs = ""
+		local totPTVs = 0										// Initialize count of max # of vars to be imputed
+		local totaddv = 0										// Will hold count of max # of additional vars
+		local nonmisPTVs = ""									// Will hold list of non-missing PTVs
+		local prfxdPTVs = ""
 	
 
 	
-												// HERE STARTS PRE-PROCESSING OF CURRENT CONTEXT (for current context) ...				***
+												// HERE STARTS PRE-PROCESSING OF ALL VARS IN THIS VARLIST FOR ALL CONTXTS ...		***
 																// (preparatory to using results for actual processing)
-	forvalues nvl = 1/`nvarlst'  {						
 
-		local thePTVs = VARLISTS`nvl'							// Retrieve varlist from scalar where it was stashed before wrapper(3)
-		local addvars = PRFXVARS`nvl'							// Ditto
+		local thePTVs : char _dta[VARLISTS`nvl']				// Retrieve these from scalar where they were stashed before wrapper(3)
+																// (legacy name for vars to be imputed
+		local addvars : char _dta[PRFXVARS`nvl']				// (getting these from scalars allows for using prefixing format)
 														
 		local nvars : list sizeof thePTVs						// # of vars in this (sub-)varlist
 
@@ -84,8 +92,8 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		global first`nvl' = `1' 
 		global last`nvl' = `nvars'
 		
-		foreach var of local thePTVs  {							// Faster than using (now redundant) varlist
-		
+		foreach var of local thePTVs  {							// Process each PTV (legacy name for vars to be imputed)
+																
 			quietly clonevar i_`var' = `var' 					// Initialize imputed version of 'var' with original values
 			local imputedvars `imputedvars' i_`var'				// (stata will exit with error if this is not a variable)
 																// (label is carried over to cloned var)
@@ -101,11 +109,11 @@ capture noisily {											// Open capture braces mark start ot code where erro
 																// (not sure we use these)
 		} //next var 											// (in this varlist)
 		  		  
-		local nmisv: list sizeof missingvars					// Get length of (longest sub-)varlist
-		if `nvars'==`nmisv'	 {									// See if all vars are non-missing
-			dispLine "No vars for missing imputation have any missing values in first context"
+		local nmisv: list sizeof nonmisPTVs						// Get length of (longest sub-)varlist
+		if `nmisv'==0 {											// See if all vars are non-missing
+			dispLine "No vars for missing imputation have any missing values"
 *			 		  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			capture window stopbox rusure "No vars for missing imputation have missing values in first context; continue anyway?"
+			capture window stopbox rusure "No vars for missing imputation in varlist #`nvl' have missing values; continue anyway?"
 			if _rc  exit 1
 		}
 		
@@ -114,21 +122,25 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		scalar `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
 		local alnvl = "al`nvl'"									// `al' is additional list
 		scalar `alnvl' = "`addvars'"							// Additional varlist for this `nvl' (as above)
-//REPLACED GLOBALS `vlnvl & `alnvl' WITH SCALARS ABOVE
+																// REPLACED GLOBALS `vlnvl & `alnvl' WITH SCALARS ABOVE
 			   
 	   local allPTVs = "`allPTVs' `thePTVs'"					// Accumulate list of PTVs accross all varlists
-	   local alladdv = "`alladdv' `addvars'"
+	   foreach addv of local addvars  {							// Ditto for additional vars
+	   	  if strpos("alladdv","`addv'")==0  local alladdv = "`alladdv' `addv'"
+	   }														// Add only if additional var is not already in `addvars'
+	   
 	   
 	   local maximpvar = wordcount("`allPTVs' `addvars'")
 		
 	   if (`maximpvar' > 30) {
-		  errexit "Max of 30 vars for varlist + additional – you have specified `maximpvar'"
+		  errexit "Max of 30 vars for varlist `nvl' + additional; you have specified `maximpvar'"
+*			 	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
 		  exit 1
 	   }
 	
 	} //next `nvl'			 									// (next varlist in this multi-varlist)
 	
-pause on	
+*pause on	
 pause next`nvl'
 pause off
 
@@ -157,11 +169,13 @@ if "`skipcapture'"==""  {										  // If not empty we did not get here due to 
 	exit 1
 }
 
-	
-			
-end geniimputeO
+exit															  // CLUGE ADDRESSES "matching close brace not found" error	
+																  // (likely due to errexit from within 'for..' 'if' or 'else' clause)
+																  
+end //geniimputeO
 
 
 ********************************************** END PROGRAM GENIIMPUTEO ********************************************************
+
 
 
