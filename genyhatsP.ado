@@ -1,4 +1,5 @@
 *! Oct 7'26
+// NOTE THIS VERSION HAS NOT BEEN DEBUGGED EVEN TO THE POINT OF RUNNING TO COMPLETION. IT REQUIRES HELP FROM CLAUDE TO GET EVEN THAT FAR *****
 
 capture program drop genyhatsP					// Originally `genyhats', in Version 2 is called by `stackmeWrapper'
 
