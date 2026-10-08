@@ -1,4 +1,3 @@
-*! Mar 22'26
 
 capture program drop gendist				// Calculates distances (now also proximities) between respondent's self-placed spatial 
 											// locations and the spatial location of battery items.
@@ -23,9 +22,9 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
 															// prefixvar (here SELfplace) is first option and its negative is last.
 															
-	local optMask = "SELfplace(varname) ITEmname(varname) MISsing(str) DPRefix(str) PPRefix(str) MPRefix(string) APRefix(string)"  ///
-				  + " XPRefix(str) MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMitdiag(integer -1) PROximities" ///
-				  + " PLUgall ROUnd REPlace NOSelfplace" 	// NOTE that 'noreplace' is not returned in macro 'replace'				**
+	local optMask = "SELfplace(varname) ITEmname(varname) MISsing(str) DPRefix(str) PPRefix(str) MPRefix(string) XPRefix(str) " ///
+				  + " MCOuntname(name) MPLuggedcountname(name) RESpondent(varname) LIMitdiag(integer -1) PROximities PLUgall "	///
+				  + " ROUnd REPlace" 
 	
 															// First option in optMask has special status, generally naming a var or
 															//  varlist	that may be overriden by a prefixing var or varlist (hence	
@@ -50,11 +49,10 @@ global errloc "gendist(0)"									// $Records which codeblk is now executing, i
 	
 	
 *	**********************
-	stackmeWrapper gendist `0' \prfxtyp(`prfxtyp') `multicntxt' `optMask' 	// Space after "\" must go from all calling programs
-*	**********************									// (`0' is what user typed; `prfxtyp' & `optMask' strings were filled	
-															//  above; `prfxtyp', placed for convenience, will be moved to follow 
-															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1))
-															// `multicntxt', if empty, sets stackMeWrapper flag 'noMultiContxt'
+	stackmeWrapper gendist `0' \ `multicntxt' `prfxtyp' `optMask' // Name of stackme cmd followed by rest of cmd-line					
+*	***********************									// (local `0' has what user typed; `prfxtyp' & `optMask' were set above)	
+															// (`prfxtyp' placed for convenience; will be moved to follow options)
+															// (that happens at end of stackmeWrapper's codeblock 0.1)
 			
 *   CONtextvars NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
 *															// All of these except limitdiag are added in stackmeWrapper, codeblock(2)
