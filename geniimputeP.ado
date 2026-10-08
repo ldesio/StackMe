@@ -1,4 +1,5 @@
-*! Apr 14'26
+*! Oct 7'26
+
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
@@ -24,7 +25,9 @@ program define geniimputeP
 global errloc "geniiP"											// Global that keeps track of execution location for benefit of 'errexit'
 
 
-*if "$SMreport"!=""  {											// COMMENTED OUT 'COS REDUNDANT (exit FOLLOWS CALL ON errexit)			***
+	syntax [ anything ], [nc(integer 0) c(integer 0) wtexplst(string) nvarlst(integer 0) wtexplst(str) * ]
+	
+local show = "nc= `nc' ; c = `c'"
 	
 ***************
 capture noisily {												// Open capture braces mark start ot code where errors will be captured
@@ -32,15 +35,26 @@ capture noisily {												// Open capture braces mark start ot code where err
 	
 	local cmd = "geniimpute" 
 	
-	syntax anything, [ LIMitdiag(integer -1) EXTradiag NOInflate SELected ROUndedvalues BOUndedvalues MINofrange(integer 0) ] ///
-			 [ MAXofrange(integer 0) FASt ctxvar(varname) NVArlst(integer 1) nc(integer 0) c(integer 0) WTExplst(string) * ]
-			 
-			 // rangeofvalues used in geniimputeO to initialize minofrange & maxofrange
+	local nvarlsts : char _dta[NVARLISTS]
 	
-																 // varlist is passed in a set of globals, one for each nvl
+	
+	forvalues nvl = 1/`nvarlsts'  {
+		
+		
+	  local options : char _dta[OPTLIST`nvl']
+	  local mask : char _dta[MASK`nvl']
 
-	local thiscontext = `c'										 // Local parameter set in wrapper & transferred thru call on `cmd'P 
+	  
+	  
+																// (VARLISTS and OPTIONS are charactrstks set in wrappr before pause(3))
+																// (Contain lists of vars specific to each varlist of multivarlst)
 
+	  local limitdiag : char _dta[LIMITDIAG]
+	  local varlist : char _dta[VARLISTS`nvl']
+local show = "`varlist'"
+
+	  
+	  local thiscontext = `c'									// Local parameter set in wrapper & transferred thru call on `cmd'P 
 												/*	
 												incremental simple imputation logic: select cases with 1 missing PTV, impute that PTV 
 												(starting from PTVS with fewest missing cases...); then cases with 2, etc..., until you 
@@ -49,63 +63,78 @@ capture noisily {												// Open capture braces mark start ot code where err
 												
 												`missingCntName and missingImpCntname are retained in the code, used for extra diagnostics'
 												*/		
+																// rangeofvalues used in geniimputeO to initialize minofrange & maxofrang						
+	  if "`rangeofvalues'"!=""  {								// If user optioned a range of values ..
+		  gettoken minofrange maxofrange : rangeofvalues, parse(",")						// See if there is a comma
+		  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues, parse("-") // a hyphen
+		  if "`maxofrange'"==""  gettoken minofrange maxofrange : rangeofvalues 			// a blank
+		  if "`maxofrange'"==""  {
+			errexit "Incorrect rangeofvalues specification"
+			exit 1
+		  }
+	  } //endif `rangeofvalues'								// Else min & max may still be optioned
 
-	local inflate = 1
-	if "`noinflate'"!="" local inflate = 0
+	  local inflate = 1
+	  if "`noinflate'"!="" local inflate = 0
 	
-	local rounded = 0
-	if "`roundedvalues'"!="" local rounded = 1
+	  local rounded = 0
+	  if "`roundedvalues'"!="" local rounded = 1
 	
-	local bounded = 0
-	if "`boundedvalues'"!="" local bounded = 1
+	  local bounded = 0
+	  if "`boundedvalues'"!="" local bounded = 1
 												
 												
-	local nonmisPTVs = ""										// Local to hold relevant list
+	  local nonmisPTVs = ""										// Local to hold relevant list
 												
-	quietly count /*if `contextvar'==`context'*/				// All these `if's removed as working data comes from just 1 context
+	  quietly count /*if `contextvar'==`context'*/				// All these `if's removed as working data comes from just 1 context
 
-	local numobs = r(N)											// N of observations for this context (& stack)
+	  local numobs = r(N)										// N of observations for this context (& stack)
 		
-	if `limitdiag'==-1  local limitdiag = .						// Make that a very large number
+	  if `limitdiag'==-1  local limitdiag = .					// Make that a very large number
 
-	local showDiag = 1											// By default show all diagnostics
-	local showMode = "noisily"
-	if (`limitdiag'==0 | (`c' > `limitdiag')) {					// If diagnostics limited to 0 or non-0 limit reached . . .
+	  local showDiag = 1										// By default show all diagnostics
+	  local showMode = "noisily"
+
+	  if (`limitdiag'==0 | (`c' > `limitdiag')) {				// If diagnostics limited to 0 or non-0 limit reached . . .
 		local showDiag = 0
 		local showMode = "quietly"
-	}
-	local lbl : label lname `c'
+	  }
+	  local lbl : label lname `c'
 		
 	
 	
-	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
-																// MAYBE REVISE THIS USE EXISTING SCALARS TO REPLACE GLOBALS			***
+*	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
+																// COMMENDED OUT SINCE NOW HAPPENS BEFORE 'syntax'				***
 
-	  local vlnvl = "vl`nvl'"
-	  local varlist = `vlnvl' 									// Varlist for each nlv was stored in global by geniimputeO
+/*	  local vlnvl = "vl`nvl'"
+	  local varlist = vlnvl 									// Varlist for each nlv was stored in scalar by geniimputeO
 *	  global `vlnvl' = ""										// Empty that global after transferring contents to local `varlist'
 	  local alnvl = "al`nvl'"
-	  local added = `alnvl'										// Varlist for added vars derived as for main varlist, above
+	  local added = alnvl										// Varlist for added vars derived as for main varlist, above
 *	  global `alnvl' = ""
-// CHANGED GLOBAL `vlnvl' & `alnvl' TO SCALARS ABOVE
-	  local thePTVs = "`varlist'"								// Varlist derived from global above, originating in geniimputeO
+*/																// CHANGED GLOBAL `vlnvl' & `alnvl' TO SCALARS IN geniimpute0
+	  
+	  local thePTVs = "`varlist'"								// Varlist derived from scalar above, originating in wrapper(2.2)
+	  local added = "`addvars'"									// `addvars' is first option decoded by 'syntax', above
 	  local usedPTVs = ""
 
 	  local countPTVs = 0
 	  local countUsedPTVs = 0
-	  local miscnts = ""										// List of missing counts per PTV
+	  local miscnts = 0											// Total of missing counts per PTV
+	  local miscntvars = ""										// List of vars with missing counts
 		
-	  foreach var of local varlist {							// Process each PTV (legacy name for vars to be imputed)
+	  foreach var of local thePTVs {							// Process each PTV (legacy name for vars to be imputed)
 			
 		quietly count if missing(`var') 						// MOVE THIS CHECK TO WRAPPER OR TO geniimputeO							***
 		local missing = r(N)									// N of missing cases for this PTV within this context
 				
 		if `missing'==0  local nonmisPTVs ="`nonmisPTVs' `var'" // Accumulate list of non-missing PTVs
-		// if no. of missing values less than no. of observations, this PTV is used
+																// if no. of missing values less than no. of observations, this PTV is used
 		if `missing'<`numobs' & `missing'>0  {					// Mark added check for `missing'>0 (now redundant?) 
-			local countUsedPTVs = `countUsedPTVs' + 1			// N of PTVs with some but not all missing cases
+			local countUsedPTVs = `countUsedPTVs' + 1			// N of PTVs with some but not all missing obs
 			local usedPTVs "`usedPTVs' `var'"					// Store only if some but not all ditto
-			local miscnts = "`miscnts' " + string(`missing')
+			local miscntvars = "`miscntvars' `missing'"			// accumulate list missing obs per var
+			local miscnts = `miscnts' +1						// Count N of such vars
 		}
 		local countPTVs = `countPTVs' + 1						// N of vars specified by user in varlist
 			
@@ -115,14 +144,14 @@ capture noisily {												// Open capture braces mark start ot code where err
 /*	  if `c'==2  {													// THIS IS A CLUGE TO SUPPRESS A BLANK LINE AFTER 1ST CONTEXT		***
 	     if `showDiag' noisily display /*_newline*/ "   Context `lbl' has `numobs' observations " _continue
 	  }
-	  else*/  if `showDiag' noisily display _newline "{txt}   Context `lbl' has `numobs' observations " _continue
+	  else*/  if `showDiag' noisily display _newline "   Context `lbl' has `numobs' observations " _continue
 		
 	  if `countUsedPTVs' > 0  {										// Further pre-processing only if more useable PTVs		
 		  local missingCounts ""
 		  local npty = 0
 		  foreach var of local usedPTVs {
 			local npty = `npty' + 1
-			local thisN = word("`miscnts'", `npty')					//`thisN' now holds N missing for this usedPTV
+			local thisN = word("`miscntvars'",`npty')				//`thisN' now holds N missing for each usedPTV
 				// very, very dirty trick:							// Mark thinks its a pretty neat trick! 							***
 			local missingCounts = "`missingCounts'" +   ///
 			  substr("000000",1, 7-strlen("`thisN'")) + ///
@@ -138,6 +167,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	  if "`fast'"==""  {											// 'fast' overrides 'selected' if optioned
 		
 	     if "`selected'" != ""  {				// This option selects only additional vars with more missing cases than in missingCounts	***
+																	// (else N of imputed obs will be reduced commensurately)
 		
 			local lastCount = word("`missingCounts'",`nvals')		// Last count has greatest N of missing for any var to be imputed
 			local maxval = real(substr("`lastCount'",1,7))
@@ -320,7 +350,7 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 
 	
 		
-end //geniiP_body
+end geniiP_body
 
 
 
