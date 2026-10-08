@@ -1,10 +1,10 @@
-*! Mar 22'26
+*! Oct 07'26
 
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
 program define gendistP										// Called by 'stackmeWrapper'; calls subprograms 'errexit'
 
-	version 9.0												// gendist version 2.0, June 2022, updated May 2023
+	version 9.0												// gendist version 2.0, June 2022, updated May'23-Oct'26
 	
 *!  Stata version 9.0; gendistP (was gendist until now) version 2, updatd May'23 from major re-write in Mar'23
 *!  Stata version 9.0; gendist version 2, updated Mar'23 from major re-write in June'22
@@ -23,60 +23,48 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 
 
 
-
-
-    syntax anything [aw fw pw iw/], [ SELfplace(varname) MISsing(string) PPRefix(string) MPRefix(string) DPRefix(string) ] 	///
-			[ APRefix(string) MPLuggedcountname(name) LIMitdiag(integer -1) EXTradiag(integer 0) MCOuntname(name) ] 		///
-			[ PLUgall ROUnd REPlace NOReplace NOStacks NODiag NOSELfplace NOCONtexts PROximities nvarlst(integer 1) ]		///
-			[ nc(integer 0) c(integer 0) wtexplst(str) * ] 	// (xprefix not relevant in gendistP; only in wrapper)
-															// now using label lname in lieu of ctxvar
-						
-
+															// SYNTAX COMMAND MOVED FROM HERE TO CODEBLK 2
+															// (in stackMe version 10)
 								
 * *****************											// Open braces enclosing code for which errors will be captured
   capture noisily {								
 * *****************								
-
-
-											// (1) Pre-process gendist-specific options not preprocessed in wrapper
 			
-
-	if `limitdiag'==-1  local limitdiag = .					// User wants unlimitd diagnostcs, make that a very big number!			** 
-	if "`nodiag'"!=""  local limitdiag = 0
-
-	if ("`missing'"=="") local missing = "all"				// Default if 'missing' option was not used
-	if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
-	if "`missing'"!="dif2" local missing = substr("`missing'",1,3)	// Keep 4 chars if those are "dif2", else just 3 chars
-	if "`missing'"=="di2" local missing = "dif2"			// (in case user thinks there is a 3-char minimum)
 	
-	local stkd = 0
-	capture confirm variable SMstkid
-	if _rc == 0  local stkd = 1								// This versn makes no distinctn between stacked and unstkd dta
-	if "`nostacks'"!="" local stkd = 0						// Indicates whether context includes stack #
-
-	local prx = 0
-	if "`proximities'"!="" local prx = 1					// Switch set true if proximities were optioned
-	
-	local mo = ", meanonly"									// Set option for summarize, below
-	if `prx'  local mo = ""
-	
-	
-	
-											// (2) HERE STARTS PROCESSING OF CURRENT CONTEXT (BUT HAVE if `c'==1 BELOW)				***
+											// (2) HERE STARTS PROCESSING OF CURRENT CONTEXT (WITH if `c'==1' REMOVED BELOW)		***
 											
-	local minN = .											// Make initial minN really big
-	local maxN = 0											// Make initial maxN really small
 	local nvl = 0											// Count of n of varlists processed
-	
-	while `nvl'<`nvarlst'  {					 			// Cycle thru set of varlists with same options (`nvl' was optioned)
-	
-	  local nvl = `nvl'+1									// (any prefix is in `selfplace' or `precolon')	
-	  local varlist = VARLISTS`nvl'							// Retrieve varlist from scalar where it was stashed before wrapper(3)
-	  if (PRFXVARS`nvl'!="") & !missing(PRFXVARS`nvl')  local selfplace = PRFXVARS`nvl' // Ditto
+	local nvarlsts : char _dta[NVARLISTS]					// Charactrstcs here and below were set in wrapper before codeblk(3)
+															// We nee
+*	***************************	
+	while `nvl' < `nvarlsts'  {					 			// Cycle thru set of varlists with same options (`nvl' was optioned)
+*	***************************								// (any prefix is in `selfplace' or `precolon')	
+
+	  local nvl = `nvl' + 1	
+	  
+	  local varlist : char _dta[VARLISTS`nvl']
+	  local options : char _dta[OPTIONS`nvl']
+*local show = "`varlist'"
+	  
+	  local 0 = ", `options'"
+															// MOVED HERE IN VERSION 10 FROM TOP OF 'gendistP'
+      syntax [varlist] [aw fw pw iw/], [ SELfplace(varname) MISsing(string) PPRefix(string) MPRefix(string) ] 				///
+			[ DPRefix(string) MPLuggedcountname(name) LIMitdiag(integer -1) EXTradiag(integer 0) MCOuntname(name) ] 		///
+			[ PLUgall ROUnd REPlace NOReplace NOStacks NODiag NOSELfplace NOCONtexts PROximities nvarlst(integer 1) ]		///
+			[ nc(integer 0) c(integer 0) wtexplst(str) * ] 	// (xprefix not relevant in gendistP; only in wrapper)
+															// now using label lname in lieu of ctxvar
+	  global c = `c'										// local c somehow gets lost prior to access, below
+															
+*
+	  local varlist : char _dta[VARLISTS`nvl']				// Getting these from chars permits use of prefixing format
+*	  local selfplace : char _dta[PRFXVARS`nvl']			// Ditto (`varlist' is in either source)
+	  local minN = .										// Make initial minN really big
+	  local maxN = 0										// Make initial maxN really small
+
 	  local nvars : list sizeof varlist
-	  tokenize `varlist'
+	  tokenize `varlist'									// Puts varnames into `1', `2', ... , ``nvars''
 	  local first `1'
-	  local last ``nvars''
+	  local last ``nvars''									// Double quotes to get name pointed to last numbered local
 	  
 	  if "`wtexplst'"!=""  {
 	    local weight = subinstr(word("`wtexplst'",`nvl'),"$"," ",.) 
@@ -84,39 +72,46 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	    if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper subprogram		***
 	  }
 
-	  
-	  
-	  
+	  if `limitdiag'==-1  local limitdiag = .				// User wants unlimitd diagnostcs, make that a very big number!			** 
+	  if "`nodiag'"!=""  local limitdiag = 0
 
+	  if ("`missing'"=="") local missing = "all"			// Default if 'missing' option was not used
+	  if "`missing'"=="mean" local missing = "all"			// Permit legacy keyword "mean" for what is now "all"
+	  if "`missing'"!="dif2" local missing = substr("`missing'",1,3) // Keep 4 chars if those are "dif2", else just 3 chars
+	  if "`missing'"=="di2" local missing = "dif2"			// (in case user thinks there is a 3-char minimum)
+	
+	  local stkd = 0
+	  capture confirm variable SMstkid
+	  if _rc == 0  local stkd = 1							// This versn makes no distinctn between stacked and unstkd dta
+	  if "`nostacks'"!="" local stkd = 0					// Indicates whether context includes stack #
+
+	  local prx = 0
+	  if "`proximities'"!="" local prx = 1					// Switch set true if proximities were optioned
+	
+	  local mo = ", meanonly"								// Set option for summarize, below
+	  if `prx'  local mo = ""
+	
+	
 	  
+	  	  
 global errloc "gendistP(3)"	  
 pause gendistP(3)
 
+	  if $c==1  {											// Only display for first context for each varlist
 
-											// (3) Diagnostics are displayed only for 1st context SHLD EVENTUALLY BE IN 'gendistO'	***
-	  
-	  if `c'==1 & `nvl'==1 {								// If this is first call on gendistP (1st varlist for 1st context)
- 	
-		if ("`missing'"=="dif2" & "`plugall'"=="")  {		// If "dif2" is optioned we also need "plugall"
-	      display as error "Option {bf:missing(dif2)} requires option {bf:plugall} – assumed if ok{txt}"
-		  capture stopbox rusure "Option {bf:missing(dif2)} requires option {bf:plugall} – assumed if ok"
-		  if _rc  {
-		  	errexit, msg("Absent permission to assume option plugall{txt}")
-			exit 1
-		  }
-		}
-
-	    if `limitdiag' !=0   {								// If diagnostics were not silenced, display 1st diagnostic
-		  noisily display _newline "{p}{txt}Computing distances between R's position ({result:`selfplace'}) and their placement" _continue
-*											12345678901234567892345678901234567892345678901234567892345678901234567890{result:`'}
-		  noisily display "of objects: ({result:`varlist'}) {p_end}{txt}"
+		if `limitdiag' !=0   {								// If diagnostics were not silenced, display 1st diagnostic
+		  noisily display _newline ///
+			"{p}{txt}Computing distances between R's position ({result:`selfplace'}) and their placement" _continue
+*					 12345678901234567892345678901234567892345678901234567892345678901234567890{result:`'}
+			noisily display "of objects: ({result:`varlist'}) {p_end}{txt}"
 		}		
 		
-	  } //endif`c'==1
+		
+	  } //endif `c'==1
 
 
 *	  ********	  
-	  quietly {												// Don't report findings for commands in the following blocks
+	  quietly {												// Don't report dignostics for commands in the following blocks
 *	  ********	  	
 		
 	
@@ -130,7 +125,7 @@ global errloc "gendistP(4)"
 
 											// (4) Get plugging values separately for different 'missing' options
 		
-	 	local i = 0											// ASSUMING THIS CODEBLK SHOULD ONLY BE CONDUCTED ON CURRNT CONTXT ??		***
+	 	local i = 0												  // ASSUMING THIS CODEBLK SHOULD ONLY APPLY TO CURRNT CONTXT			***
 		while `i'<`nvars'  {
 			
 		   local i = `i' + 1
@@ -166,14 +161,16 @@ global errloc "gendistP(4)"
 		   if "`missing'"=="dif"  replace d_`var' = p_`var' if `selfplace'!=`var'& m_`var' // Only replace missing values w appropriate
 		   if "`missing'"=="dif2" | "`plugall'"!=""  replace d_`var' =  p_`var' 		   // Same as p_var 'cos 'plugall' is implied
 		   
-		   if `prx'  {											  // If proximities were optioned..
-		   	 if "`missing'"=="all"  qui sum d_`var' `weight' `mo' // Use all obs for `missing'=="all"			
-			 if "`missing'"!="all" & "`missing'"!=""  {			  // Else use just obs where `selfplace'!=`var'
-			   qui sum d_`var' `weight' if `selfplace'!=`var'`mo' // (resulting mean works for "dif" & "dif2")							***
-			   scalar MAX  = r(max)								  // The right MAX for appropriate summarize
-			   gen x_`var' = MAX - d_`var'
-		  }
-		}
+		   if `prx'  {											   // If proximities were optioned..
+		   
+		   	  if "`missing'"=="all"  qui sum d_`var' `weight' `mo' // Use all obs for `missing'=="all"	
+			  
+			  if "`missing'"!="all" & "`missing'"!=""  {		   // Else use just obs where `selfplace'!=`var'
+			    qui sum d_`var' `weight' if `selfplace'!=`var'`mo' // (resulting mean works for "dif" & "dif2")							***
+			    scalar MAX  = r(max)								  // The right MAX for appropriate summarize
+			    gen x_`var' = MAX - d_`var'
+			  }
+		   }
 			 
 		} //next var
 		
@@ -199,12 +196,9 @@ global errloc "gendistP(6)"
 			
 			
 			
-											// (6) Break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
+											// (6) COULD break out of `nvl' loop if `postpipes' is empty (common across all `cmd')
 											// 	   (or pre-process syntax for next varlist)
 											
-
-	  	local nvl = `nvarlst'+1
-
 	
 				   
 	} //next `nvl' 											// (next varlist having same options)
@@ -214,8 +208,9 @@ global errloc "gendistP(6)"
 	
 	local skipcapture = "skip"								// Local, if set, prevents capture code, below, from executing
 	
-	
-	
+*pause on
+pause gendistP(6)	
+pause off	
 	
 *  **************
   } //end capture											// End-brace for code in which errors are captured
@@ -263,6 +258,8 @@ end //createActive copy
 
 
 ************************************************** END SUBPROGRAM **********************************************************
+
+
 
 
 
