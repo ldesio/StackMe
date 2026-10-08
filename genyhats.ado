@@ -1,6 +1,7 @@
+*! Oct 7'26
 
 capture program drop genyhats				// Estimates inflated imputed values of listed variables for multiple imputation of
-											//   contextual data (multiply-imputed thanks to the multiple context\s)
+											//   contextual data (multiply-imputed thanks to the multiple contexts)
 
 											// SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
@@ -14,8 +15,8 @@ program define genyhats						// Called by yenyh (below); calls stackmeWrapper
 											// that end with "**" need to be tailored to specific stackMe commands
 										
 														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe 'cmd'
-	local optMask = "DEPvarname(name) ITEmname(varname) ADJust(string) EFFects(string) EFOrmat(string) DPRefix(name) "		/// **
-				  + "IPRefix(name) APRefix LIMitdiag(integer -1) MULtivariate LOGit REPlace NOReplace KEEpmissing"					    	 	//	**
+	local optMask = "DEPvarname(name) ITEmname(varname) ADJust(string) EFFects(string) EFOrmat(string) BPRefix(name) "		/// **
+				  + "MPRefix(name) APRefix LIMitdiag(integer -1) MULtivariate LOGit REPlace NOReplace KEEpmissing"					    	 	//	**
 														// (NOTE that prefix names appear in both version 1 & version 2 formats)**
 														// Ensure prefixvar for this stackMe command is placed first and its 
 														// negative is placed last; ensure options with arguments preceed toggle 
@@ -24,24 +25,24 @@ program define genyhats						// Called by yenyh (below); calls stackmeWrapper
 														// common to all stackMe `cmd's will be added in stackmeWrapper.
 														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)**
 
-	local prfxtyp = "var"/*"othr" "none"*/				// Nature of varlist prefix – var(list) or other. (`depvarname will		**
+	local prfxtyp = "var"/*"othr" "none"*/				// Nature of varlist prefix – var(list),other.none (`depvarname will	**
 														// be referred to as `opt1', the first word of `optMask', in codeblock 
-														// (0) of stackmeWrapper called just below). `opt1' is always the name 
-														// of an option that holds a varname or varlist (which must be referred
-														// using double-quotes). Normally the variable named in `opt1' can be 
-														// updated by the prefix to a varlist, but not so in genyhats.
+														// (0) of stackmeWrapper called just below). `opt1' always names an  
+														// option that holds a varname, varlist or str (which must be referred
+														// using double-quotes). `opt1' is always present. 
 		
 	local multicntxt = "multicntxt"/*""*/				// Whether `cmd'P takes advantage of multi-context processing			**
-	
-	local save0 = "`0'"									// Seems necessary, perhaps because called from gendi
+														// If this exact word is not present then local multiCntxt is set empty **
+														
+	local save0 = "`0'"									// Retrieved on return from wrapper, below
 	
 	
 	
 *	***********************									   
-	stackmeWrapper genyhats `0' \ prfxtyp(`prfxtyp') `multicntxt' `optMask' // Name of stackme cmd followed by rest of cmd-line					
-*	***********************								// (local `0' has what user typed; `optMask'&`prfxtyp' were set above)	
+	stackmeWrapper genyhats `0' \ `multicntxt' `prfxtyp' `optMask' // Name of stackme cmd followed by rest of cmd-line					
+*	***********************								// (local `0' has what user typed; `prfxtyp' & `optMask' were set above)	
 														// (`prfxtyp' placed for convenience; will be moved to follow options)
-														// (that happens on fifth line of stackmeWrapper's codeblock 0)
+														// (that happens at end of stackmeWrapper's codeblock 0.1)
 														
 *  Additionally, NODiag EXTradiag REPlace NEWoptions MODoptions NOCONtexts NOSTAcks  (+ limitdiag) ARE COMMON TO MOST STACKME COMMANDS
 *														// All of those except limitdiag are added in stackmeWrapper, codeblock(2)
@@ -231,7 +232,7 @@ global errloc "caller(2)"
   capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
   if _rc==0  scalar RC = $SMrc 								// If return code indicates that it does, stash it in scalar RC
   else scalar RC = 98765									// Else stash an unused return code
-  if $limitdiag !=0 & RC==98765  noisily display _newline "done." // Display "done." if no error was reported, by Stata or by stackMe
+  if RC==98765  noisily display _newline "done." // Display "done." if no error was reported, by Stata or by stackMe
   macro drop _all											// Drop all macros (including $SMrc, if extant)
   if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
   scalar drop _all 											// Drop all scalars, including RC
@@ -256,4 +257,5 @@ end genyh
 
 
 **************************************************** END genyh **************************************************************
+
 
