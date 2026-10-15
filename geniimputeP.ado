@@ -1,4 +1,5 @@
-*! Oct 7'26
+*! Oct 15'26
+
 
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
@@ -350,7 +351,7 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 
 	
 		
-end geniiP_body
+end geniimputeP
 
 
 
