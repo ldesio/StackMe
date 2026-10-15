@@ -1,4 +1,4 @@
-*! Oct 7'26
+*! Oct 14'26
 
 capture program drop geniimputeO							// Preparations that can be done before calling geniiP for each context
 
@@ -103,12 +103,13 @@ capture noisily {											// Open capture braces mark start ot code where erro
 			
 			quietly count if missing(`var') 					// THIS CHECK MOVED FROM geniimputeP									***
 			local missing = r(N)								// N of missing cases for this PTV within full dataset
-			if `missing'==0  local nonmisPTVs = "`nonmisPTVs' `var'" 
+			if `missing'==0  local nonmisPTVs = "`nonmisPTVs' `var'" // FAULTY LOGIC – SEE BELOW - CALLS FOR ALL NON-MISSING			***
 																// Accumulate list of non-missing PTVs
 			local prfxdPTVs = "`prfxdPTVs' i_`var' m_`var'"		// And list of prefixed and initialized PTVs
 																// (not sure we use these)
 		} //next var 											// (in this varlist)
-		  		  
+
+/*														// COMMENTED OUT `COS `nmisv' SEEMINGLY NOT FILLED APPROPRIATELY, ABOVE			***
 		local nmisv: list sizeof nonmisPTVs						// Get length of (longest sub-)varlist
 		if `nmisv'==0 {											// See if all vars are non-missing
 			dispLine "No vars for missing imputation have any missing values"
@@ -116,7 +117,7 @@ capture noisily {											// Open capture braces mark start ot code where erro
 			capture window stopbox rusure "No vars for missing imputation in varlist #`nvl' have missing values; continue anyway?"
 			if _rc  exit 1
 		}
-		
+*/														// END OF COMMENTED OUT SEGMENT
 		
 		local vlnvl = "vl`nvl'"									// `vl' is varlist
 		scalar `vlnvl' = "`thePTVs'"							// Varlist (thePTVs) for this nvarlist (of multivarlist)
@@ -173,6 +174,7 @@ exit															  // CLUGE ADDRESSES "matching close brace not found" error
 																  // (likely due to errexit from within 'for..' 'if' or 'else' clause)
 																  
 end //geniimputeO
+
 
 
 ********************************************** END PROGRAM GENIIMPUTEO ********************************************************
