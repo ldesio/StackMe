@@ -1,5 +1,4 @@
-*! Feb 21'26
-
+*! Oct 22'26
 {smcl}
 {cmd:help gendummies}
 {hline}
@@ -7,7 +6,7 @@
 {title:Title}
 
 {p2colset 5 20 22 2}{...}
-{p2col :{ul:gendu}mmies {hline 2}}Generates batterie(s) of dummy variables with suffixes taken from category codes{p_end}
+{p2col :{ul:gendu}mmies {hline 2}}Generates batterie(s) of dummy variables with suffixes taken from category values{p_end}
 {p2colreset}{...}
 
 
@@ -16,39 +15,36 @@
 {p 8 16 2}
 {opt gendummies} {varlist} [{cmd:,} {it:options} ]
 
-{p 8}or
+{p 9 9 2}generates as many dummy variables for each variable in varlist as that variable has different category values, 
+using as stubname for each dummy the name of the categorical variable whose values became numeric suffixes to that stub.
 
-{p 8 19 2}
-{opt gendummies} [[prfx_]stublist:]{varlist}  [ || {break}
-[[prfx_]stublist:]{varlist} [ || ... ] ]  [ || {break}
-[[prfx_]stublist:]{varlist} [, {it:options}] ]
+{p 5}or
 
+{p 8 16 2}
+{opt gendu:mmies} {varlists}, stubnames()... [ || {varnames} , stubnames()... [ || ... ] ]{p_end}
 
-{p 8 8}The second syntax permits the same options to be applied to multiple varlists. In that case ", options" 
-should appear after the final {varlist}. For {cmdab:gendu:mmies}, alone among {help stackme} commands, no 
-options are required. If/in/weight expressions have no effect if supplied.{p_end} 
-{p 8 8}{bf:Note that} the most effective approach to useing {cmdab:gendu:mmies} is generally to use Stata's 
-{help rename group} command (see especially Rule 17) to rename variables appropriately before invoking 
-{cmd:gendummies} with the first (standard STATA) syntax. The second syntax is included for conformity with 
-{help stackme} syntax used elsewhere, particularly in allowing the user to override the first option with 
-a varname provided as a prefix to the varlist – permitting different stubnames for each varlist (as many 
-stubnames as there are names in the corresponding varlist).
+{p 9 9 2}generates as many dummy variables from each variable in varlist as that variable has different category 
+values, taking the stubname for each generated variable from the optioned list of stubnames, one stubname for each 
+varname in order of occurance in each list.
+
+{p 4 4 2}For {cmdab:gendu:mmies}, alone among {help stackme} commands, no options are required. If/in/weight expressions 
+have no effect if supplied.{p_end} 
+
+{p 4 4 2}Missing data must be coded according to standard {bf:Stata} conventions. Datasets using other conventions 
+should first be pre-processed using {bf:Stata}'s {help mvdecode} command.{p_end}
 
 
 {synoptset 18 tabbed}{...}
 {synopthdr}
 {synoptline}
 {p2colset 5 22 20 2}
-{synopt :{opth stu:bname(name)}}Optional stubname for generated dummy variable(s) (default is to use the name of 
-the variable from which the dummies are generated. Alternatively stubnames can be listed as a prefix to each varlist 
-when using Syntax 2. Any alternative stubname should itself not already have a numeric suffix.{p_end}
-{synopt :{opt dup:refix}} if specified, a string of text that serves as prefix to the stubname (either optioned or 
-established at the start of the {cmdab:gendu:mmies} {varlist}). By default the prefix "du_" is used to indicate 
-that generated variables were produced by {cmd:stackme}'s {cmdab:gendu:mmies} command.{p_end}
-{synopt :{opt nod:uprefix}} if specified, cancel the default convention of prepending the letters "du_" to the front 
-of any outcome varname.{p_end}
-{synopt :{opt apr:efix}} if specified, a string of text (the same for all stubnames) that extends the prefix (either 
-optioned or established at the start of the {cmdab:gendu:mmies} {varlist}).{p_end}
+{synopt :{opth stu:bname(namelist)}}Optional stubname(s) for generated dummy variable(s) (default is to use the names of 
+the variables from which each dummy is generated).{p_end}
+{synopt :{opt dup:refix(str)}}if specified, string prefix to replace the "du" that, followed by "_", serves as default 
+string-prefix for each generated dummy variable.{p_end}
+{synopt :{opt nod:uprefix}}suppress the "du_" or optioned string-prefix mentioned above.
+{synopt :{opt apr:efix(str)}} if specified, a string of text that replaces the "_" following the default or optioned 
+string prefix, listed above, for all generated varnames. Should normally start with "_".{p_end}
 {synopt :{opt inc:ludemissing}}Include missing values coded as zeros.{p_end}
 
 {p 4}None of these options are required.{p_end}
@@ -64,7 +60,7 @@ of coding missing categories as zeros (especially useful when a battery question
 bipolar topic). The resulting batteries provide a convenient mechanism for including categorical information in 
 stacked data.{break}
 {space 3}Any variable for which a {bf:stubname} is not provided will be named by using as stub the name of the 
-variable whose categories are being re-organized as separate dummies. Resulting variables are labled with the 
+variable whose categories are being re-organized as separate dummies. Resulting variables are labeled with the 
 original variables' corresponding value labels, if any.{break}
 {space 3}{cmd:gendummies} uses the codes found in the data as suffixes for the generated variables, thus permitting 
 users to ensure consistent codes across disparate batteries of responses (e.g. behaviours, attitudes, etc.) 
@@ -88,40 +84,42 @@ numbers for the same items, which only the user can check.
 {title:Options}
 
 {phang}
-{opt stu:bname(name)} If specified, optional name for the stub used to name the generated dummy variable(s). The 
-recommended default is to use as stubname the name of the variable from which dummies are being generated. The 
-ability to define a different stubname (by using either the optional prefix to the command's {varlist} or the 
-{opt stu:bname} option) is provided mainly for conformity with the syntax for other {help stackMe} commands.{p_end}
+{opt stu:bname(name)} If specified, optional name(s) for the stub(s) used to name the generated dummy variable(s). The 
+recommended default is to use as stubnames the names of the variables from which dummies are being generated; but if 
+replacements are being supplied, there must be as many stubnames as variable names Any alternative stubname should 
+itself not name a variable that has a numeric suffix.{p_end}
 
 {phang}
-{opt dup:refix} if specified, a string of text that serves as prefix to the stubname (either optioned or 
-established at the start of the {cmdab:gendu:mmies} {varlist}). By default the prefix "du_" is used to indicate 
-that generated variables were produced by {cmd:stackme}'s {cmdab:gendu:mmies} command.{p_end}
+{opt dup:refix} if specified, a string of text that, followed by "_", replaces the default string-prefix for each
+generated dummy variable. By default the prefix "du_" is used to indicate that generated variables were produced by 
+{cmd:stackme}'s {cmdab:gendu:mmies} command.{p_end}
 
 {phang}
-{opt nod:uprefix} if specified, eliminate the default outcome varname prefix without providing an alternative.{p_end}
+{opt nod:uprefix} if specified, eliminate the default outcome varname prefix and flollowing "_" without providing an 
+alternative.{p_end}
 
 {phang}
-{opt apr:efix} if specified, a single string of text (it will apply to all stubnames) that extends each stubname 
-prefix. Allows the second syntax to distinguish the outcomes for one varlist from the outcomes for another 
-varlist using the same stubnames. (Of doubtful utility but provided for conformity with other {bf:stackMe} command-line 
-formats).{p_end}
+{opt apr:efix} if specified, a single string of text that will replace the "_" that follows the default or optioned string 
+prefix listed above. Distinguishes the outcomes generated by one varlist from the outcomes for other varlist(s) using 
+the same stubnames. The replacement text must start with an alphabetic character and contain only those and numeric 
+character(s), along with "_" and "&". Should normally start with "_"; will end with "_" whether specified or not.{p_end}
 
 {phang}
 {opt inc:ludemissing} if specified, code missing values for each {it:varname} as zero. If there is already a 
 non-missing category coded 0, the user should first employ Stata's {help recode} command to change the value 
-of 0 to some otherwise unused category value.{p_end}
+of 0 to 1 more than the current maximum category value.{p_end}
 
 {p 4}All options have default settings.
 
-{pstd} NOTE ON STACKING CATEGORICAL VARIABLES. Using {cmd:gendummies} as a preliminary to stacking 
-a normal survey item with less than 10 categories is an easy way to produce a corresponding stacked variable. But, 
-if the cetegorical variable has significantly more categories than that, this uses up a lot of space in the 
-unstacked data and is not very useful when stacked. A more economical procedure is to let the many-categoried 
-item be duplicated onto the separate stacks (the natural fate for variables that are not reshaped during stacking) 
-and use logical expressions to derive one or more corresponding stacked variables (eg. 'generate vote = ptyvot==SMstkid', 
-which produces a dummy variable equal to 1 where the expression is true (in this example, where the party voted for 
-is the party of that stack) and 0 otherwise.
+{pstd} NOTE ON STACKING CATEGORICAL VARIABLES. Using {cmd:gendummies} as a preliminary to stacking a normal survey 
+item with less than 10 categories is an easy way to produce a corresponding stacked variable. But, if the categorical 
+variable has significantly more categories than that, this uses up a lot of space in the unstacked data and is not 
+very useful when stacked. A more economical procedure is to let the many-categoried item be duplicated onto the 
+separate stacks (the natural fate for variables that are not reshaped during stacking) and use logical expressions 
+to derive one or more corresponding stacked variables (eg. 'generate vote = ptyvot==SMstkid', which produces a dummy 
+variable equal to 1 where the expression is true (in this example, where the party voted for is the party of that 
+stack) and 0 otherwise.
+
 
 
 {title:Examples:}
@@ -131,10 +129,10 @@ is the party of that stack) and 0 otherwise.
 {pstd}Generate three batteries of dummy variables, one battery member (outcome variable) for each value of each named 
 variable. Each outcome variable will be named by appending, to the original variable names (used as stubnames), suffixes 
 identifying the values found; use of the option {it:includemissing} ensures that missing values on any of these variables 
-will coded zero on the resulting dummy variables.{p_end}
+will coded zero on the resulting dummy variables – provided there is not already a category numbered "0".{p_end}
 
-{phang2}{cmd:. gendummies religion religious: denom churchat || educ gender }{p_end}
+{phang2}{cmd:. gendummies denom churchat educ, stubnames(religion religious education) || gender }{p_end}
 
-{pstd}Generate dummies with stubnames "religion" "religious" "educ" and "gender", one dummy for for each value found 
-in the data for the variables {it:denom churchat educ} and {it:gender}. Since option {opt inc:lude} is omitted, missing 
-values on the original variable(s) will produce missing values on all the resulting dummy outcomes.{p_end}
+{pstd}Generate dummies with stubnames "religion" "religious" "education" and "gender", one dummy for for each value found 
+in the data for the variables {it:denom churchat educ} and {it:gender}. Since option {opt inc:ludemissing} is omitted, 
+missing values on the original variable(s) will produce missing values for all the resulting dummy outcomes.{p_end}
