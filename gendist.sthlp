@@ -1,5 +1,4 @@
-*! Feb20'26
-*!
+*! Oct 22'26
 {smcl}
 {cmd:help gendist}
 {hline}
@@ -14,25 +13,17 @@
 {title:Syntax}
 
 {p 6 14 2}
-{cmdab:gendi:st} {varlist} [if][in][weight]{cmd:,} {it:options}
+{opt gendi:st} {varlist} [if][in][wt], selfplace()... [ || {varlist} [wt], selfplace()... [ || ... ] ]{p_end}
 
-{p 9 9 2}generates distances for a single battery of variables measured on the same scale as a single (optioned) 
-input variable holding self-placements for each respondent; 
+{p 9 9 2}generates distances for one or more batteries of variables (separated by "||"), each measured on the same scale as a matching (optioned) self-placement variable, often with additional options.
 
 {p 9}or
 
 {p 6 14 2}
-{cmdab:gendi:st} [{help varname:selfplace}:] {varlist} [if][in][weight] [ {bf:||} [{help varname:selfplace}:] 
-				{help varlist} [weight] [ || ... ] || {varlist} [weight]{cmd:,} {it:options}
+{opt gendi:st} {varlist} [if][in][wt] [ || {varlist} [wt] || [ {varlist} [wt] [...] ] ] {varlist} [wt], selfplace()...
 
-{p 9 9 2}generates distances for multiple  batteries (separated by "||"), each of which can be 
-prefixed by a matching respondent self-placement and each of them applying the same options.
-
-	
-{p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. 
-Each can be used with either stacked or unstacked data. {bf:Speed of execution} can be much increased by grouping 
-together varlists that employ the same options. In that case ', options...' should appear after the final {varlist}. 
-Weights can be specified after any or all {varlist}s.
+{p 9 9 2}A faster alternative (because involving only a single option-list) in which successive varlists are governed 
+by the same options, specified after the final varlist.{p_end}
 
 {p 4 4 2}Names of resulting distance measures for each member of each {varlist} are constructed by prefixing (by 
 "dd_" or such other prefix as might be set by option {opt dpr:efix}) the name of the variable for which distances 
@@ -40,41 +31,48 @@ to the {it:selfplacement} measure are calculated.
 
 {p 6 8 2}{bf:If the data are not yet stacked:} each varlist should enumerate the battery members for which distances 
 will be calculated.{p_end}
-{p 6 8 2}{bf:If the data are already stacked:} each variable in each varlist should name the batteries whose 
-observations had been battery members before stacking. Distances are calculated separately for each stack and 
+{p 6 8 2}{bf:If the data are already stacked:} each variable in each varlist should name the battery stubs whose 
+values had suffixed the names of battery members before stacking. Distances are calculated separately for each stack and 
 context (unless otherwise optioned).{p_end}
+
+{p 4 4 2}Missing data must be coded according to standard {bf:Stata} conventions. Datasets using other conventions 
+should first be pre-processed using {bf:Stata}'s {help mvdecode} command.{p_end}
+
+
 {p 4 4 2}aweights, fweights, iweights, and pweights are allowed; see {help weight}.
 
 				
 {synoptset 24 tabbed}{...}
 {synopthdr}
 {synoptline}
-{synopt :{opt sel:fplace(varname)}}(required if not prefixing {varlist}) a variable containing the respondent's 
-self-placement in the space (e.g. the issue space) in which {varlist} battery reference items (e.g. political 
-parties) have been placed.{p_end}
-{synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the different electoral contexts within 
-which distances will be separately generated (required if the default contextvars, recorded as a 'data characteristic' 
-by command {cmdab:SMset:contexts}, is to be overriden){p_end}
+{synopt :{opt sel:fplace(varname)}}(required) a variable containing the respondent's self-placement in the space (e.g. the issue space) in which {varlist} battery reference items (e.g. political parties) have been placed.{p_end}
+{synopt :{opt pro:ximities}}(optional) generate context-specific proximities as well as distances (if proximities are 
+optioned distances will be dropped if {opt rep:lace} is also optioned).{p_end}
+{synopt :{opt con:textvars(varlist)}}(generally unspecified) a set of variables identifying the different electoral 
+contexts within which distances will be separately generated (required if the default contextvars, recorded as a 'data 
+characteristic' by command {cmdab:SMset:contexts}, is to be overriden).{p_end}
 {synopt :{opt nocon:texts}}override the default behavior that generates distances within each context (if 
 specified) separately.{p_end}
 {synopt :{opt nosta:cks}}override the default behavior that treats each stack as a separate context (has 
 no effect if data are not stacked).{p_end}
-{synopt :{opt mis:sing(all|diff|dif2)}}basis for plugging missing values on battery placements.{p_end}
+{synopt :{opt mis:sing(all|diff|dif2)}}basis for plugging missing values on battery placements (see detailed options, 
+Below).{p_end}
 {synopt :{opt rou:nd}}rounds calculated distances to the nearest integer (to nearest 0.1 if data are proportions).{p_end}
-{synopt :{opt mpr:efix(name)}}prefix for generated variables indicating original missing status of 
+{synopt :{opt mpr:efix(str)}}prefix for generated variables indicating original missing status of 
 an item placement measure (default is "dm_").{p_end}
-{synopt :{opt ppr:efix(name)}}prefix for generated (optionally mean-plugged) placement variables (default is "dp_").{p_end}
-{synopt :{opt dpr:efix(name)}}prefix for generated distance variables (default is "dd_").{p_end}
-{synopt :{opt apr:efix(name)}}one or more text characters to replace the "_" character following the (m, p, or d) initial 
-character in ALL of the default prefixes mentioned above (may include or end with a "_" character).{p_end}
-{synopt :{opt plu:gall}}replace ALL battery values by plugging-values generated in accordance with option {opt missing}, 
-constant across respondents.{p_end}
-{synopt :{opt rep:lace}}drops original party location variables, missing indicators and party placements 
-after the generation of distances.{p_end}
+{synopt :{opt ppr:efix(str)}}prefix for generated (optionally mean-plugged) placement variables (default is "p_"){p_end}
+{synopt :{opt dpr:efix(str)}}prefix for generated distance variables (default is dd_").{p_end}
+{synopt :{opt xpr:efix(str)}}prefix for generated proximity variables, if optioned (default is "dx_").{p_end}
+{synopt :{opt apr:efix(str)}}one or more text characters to replace the "_" char that follows EACH of the default or optioned  
+prefixes referenced above. Should normally start with "_".{p_end}
+{synopt :{opt plu:gall}}replace ALL input battery values by plugging-values generated in accordance with option {opt missing}, constant across respondents.{p_end}
+{synopt :{opt rep:lace}}drops original party location variables, missing indicators and party placements after the 
+generation of distances.{p_end}
 {synopt :{opt lim:itdiag(#)}}limit progress reports to first # contexts for which distances are being calculated.{p_end}
 {synopt :{opt nod:iag}}suppress progress reports; equivalent to 'limitdiag(0)'.{p_end}
 
 {p 5}Specific options all have default settings unless described as "required"
+
 
 
 {synoptline}
@@ -89,30 +87,30 @@ corresponding members of a new battery of variables.
 
 {pstd}
 The variables in the new battery of distances are given names derived from appending the names in {varlist} to 
-the prefix established in option {opt dprefix} (default {it:d_}).
+the prefix established in option {opt dprefix} (default {it:dd_}).
 
 {pstd}
-If {opt missing} is optioned, {cmd:gendist} also generates a new battery of variables with the prefix established 
-in option {bf:pprefix} (default {it:p_}); a battery that holds the values that will be used to plug missing 
+If {opt mis:sing} is optioned, {cmd:gendist} also generates a new battery of variables with the prefix established 
+in option {bf:pprefix} (default {it:dp_}); a battery that holds the values that will be used to plug missing 
 placement values. Plugging values are mean values of non-missing placements (e.g. of political parties on a 
 left-right scale), made by respondents who are effectively treated as "experts" in regard to these placements. 
 Placements can be refined by using the expertise only of certain respondents: those who placed themselves 
 elsewhere than where they placed the item being placed. This refinement supposes that the judgements of certain 
 respondent may be biased by psychological influences known as {it:projection} and {it:assimilation} effects.  
-Taking the same supposition a step furter, users also can option that gendist plug even the non-missing 
+Taking the same supposition a step further, users also can option that gendist plug even the non-missing 
 placements of such respondents. The default is not to plug the missing data, so that distances 
 are generated only for valid observations.
 
 {pstd}
-The {cmd:gendist} command can be issued before or after stacking. If issued after stacking, by default it 
+The {cmdab:gendi:st} command can be issued before or after stacking. If issued after stacking, by default it 
 treats each stack as a separate context to take into account along with any higher-level contexts. However, 
 the {opt nosta:ck} option can be employed to force {cmd:gendist} to ignore the stack-specific contexts. 
-In addition, {cmdab:gendi:st} can be employed with or without distinguishing between higher-level contexts, if 
-any, (with or without the {opt con:textvars} option) depending on what makes methodological sense.
+In addition, {cmdab:gendi:st} can be employed without distinguishing between higher-level contexts, if 
+any, (with or without the {opt noc:ontexts} option) depending on what makes methodological sense.
 
 {pstd} 
 NOTE that it is unlikely to make methodological sense to employ {cmd:gendist} after stacking along with 
-both the {opt nosta:ck} and a {cmd:missing} option, since this would result in missing values being plugged 
+both the {opt nosta:ck} and a {opt mis:sing} option, since this would result in missing values being plugged 
 with a mean that combined the values of what were (before stacking) several different variables.
 
 {pstd}
@@ -141,8 +139,8 @@ preferred to mean values generated by {help gensmeanstats} or {help genplace}.
 {title:Options}
 
 {phang}
-{opth sel:fplace(varname)} (required unless this {varname} already prefixes the relevant {varlist}) the variable 
-containing the respondent's self-placement on the scale used for the corresponding battery of reference items.
+{opth sel:fplace(varname)} (required) the variable containing the respondent's self-placement on the scale used 
+for the corresponding battery(ies) of reference items.
 
 {phang}
 {opt con:textvars(varlist)} (generally unspecified) a set of variables identifying the different contexts within 
@@ -152,7 +150,7 @@ file was opened for {help use} by a {cmd:stackMe} command; so this option is req
 to be overriden.{p_end}
 
 {phang}
-{opt nocon:texts} if present, overrides the default behavior of gendrating distances within each context (if 
+{opt nocon:texts} if present, overrides the default behavior of generating distances within each context (if 
 specified) separately.
 
 {phang}
@@ -185,64 +183,55 @@ respondents. See the SPECIAL NOTE ON REFERENCE VALUES under {bf:Description}, ab
 decimal if maximum value of item position is no greater than 1).
 
 {phang}
-{opth mpr:efix(name)} if present, provides a prefix for generated variables indicating for each 
+{opth mpr:efix(str)} if present, provides a prefix for generated variables indicating for each 
 observation whether, before mean-plugging of an item in the battery, the item placement was missing 
 for that observation (default is "dm_").
 
 {phang}
-{opth ppr:efix(name)} if present, provides a prefix for generated mean-plugged placements (default is "dp_").
+{opth ppr:efix(str)} if specified, provides a prefix for generated mean-plugged placements (default is "dp_").
 
 {phang}
-{opth dpr:efix(name)} if present, provides a prefix for generated distance variables (default is "dd_").
+{opth dpr:efix(str)} if specified, provides a prefix for generated distance measures (default is "dd_").
 
 {phang}
-{opth apr:efix(text)} if present, one or more text characters to replace the "_" character following the 
-(m, p, or d) initial character in ALL of the default prefixes mentioned above (may include or end with a 
-"_" character). Provides a simple means of ALTERING these prefixes in an identical fashion across all 
-three prefixes, perhaps to distinguish different treatments in terms of mean-plugging, weighting, subsetting, 
-or the like.
+{opth xpr:efix(str)} if specified, provides a prefix for generated proximity measures (if optioned) (default is "dx_").
 
 {phang}
-{opth mco:untname(name)} if specified, name for a generated variable reporting original number of
-missing items (default is to generate a variable named SMmisCount){p_end}
-
-{phang}
-{opth mpl:uggedcountname(name)} if specified, name for a generated variable reporting the number of
-missing items after mean-plugging. These could still be non-zero (even after all missing values 
-on item positions have been plugged) if, as is usual, there are respondents whose own self-placement 
-is missing (default is to generate a variable named SMplugMisCount).{p_end}
+{opth apr:efix(str)} if specified, one or more text characters to replace the "_" character that follows EACH 
+of the default or optioned prefixes mentioned above. The replacement text must start with an alphabetic character and contain 
+only those and numeric character(s), along with "_" and "&". Provides a simple means of altering ALL prefixes 
+employed for outcome variables generated by this command or varlist, perhaps to distinguish different treatments 
+in terms of mean-plugging, weighting, subsetting, or the like.{p_end}
 
 {phang}
 {opt rep:lace} if specified, drops original party placement variables after the generation of distance 
-measures. Also all missing indicators and mean-plugged placement variables.{p_end}
+measures. Also all missing indicators and mean-plugged placement variables (and distance measures if 
+proximities were optioned).{p_end}
 
 {phang}
 {opt lim:itdiag(#)} limit progress reports to first # contexts for which distances are being calculated 
 (or first # warnings, if issued).{p_end}
 
 {phang}
-{opt nodia:g} if specified, suppresses progress reports {p_end}
+{opt nodia:g} if specified, suppresses progress reports.{p_end}
 
-{p 4}Specific options all have default settings unless described as "required"
-
+{p 4}Specific options all have default settings unless described as "required".{p_end}
 
 
 {title:Examples:}
 
-{pstd}The following command generates distances on a (presumably) left-right dimension, where party 
-placementsare in variables lrp1-lrp10 (variables that have not been stacked), and R's self-placement is 
-in lrresp; missing placements are replaced by simple mean-plugging and then rounded to the nearest 
-integer.{p_end}
+{phang2}{cmd:. gendist lrp1-lrp10, selfplace(lrresp) missing(mean) round}{p_end}
 
-{phang2}{cmd:. gendist lrp1-lrp10, selfplace(lrresp) missing(all) round}{p_end}
+{pstd}Generate distances on a left-right dimension, where party placements are in variables lrp1-lrp10 
+(variables that have not been stacked), and R's self-placement is in lrresp; missing placements are 
+replaced by simple mean-plugging and then rounded to the nearest integer.{p_end}
 
-{pstd}The following command generates distances on two different policy dimensions, taxes and welfare 
-expenditure, for measures that have been stacked. Resulting distance measures will be distinguished by 
-different stub names, depending on the stub names used in each {varlist}. Both sets of distances are 
-are rounded and based on mean party placements of respondents who placed the parties differently than 
-they placed themselves.{p_end}
+{phang2}{cmd:. gendist taxp, missing(diff) selfplace(taxself) || aidp, miss(diff) self(aidself}{p_end}
 
-{phang2}{cmd:. gendist taxself: taxparty, missing(dif) round || welfself: welfparty}{p_end}
+{pstd}Generate distances on two different policy dimensions, taxes and foreign aid, for measures that 
+have been stacked. Resulting distance measures will be distinguished by different stub names, as optioned. 
+Both sets of distances are rounded and based on mean party placements of respondents who placed the parties 
+differently than they placed themselves.{p_end}
 
 
 {title:Generated variables}
@@ -251,32 +240,33 @@ they placed themselves.{p_end}
 {cmd:gendist} saves the following variables and variable sets (unless option {opt:replace} is used):
 
 {synoptset 16 tabbed}{...}
-{synopt:dp_{it:var1} dp_{it:var2} ... (or other prefix set by option {opt ppr:efix})} a set of mean-plugged 
-placement variables with names {it:dp_var1, dp_var2}, etc., where the names {it:var1, var2}, etc. match the 
-original variable names. Original variables are left unchanged unless 'replace' was optioned.{p_end}
-{synopt:dm_{it:var1} dm_{it:var2} ... (or other prefix set by option {opt mpr:efix})} a set of variables 
-with names dm_var1, {it:dm_var2}, etc., where the names var1, var2, etc. match the original variable 
-names of the battery of placement items. These variables indicate the original missingness of {it:var1, var2}, 
-etc. They are left unchanged unless 'replace' was optioned.{p_end}
-{synopt:dd_{it:var1} dd_{it:var2 ...} (or other prefix set by option {opt dpr:efix})} a set of distances 
-from the selfplacement to each (mean-plugged if optioned) item placement variable. These distance measures 
-are named {it:dd_var1, dd_var2}, etc., where the names {it:var1, var2}, etc. match the original variable names. 
-Original variables are left unchanged unless 'replace' is optioned.{p_end}
-{synopt:dx_{it:var1} dx_{it:var2 ...} (or other prefix set by option {opt xpr:efix})} a set of proximities 
+{synopt:p_{it:var1} p_{it:var2} ... (or other prefix set by options {bf:pprefix} or {bf:aprefix})} a set of 
+mean-plugged placement variables with names p_var1, p_var2, etc., where the names var1, var2, etc. match the 
+original variable names. Those original variables are left unchanged, unless 'replace' was optioned.{p_end}
+{synopt:m_{it:var1} m_{it:var2} ... (or other prefix set by options {bf:mprefix} or {bf:aprefix})} a set of 
+variables with names m_var1, m_var2, etc., where the names var1, var2, etc. match the original variable 
+names of the battery of placement items. These variables indicate the original missingness of var1, var2, 
+etc., before missing values were plugged.{p_end}
+{synopt:d_{it:var1} d_{it:var2 ...} (or other prefix set by options {bf:dprefix} or {bf:aprefix})} a set of 
+distances from the selfplacement to each (mean-plugged if optioned) item placement variable. These distance 
+variables are named d_var1, d_var2, etc., where the names var1, var2, etc. match the original variable names. 
+Those variables are left unchanged unless 'replace' is optioned.{p_end}
+{synopt:dx_{it:var1} x_{it:var2 ...} (or other prefix set by option {opt xpr:efix})} a set of proximities 
 to the selfplacement of each (mean-plugged if optioned) item placement variable. These proximity measures 
-are named {it:dx_var1, dx_var2}, etc., where the names {it:var1, var2}, etc. match the original variable names. 
+are named {it:x_var1, x_var2}, etc., where the names {it:var1, var2}, etc. match the original variable names. 
 {bf:NOTE that proximities are calculated relative to the maximum distance found for each context}. Original 
 variables are left unchanged unless 'replace' is optioned.{p_end}
-{synopt:SMddmisCount} a variable showing the original count of missing items for each observation.{p_end}
-{synopt:SMddmisPlugCount} a variable showing the count of remaining missing items for each observation after 
+{synopt:SMmisCount} a variable showing the original count of missing items for each observation.{p_end}
+{synopt:SMplugMisCount} a variable showing the count of remaining missing items for each observation after 
 mean-plugging.{p_end}
 
 {phang}
-The first two groups of prefixed variables ({it:dp_}... and {it:dm_}... in the example) are dropped along with 
-the original variables if {opt rep:lace} is optioned. In that case the {it:dd_}... distance measures will 
-also be dropped if calculation of {it:dx_}... proximities was optioned.{p_end}
+The first two groups of prefixed variables (p_ and m_ in the example) are dropped along with the original 
+variables if {it:replace} is optioned. If 'replace' is optioned along with 'proximities' then distance measures 
+will also be dropped along with other variables just listed.{p_end}
 
 {phang}
-A subsequent invocation of {cmd:gendist} will overwrite {it:SMddmisCount} and {it:SMddmisPlugCount} with 
-new counts of missing values; so users should save these values under more specific names, before issuing 
-the the next {cmdab:gendi:st} command, if they will be of later interest.{p_end}
+A subsequent invocation of {cmd:gendist} will replace {it:SMmisCount} and {it:SMplugMisCount} with 
+new counts of missing values; so users should save these values under more specific names, after issuing 
+the previous command, if they will be of later interest.{p_end}
+
