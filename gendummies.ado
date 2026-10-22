@@ -1,4 +1,4 @@
-*! Feb 18'26
+*! Oct 22'26
 
 capture program drop gendummies			// Transforms categorical variables into dummy vars, one dummy for each level of the original
 
@@ -15,10 +15,10 @@ program define gendummies								// Called by 'gendu' a separate program defined
 										// that end with "**" need to be tailored to specific stackMe commands
 										
 														// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'		//		**
-	local optMask = "STUbnames(namelist) DUPrefix(string) LIMitdiag(integer -1) INCludemissing RECordmissing REPlace NODuprefix NOSTUbnames"
+	local optMask = "STUbnames(namelist) DUPrefix(string) LIMitdiag(integer -1) INCludemissing RECordmissing REPlace NODuprefix"
 														// CANNOT CHANGE 1ST OPT TO 'stubs' AS NAME IS HARDWIRED TOO OFTEN FOR RISK
-														// Ensure stubname for this stackMe command is placed first and its 
-														// negative is placed last; ensure options with arguments preceed toggle 
+														// Ensure stubname for this stackMe command is placed first and its negative
+														// (if any) is placed last; ensure options with arguments preceed toggle 
 														// (aka flag) options for this command. Options (apart from limitdiag) 
 														// common to all stackMe `cmd's will be added in stackmeWrapper.
 														// CHECK THAT NO OTHER OPTIONS, BEYOND THE FIRST 3, NAME ANY VARIABLE(S)	**
@@ -151,5 +151,3 @@ end gendu
 
 
 ************************************************* END GENDU *******************************************************************
-
-
