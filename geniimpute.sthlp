@@ -1,9 +1,11 @@
-*! Mar 22'26
+*! Oct 22'26
 {smcl}
 {cmd:help geniimpute}
 {hline}
 
 {title:Title}
+
+
 
 {p2colset 5 19 19 2}{...}
 {p2col :{bf:geniimpute} {hline 2}}Incremental simple (or multiple separate) imputation(s) of a set of variables{p_end}
@@ -13,42 +15,43 @@
 {title:Syntax}
 
 {p 8 16 2}
-{opt genii:mpute} (stacked) {varlist} {ifin} {weight} {bf:, options}
+{opt genii:mpute} {varlist} [if][in][wt], additional()... [ || {varlist} [wt], additional()... [ || ... ] ]{p_end}
 
 {p 12 12 2}
-Generate imputed values with which to plug missing data observations for each member of {varlist}, based on 
-estimation models that include other {varlist} members (along with optioned additional variables that do not 
-themselves have their missing values plugged). The resulting imputed outcomes will be named by prefixing 
-(with "ii_" or such other string as set by option {opt ipr:efix}) each outcome name.
+Generates imputed values with which it plugs missing data observations for each member of {varlist}, based on 
+estimation models that include other {varlist} members (along with optioned additional variables for which 
+the user may want to first plug their own missing data).{p_end}
 
-{p 12}
-or
+{p 6}or
 
-{p 8 19 2}
-{cmdab:genii:mpute} (unstacked) [ii_][{it:addvars}:]{varlist} {ifin} {weight} [ || {break} 
-                    (unstacked) [ii_][{it:addvars}:]{varlist} {weight} ]    [  ... ]   || {break}
-					(unstacked) [ii_[]{it:addvars}:]{varlist} {weight} {cmd:,} {opt options} 
+{p 8 16 2}
+{opt genii:mpute} {varlist} [if][in][wt] || {varlist} [wt] [ || ... || varlist} [wt], additional()... {p_end}
 
 {p 12 12 2}
-Generate imputed values just as with the first syntax, but with additional variables being specified in 
-a prefixing varlist instead of with an option. This allows the additional list to be varied from varlist 
-to varlist, making this syntax better suited to use with unstacked data (see below).
+A faster alternative (because involving only a single option-list) in which successive varlists are governed 
+by the same options, specified after the final varlist.{p_end}
 
-{p 4 4 2}Though illustrated with especially appropriate examples, the two syntax formats are interchangeable. 
-Each can be used with either stacked or unstacked data. But {bf:speed of execution} can be much increased by grouping 
-together varlists that employ the same options. In that case ', options...' should appear after the final {varlist}; 
-[if] or [in] should follow the first {varlist}; weights can follow any or all {varlist}s;{p_end}
+{pstd}
+The resulting imputed outcomes will be named by prefixing (with "i_" or such other string as set by option 
+{opt iprefix}) each outcome name.
 
-{p 4 4 2}Missing data must be coded according to standard {bf:Stata} conventions. Datasets using other conventions 
-should first be pre-processed using {bf:Stata}'s {help mvdecode} command.
+{pstd}
+This command can be used with either stacked or unstacked data. It typically involves a number of steps (see 
+Description); but {bf:speed of execution} is increased by specifying as many of these steps as possible
+in successive varlists appended to the same {bf:genii} command. In that case [if] or [in] should follow the 
+first {varlist}; weights can be specified following any or all {varlist}s;{p_end}
 
-{p 6 8 2}{bf:If the data are not yet stacked:} each varlist should enumerate members of the one battery for 
-which missing data imputations will be separately generated. Variables that are not battery members can be added as 
+{pstd}
+{bf:If the data are not yet stacked:} each varlist should enumerate members of the one battery for which missing 
+data imputations will be separately generated. Variables that are not battery members can be added as 
 appropriate.{p_end}
 
-{p 6 8 2}{bf:If the data are already stacked:} input variables should be those that will be included in a   
+{pstd}{bf:If the data are already stacked:} input variables should be those that will be included in a   
 imputation-estimation model, whatever their status before stacking. Imputed values are calculated separately 
 by stack and context (unless optioned otherwise).{p_end}
+
+{pstd}Missing data must be coded according to standard {bf:Stata} conventions. Datasets using other conventions 
+should first be pre-processed using {bf:Stata}'s {help mvdecode} command.{p_end}
 
 {p 4 4 2}aweights, fweights, iweights, and pweights are allowed; see {help weight}.
 
@@ -59,18 +62,16 @@ by stack and context (unless optioned otherwise).{p_end}
 
 {p 2}{ul:Imputation options}
 
-{p2colset 5 22 20 2}{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model,  
-if they do not preceed the initial colon of a syntax 2 varlist{p_end}
-{synopt :{opt sel:ected}}selects variables from the {opt additional} list only if they have no more 
-missing values than the {bf:{varlist}} variable with most missing data{p_end}
+{p2colset 5 22 20 2}{synopt :{opt add:vars(varlist)}}additional variables to include in the imputation model{p_end}
+{synopt :{opt sel:ected}}selects variables from the {opt additional} list only if they have no more missing values 
+than the {bf:{varlist}} variable with most missing data{p_end}
 {synopt :{opt noi:nflate}}do not inflate the variance of imputed values to match the variance of original 
-item values (default is to add random perturbations to these values, as required){p_end}
-{synopt :{opt set:seed}}(incompatible with {opt noi:nflate}) set the "seed" value for Stata's {help runiform}
-command{p_end}
+item values (default is to add random perturbations to these values){p_end}
 {synopt :{opt rou:ndedvalues}}round each imputed value, after inflation, to the nearest integer (default 
 is to leave imputed values unrounded){p_end}
 {synopt :{opt min:ofrange(#)}}minimum value of the imputed value range for all {it:varlist} variables{p_end}
 {synopt :{opt max:ofrange(#)}}maximum value of the imputed value range for all {it:varlist} variables{p_end}
+{synopt :{opt ran:geofvalues(#/#)}}substitutes for the two above options{p_end}
 {synopt :{opt bou:ndedvalues}}bound the range of imputed values for each {it:varlist} variable to the same 
 bounds as found for that variable's unimputed values{p_end}
 
@@ -79,18 +80,18 @@ bounds as found for that variable's unimputed values{p_end}
 {synopt :{opt con:textvars(varlist)}}{generally unspecified) a set of variables identifying the different 
 electoral contexts within which imputations will be separately generated (required if the default, recorded 
 as a 'data characteristic' by command {cmdab:SMcon:textvars}, is to be overriden){p_end}
-{synopt :{opt nos:tacks}}override the default behavior that treats each stack as a separate context{p_end}
 {synopt :{opt nocon:texts}}ignore any previously-established context variables{p_end}
+{synopt :{opt nos:tacks}}override the default behavior that treats each stack as a separate context{p_end}
 
 {syntab:{ul:Output and naming options}}
 
-{synopt :{opt ipr:efix(name)}}prefix for generated outcome variables (default is "ii_"){p_end}
+{synopt :{opt ipr:efix(name)}}prefix for generated outcome variables (default is "ii_").{p_end}
 {synopt :{opt mpr:efix(name)}}prefix for generated outcome variables indicating original missingness
-of a variable (default is "im_"){p_end}
-{synopt :{opt apr:efix(name)}}prefix that overrides all default or user-optioned prefixes for variables generated 
-by this command.{p_end}
+of a variable (default is "im_").{p_end}
+{synopt :{opt apr:efix(name)}}one or more text characters to replace the "_" char that follows EACH of the default 
+prefixes referenced above. Can end with "_".{p_end}
 {synopt :{opt kee:pmissing}}keeps all generated outcome variables indicating original missingness (otherwise dropped){p_end}
-{synopt :{opt rep:lace}}drops all original variables in (each) {varlist} after imputation{p_end}
+{synopt :{opt rep:lace}}drops all original variables in (each) {varlist} after imputation.{p_end}
 
 {syntab:{ul:Diagnostics options}}
 
@@ -99,21 +100,24 @@ by this command.{p_end}
 {synopt :{opt nod:iag}}equivalent to {opt lim:itdiag}(0){p_end}
 {synopt :{opt ext:radiag}}extend any displayed diagnostics with extra detail{p_end}
 
+{p 5}Specific options all have default settings unless described as "required"
+
 {synoptline}
 
 {title:Description}
 
 {pstd}
 The command name {cmdab:genii:mpute} has two 'i's that stand for "imputed inflated" because each variable's  
-observations that were missing before imputation have, by default, their plugged values randomly 
-inflated to match the variance of the non-missing values of the same variable, thus emulating the data 
-expected by Stata's {help mi} suite of commands. Though {cmd:geniimpute} can impute (optionally 
-variance- inflated) missing values for a single variable (by calling Stata's obsolete but still available 
-{cmd:impute} command and augmenting the output from that command according to various options described 
-below) its primary function is to impute multiple variables contained in a {help stackme_battery} (generally  
-the items that constitute separate answers to a single survey question). Imputation follows an incremental 
-procedure which - by default - is applied separately to each electoral context identified by 
-{opt contextvars}, as follows:
+observations that were missing before imputation have, by default, their plugged values randomly inflated 
+to match the variance of the non-missing values of the same variable. In a multi-context dataset this would 
+emulate the data expected by Stata's {help mi} suite of commands. Though {cmd:geniimpute} can impute (optionally 
+variance-inflated) missing values for a single variable (by calling Stata's obsolete but still available 
+{cmd:impute} command and augmenting the output from that command according to various options described below) 
+its primary function is to impute missing values for the multiple variables contained in a {help stackme} battery 
+(generally the items that constitute separate answers to a single forced-choice survey question, thus taking 
+advantage of the negative relationships that will exist among responses that are mutually exclusive – a very 
+common format for certain survey questions). Imputation follows an incremental procedure which - by default - is 
+applied separately to each of the several context that characterize a contextually diverse dataset, as follows:
 
 {p 6 6 2}1) Within each context, observations are split into groups based on the number of missing items.
 Observations for which only one variable has a missing value are processed first, and so on.
@@ -125,10 +129,9 @@ observations. Variables with fewer missing observations are processed first, and
 variables are imputed through an augmented simple imputation (based on Stata's (superceded) {cmd:impute} command).
 
 {pstd}
-This implements the incremental nature of the procedure.
-Since observations with fewer missing variables are imputed first, and (within each group) items
-with fewer missing observations are imputed first,
-later imputations (that have to impute more data) will use a more complete (partially imputed) dataset.
+This implements the incremental nature of the procedure. Since observations with fewer missing variables are 
+imputed first, and (within each group) items with fewer missing observations are imputed first, later 
+imputations (that have to impute more data) will use a more complete (partially imputed) dataset.
 
 {pstd}
 The imputation model is based on all valid values of variables in {it:varlist},
@@ -148,16 +151,19 @@ command. This limitation might lead the user to prefer to issue the {cmd:geniimp
 {help genstacks} and {help genyhats} have reduced the number of indeps in the dataset.
 
 {p 6 6 2}4) The output of Stata's {cmd:impute} command is then, by default, augmented by inflating the variance 
-of imputed item values to match the variance of original item values, as recommended in the literature. 
-If this is not wanted then the option {cmd:noinflate} should be employed.
+of imputed item values to match the variance of original item values, emulating the procedure employed in 
+Stata's {help mi} suite of commands but taking advantage of the multiple replications normally present in
+a contextually diverse dataset rather than simulating the multiple replications used by Stata's {bf:mi}. 
+If this is not wanted then the option {cmd:noinflate} 
+should be employed.
 
-{p 6 6 2}5) Imputed values should, in principle. approximate the values observed in the data, but are seldom 
+{p 6 6 2}5) Imputed values should, in principle, approximate the values observed in the data, but are seldom 
 the same as those values. Discrete intervals can be enforced if imputed values data are {cmd:rounded}. Predicted values 
 beyond the rage observed in the data might survive such rounding but can be eliminated by using the {cmd:minofrange()} 
 and/or {cmd:maxofrange()} options to constrain imputed values. Applying such constraints can be useful when a 
 battery of analogous items is being imputed. This might suggest specifying multiple variable lists (separated 
 by "||"), each accompanied by different options (but speed of execution can be much increased if options are 
-left unchanged for multiple varlists, with minimum and maximum constraints being applied separately using 
+left unchanged for multiple varlists, with minimum and maximum constraints being later applied separately using 
 Stata's {help replace} {help if}...). When imputing a set of heterogeneous variables (not members of a single 
 battery) imputed values of each separate variable can be {cmd:bounded} by the minimum and maximum observed 
 for that member of the heterogenious set (thus producing imputations whose bounds vary appropriately even 
@@ -204,17 +210,17 @@ be more than one of them they may not themselves be prefixed with string-prefixe
 
 {phang}
 {opt selected} if specified, selects among {it:additional} variables only those with no more 
-missing values than the {it:varlist} variable with the largest number of missing values)
+missing values than the {it:varlist} variable with the largest number of missing values (avoids 
+increasing total of missing values of imputed variables). 
 
 {phang}
 {opt setseed} (incompatible with {opt noi:nflate}) if specified, provides a "seed" value for Stata's 
 {help runiform} command. The number should ideally be chosen randomly from all integer values from 1 
-to 2,147,483,647. {cmd:geniimpute} will record the selected value in the last component of the first 
-word of the data label for the currently {help use}d dataset. Note that replicating the iimputed 
-values of variables generated by {cmd:geniimpute} using this seed depends entirely on using precisely 
-the same {cmd:geniimpute} command-lines in precisely the same order with all variables referenced by 
-those commands having precisely the same values. In practice this calls for using the same dofile, 
-unchanged, as was used to create the data being replicated.{p_end}
+to 2,147,483,647. {cmd:geniimpute} will record the selected value as a characteristic of the currently 
+{help use}d dataset. Note that replicating the iimputed values of variables generated by {cmd:geniimpute} 
+using this seed depends entirely on using precisely the same {cmd:geniimpute} command-lines in precisely 
+the same order with all variables referenced by those commands having precisely the same values. In 
+practice this calls for using the same dofile, unchanged, as was used to create the data being replicated.{p_end}
 
 {phang}
 {opt roundedvalues} if specified, round each final value (after inflation, if any) to the closest integer 
@@ -222,9 +228,9 @@ unchanged, as was used to create the data being replicated.{p_end}
 
 {phang}
 {opth minofrange(#)} if specified, minimum value of the item range used for constraining imputed 
-value(s). {bf:Note} that this option constrains the 
-value(s) used for imputing all variables in varlist to the same minimum and/or maximum (useful 
-when imputing missing values for batteries of variables that should all have the same range).{p_end}
+value(s). {bf:Note} that this option constrains the value(s) used for imputing all variables in varlist 
+to the same minimum and/or maximum (useful when imputing missing values for batteries of variables that 
+should all have the same range).{p_end}
 
 {phang}
 {opth maxofrange(#)} if specified, maximum value of the item range used for constraining imputed
@@ -233,6 +239,9 @@ value(s) used for imputing all variables in varlist to the same minimum and/or m
 when imputing missing values for batteries of variables that should all have the same range).{p_end}
 
 {phang}
+{opth ran:geofvalues(#-#)} if specified, substitutes for the two options listed above.{p_end}
+{phang}
+
 {opt boundedvalues} if specified, bounds the minimum and maximum of imputed values to the  
 min/max found in unimputed values of the same variable. This overrides minofrange/maxofrange 
 for specific variables if the bounded range is smaller. Seldom used with variable batteries.{p_end}
@@ -255,25 +264,28 @@ all observations as part of the same context .
 {p 2}{ul:Output and naming options}{p_end}
 
 {phang}
-{opth iprefix(name)} if specified, prefix for names of imputed variables (default is to prefix each 
+{opth iprefix(str)} if specified, prefix for names of imputed variables (default is to prefix each 
 original {it:varname} with "ii_") when naming output variables.{p_end}
 
 {phang}
-{opth mprefix(name)} if specified, prefix for names of variables that indicate the original
+{opth mprefix(str)} if specified, prefix for names of variables that indicate the original
 missingness of each variable in {it:varlist} (default is "im_"). These generated variables are coded 
 0 if the {it:varlist} variable was not missing, 1 if it was missing (and its {bf:iprefix} version has been 
 assigned a non-missing value by {cmd:geniimpute}).{p_end}
 
 {phang}
-{opt keepmissing} if specified, prefix that replaces all existing name prefixes for variables generated by 
-this command (the "a" in "apprefix" stands for "all").{p_end}
+{opt apr:efix(str} if specified, one or more text characters to replace the "_" character that follows EACH 
+of the default or optioned prefixes mentioned above. The replacement text must start with an alphabetic character and contain 
+only those and numeric character(s), along with "_" and "&". Provides a simple means of altering ALL prefixes 
+employed for outcome variables generated by this command or varlist, perhaps to distinguish different treatments 
+in terms of mean-plugging, weighting, subsetting, or the like.{p_end}
 
 {phang}
 {opt keepmissing} if specified, keeps all {cmd:mprefix*} variables indicating original missingnes 
 (by default these are dropped after imputed vars have been created).{p_end}
 
 {phang}
-{opt replace} if specified, drop all original varsions of newly imputed variables  
+{opt replace} if specified, drop all original versions of newly imputed variables  
 (default is to keep original as well as new variables). TAKE CARE NOT TO DROP VARIABLES NEEDED FOR A 
 SUBSEQUENT IMPUTATION GOVERNED BY A SEPARATE VARLIST! Doing so will produce a "{bf:{it:variable} not found}" 
 (perhaps along with an error 999) when processing that varlist.{p_end}
@@ -294,28 +306,27 @@ to # (default is to display diagnostics, which can be quite voluminous, for all 
 
 {title:Examples}
 
-{phang2}{cmd:. geniimpute ptv1-ptv5 || pttaxcuts1-pttaxcuts5 || ptdefspend1-ptdefspend5 || pteduspend1-pteduspend5}
-{cmd:, addvars(prox_party1-prox_party5 income uniot educ) min(0) max(10) limitdiag(5)}{p_end}
+{phang2}{cmd:. geniimpute ptv1-ptv5 || pttaxcuts1-pttaxcuts5 || pteduspend1-pteduspend5, addvars(prox_party1-prox_party5) 
+range(0/10) limitdiag(5)}{p_end}
 
-{pstd}Using unstacked data, generate plugging values to replace missing values in the above variable, having the same number 
-(5) of items in each battery and the same minimum and maximum values. Battery stubnames suggest that the variables have to 
-do with propensity to vote (likelihood of supporting particular political parties) support for tax cuts, support for spending 
-on defence, and support for spending on education. All four requested imputations take advantage of the negative correlations 
-we expect between members of the same battery and these influences are expected to be augmented through the addition of 
-respondent-judged left-right proximities (presumably estimated by a previous 'gendist' procedure).{p_end}
+{pstd}Using unstacked data, generate plugging values to replace missing values in the above variable batteries, having the 
+same number (5) of items in each battery and the same minimum and maximum values. Battery stubnames suggest that the variables 
+have to do with propensity to vote (likelihood of supporting particular political parties), each party's support for tax cuts 
+and support for spending on education. All four requested imputations take advantage of the negative correlations we expect 
+to find between members of the same battery and these influences are expected to be augmented through the addition of 
+respondent-judged left-right proximities (presumably estimated by a previous 'gendist' command). This command produces what 
+might be called "generic" imputations that maximize the overall utility of the missing-plugged outcome variables for use in 
+later analyses.{p_end}
 
 
-{phang2}{cmd:. geniimpute income union educ age: turnout || turnout age: income union educ} 
-{cmd:, limitdiag(5)}{p_end}
+{phang2}{cmd:. geniimpute turnout income union educ || ptv income union educ, additional(age), limit(5)}{p_end}
 
 {pstd}Using stacked data, estimate plugging values to replace missing values in the above variable lists, evidently intended 
-to maximize the N available for a substantive investigation into effects of four demographic variables on turnout. Conventional 
-wisdom, as summarized by the help text for Stata's {help MI} suite of commands, suggests that missing data in estimation 
-models should be plugged by values estimated from the same variables that the imputed data will be used to investigate. So 
-turnout should play a role in estimating missing values for variables used to investigate turnout, and those same variables 
-should play a role in plugging the missing data in those same indepvars. Additional variables added to the turnout model should 
-also be added to the models that estimate the plugging values for independent variables. In the above example, age is treated as 
-additional in both imputations since age is a variable which, in survey data, has virtually no missing observations.{p_end}
+to maximize the N available for a substantive investigation into effects of four demographic variables on turnout and propensity 
+to vote. Conventional wisdom, as summarized by the help text for Stata's {help MI} suite of commands, suggests that missing data 
+in estimation models be plugged by values estimated from the same variables that the imputed data will be used to investigate. The 
+only additional variable, included in both imputations, is age – a variable that generally has virtually no missing data in survey 
+data but which will apparently be included in the estimation models that will employ the resulting data.{p_end}
 
 
 {pstd}
@@ -333,13 +344,6 @@ indicating, for each observation, whether the value of the new variable was impu
 {synopt:{it:SMdmisCount}} a variable showing the original count of missing items for each observation.{p_end}
 {synopt:{it:SMdmisPlugCount}} a variable showing the count of remaining missing items for each observation after 
 mean-plugging.{p_end}
-
-
-{pstd}
-Although the first two examples feature variables with numeric suffixes, suggesting that the imputed variables were 
-created in  unstacked data, in practice with variables that are to be used in substantive analyses we are more likely 
-to see prefixes that have substantive meaning. These substantively meaningful names may be set as {it:iprefix} options, 
-but they are just as likely to derive from later renaming of default prefix-names.{p_end}
 
 {phang}
 A subsequent invocation of {cmd:geniimpute} will overwrite {it:SMimisCount} and {it:SMimisPlugCount} with 
