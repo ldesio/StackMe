@@ -1,4 +1,4 @@
-*! Oct 22'26
+*! Nov 1'26
 *! ****************************************************
 *! 'stackmeWrapper' versn 10a, Stata version 16.1, Aug'26, buildng on Apr-Aug '23, Apr '24-May'25 by Mark from major re-write in June'22
 *! ****************************************************
@@ -449,8 +449,13 @@ pause(0.2)
 	   	  errexit "Comma was not followed by list of options"
 		  exit 1
 	   }
-	   local raw_opts = strtrim("`opts'")
+	   local raw_opts = strtrim("`opts'")					// Trim off leading blanks if any
 	   if substr("`raw_opts'",1,1) == ","  local raw_opts = strtrim(substr("`raw_opts'",2,.))
+	   else  {												// Else this optlist is empty
+	   	  local opts = "`anyopt'"							// So replace with trailing optlist found above
+		  local raw_opts = strtrim("`opts'")				// Trim off leading blanks if any 
+		  if substr("`raw_opts'",1,1) == ","  local raw_opts = strtrim(substr("`raw_opts'",2,.))
+	   }
 	   char define _dta[OPTIONS`nvarlst'] "`raw_opts'"		// Here save options from this cycle (saved to avoid overrwriting)
 															// (thank you Claude – saved where 'getprfxdvars' expects to find them
 	   if substr("`opts'",1,1)==","  local opts = (substr(strtrim("`opts'"),2,.)) // Trim off leading comma & any blanks at head of `opts'
@@ -2224,15 +2229,15 @@ if `c'==`nc' {
 	  
 	  
 	  	
-		  local skipsave = 0										    // Will permit normal processing by remainder of wrapper 
+		  local skipsave = 0										// Will permit normal processing by remainder of wrapper 
 																    // (unless overridden by next line of code)		
 																	
 																	// ***********************************************************
-		  if "`cmd'"=="genplace" & "`call'"=="" local skipsave = 1    // Skip saving outcomes if 'genplace' unless 'call' is opted
+		  if "`cmd'"=="genplace" & "`call'"=="" local skipsave = 1  // Skip saving outcomes if 'genplace' unless 'call' is opted
 																	// If 'skipsave' was not turned on above..
 																	// (Skip saving outcomes if 'genpl' was not optnd with 'call')
 																	// (regular 'genplace' outcomes were generated in 'genplaceO')
-		  if  !`skipsave'  {											// ***********************************************************
+		  if  !`skipsave'  {										// ***********************************************************
 
 	
 	
@@ -2394,7 +2399,7 @@ pause(8.1)
 										//	     (saved) data. AT THIS POINT THE DATA IN MEMORY ARE THE FULL WORKING DATA SUBSET
 										
 *	  *****************												// ****************************************************************
-	  if !`skipsave'  {												// Skip this codeblock if conditions for executing it are not met
+	  if !`skipsave'  {											    // Skip this codeblock if conditions for executing it are not met
 *	  *****************												// (skipped only for genplace cmd with no 'call' option)
 																	// ****************************************************************
 																	
@@ -2608,15 +2613,15 @@ end //stackmeWrapper										// Here return to `cmd' caller for data post-proce
 * Subprogram			Called from						Task & notes (just one argument in quotes unless otherwise noted)
 * ----------			-----------						------------
 * checkSM				Wrapper(0.3)					Establish list of SMvars (a.k.a. special names) referenced by user
-*													 Note: "text" [or "noexit"] prevents call on 'errexit' from 'checkSM' on error
+*													 Note: trailing text str "noexit" prevents call on 'errexit' from 'checkSM' on error
 * checkvars				Wrapper(0.3), subprograms 		Alternative for unab that handles mixed hyphenated and abbreviated varnames
-*													 Note: "text" [or "noexit"] prevents call on 'errexit' from 'chackvars' on error] 
+*													 Note: trailing text str "noexit" prevents call on 'errexit' from 'chackvars' on error 
 * cleanup				Wrapper(10) excpt for genstacks	Cleans up outcome data after processing (labeling, rounding, prefixing, etc.)
 * dispLine				Wrapper, showdiag2, others		Displays text message in Results window with optimized line-breaks
-* errexit				Everywhere						Displays error msg in 'note' window; optionally also in Results window 
-*													 Note: 'arg "msg" ' | opts ', msg(txt of msg)' rc() display(requird to display msg)
-* getoutcmnames			getprfxdvars, cleanup(10)
-* getprfxdvars			Wrapper(5); cleanup(10)			Establish string prefixes for outcome variables, as required by each command
+* errexit				Everywhere						Displays msg in 'note' window; by default also in Results window via 'dispLine' 
+*													 Note: Specifying msg as ', msg("text")' suppresses Results display
+* getoutcmnames			getprfxdvars(1)					Establishes prefix strings required by each command for its outcome vars
+* getprfxdvars			Wrapper(5)						Determines varnames required by each command for its outcome vars
 *													 Note: 'outcomes, options' lets program identify optioned outcome prefix-strings
 * getwtvars				Wrapper(2)						Establish weight string for each nvarlst in a multivarlist
 * isnewvar				Wrapper(various)				See if vars [w optioned prefix-string] already exist
@@ -2635,9 +2640,141 @@ end //stackmeWrapper										// Here return to `cmd' caller for data post-proce
 
 ********************************************************************************************************************************
 
+capture program drop checkSM						// Called from stackmeWrapper (SMvars should be read as SMnames)
+
+program define checkSM, rclass						// Checks whether varlist creates any SMname vars (special names) & their linkags
+													// (those names should match already extant varnames)
+
+local errloc = "$errloc"
+gettoken caller rest : errloc,  parse( "(" )					  // Local `caller' gets name of program that called this subprogram
+global errloc "checkSM"											  // Establish general location of any error that may be found below
+
+   args check noexit											  // Argument 'check' contains list of non-'unab'ed variables	
+																  // Arg 'noexit' forces return to caller on error
+																  
+   capture noisily {											  // Open braces enclose code within which any error will be captured
+																  // (and processed after the matching close braces)
+	  local SMerrs = ""
+	  local SMnames = ""
+	  foreach var of local check  {
+	  	 if substr("`var'",1,2)=="SM"  {
+			if "`var'"!="SMitem" & `var'!="S2item"  {
+			   local SMerrs = "`SMerrs' `var'"
+			}
+			else local SMnames = "`SMnames' `var'"			  	  // List of 'SMitem', 'S2item' found in user-supplied varlist
+		 } //endif 'substr'
+	  }
+	  
+	  if "`SMerrs'"!=""  {
+	  	 errexit "SMitem(s) named in varlist should be 'SMitem' or 'S2item, not `SMerrs'"
+*				  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+		 exit
+	  }															  // If no exit, `SMerrs' is still empty to be filled below  
+
+	  if "`SMnames'"==""  {										  // These are user-optioned SMnames validated above
+		 return local gotSMvars `SMnames'	  					  // Return empty list and exit (emptyness is irrelevant to caller)
+	  	 exit													  // (`gotSMvars' & `SMnames' will both be empty if there are none)
+	  } //endif
+	  
+
+	  local SMvar = ""											  // List of SMitem or S2item found in user-optioned 'check'
+	  local SMbadlnk = ""										  // SM/S2 items whose link does not exist ditto
+
+	  foreach var  of  local SMnames  {						  	  // Cycle thru one or both of SMitem, S2item held in `SMvars'
+																  // (we only reach this point if `SMnames' is NOT empty)
+		 local item = "`_dta[`var']'" 	  						  // Retrieve associated linkage variable from data characteristic
+		   
+		 if "`item'" ==""  {
+			local SMerrs = "`SMerrs' `var'"					  	  // If SMitem isn't linked, extend list of unlinked SMvars
+		 }														  // (we only reach this point if `SMerrs' IS empty)
+		 
+		 else  {												  // Else `item' is not empty
+			capture confirm variable `item'				  	  	  // Check if link is to an existing variable
+			if _rc  {											  // See if it names an existing variable
+			   local SMbadlnk = "`SMbadlnk' `var'"			  	  // If not, extend list of bad links
+			}
+			else  local SMvar = "`SMvar' `item'"		  		  // Else extend list of vars linked to `SMitem' or 'S2item'
+			  
+		 } //endelse
+		 
+		 if wordcount("`SMnames'")==1 & word("`SMnames'",1)=="S2item"  local SMvar = "null `S2var'"
+																  // If only 'S2var' was named, put "null" word in front of it
+	  } //next 'var'
+		
+	  if "`SMerrs'"!="" | "`SMbadlnk'"!=""  {					  // If there are any unlinked SMvars
+		
+		  if "`SMerrs'"=="" & "`SMbadlnk'"!=""  {				  // If error is due to absent linkage characteristic(s)
+			  errexit "stackMe special name(s) `SMerrs' have no linkage characteristic(s)"
+			  display as error "See help SMutilities##SMutilities:{ul:SMvars} for details"
+			  exit
+		  }
+		  
+		  else  {												  // Else error must be due to link failing to name existing var
+			  if wordcount("`SMvars'")>1 {
+			  	 errexit "stackMe special names `SMerrs' are not linked to existing variables"
+*						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			  }
+			  
+			  else  errexit "stackMe special name `SMerrs' is not linked to an existing variable"
+*							 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			  display as error "See help SMutilities##SMutilities:{ul:SMvars} for details"
+			  exit
+		  } //endelse											  // (Should never emerge from this else with existing code)
+		   
+	  } //endif `SMerrs' |`SMbadlink'
+		
+	  else  {												  	  // Else each SMname (if >1) is linked to an existing variable
+	  
+		 local i = 0
+		 foreach str in SM S2  {								  // Cycle thru 'SM' and 'S2' prefixes to word 'item'
+			local i = `i' + 1
+			local item = word("`SMvar'",`i')					  // If either word is empty it must be that 'S2item' is missing
+			if "`item'"==""|"`item'"=="null"  continue			  // If this SMvar word is empty or null, continue with next word
+			replace `str'item = `item'	  					  	  // NOTE that 1st 'item' is 2nd half of varname; 2nd IS a varname
+		 }													  	  // (So SMitem, if named, is var with obs copied from linked var)
+																  // (ditto for S2item, if user named it in varlist)
+	  } //endelse "`SMerrs										  // (NOTE SMitem AND wtvar ARE ONLY TWO LISTS WITH MEANNGFUL "null")
+	  
+/*		
+	  if "`gotSMvars'"!=""  {									  // Confirmed to exist by above code
+	  	if "`allSMvars'"!=""  {									  // Found to exist before that
+		  foreach v  of  local gotSMvars  {
+			 local allSMvars = subinstr("`allSMvars'","`v'","",.) // Replace each `v' of gotSMvars found in 'allSMvars' with ""
+		  }														  // (removes from allSMvars any SMvars identified above)
+		}														  // (so that we know what SMvars remain that could be cmd-specific)
+	  }
+
+	  global cmdSMvars = "`allSMvars'"					  		  // Remaining SMvars should be command-specific  
+*/																  // (miscount and misplugcount – perhaps not for current cmd)			***
+	  return local gotSMvars `SMvars'		  					  // List of specified SMvars found above ()
+	  
+	  local skipcapture = "skip"
+	  
+	  
+	  
+	  
+*  *******************	  
+   } //endif 'capture'
+*  *******************
+  
+   if _rc & "`skipcapture'"==""  {
+   	  errexit "Error in $errloc"
+      exit
+   }
+   
+														
+end checkSM
 
 
-* THIS VERSION RETRIEVED FROM stackmeWrapper2c TO REPLACE MISGUIDED ATTEMPT AT DUPLICATING JOB OF `genstacksO', COMMENTED OUT BELOW
+
+
+
+
+****************************************************** end checkSM ******************************************************************
+
+
+
+
 
 																	 
 capture program drop checkvars					// Called from wrapper and several subprograms; elaborates Stata's 'unab' command
@@ -2779,284 +2916,13 @@ end checkvars
 
 
 
+
+
+
+
 *************************************************** end checkvars *****************************************************************
 
 
-capture program drop checkSM						// Called from stackmeWrapper (SMvars should be read as SMnames)
-
-program define checkSM, rclass						// Checks whether varlist creates any SMname vars (special names) & their linkags
-													// (those names should match already extant varnames)
-
-local errloc = "$errloc"
-gettoken caller rest : errloc,  parse( "(" )					  // Local `caller' gets name of program that called this subprogram
-global errloc "checkSM"											  // Establish general location of any error that may be found below
-
-   args check noexit											  // Argument 'check' contains list of non-'unab'ed variables	
-																  // Arg 'noexit' forces return to caller on error
-																  
-   capture noisily {											  // Open braces enclose code within which any error will be captured
-																  // (and processed after the matching close braces)
-	  local SMerrs = ""
-	  local SMnames = ""
-	  foreach var of local check  {
-	  	 if substr("`var'",1,2)=="SM"  {
-			if "`var'"!="SMitem" & `var'!="S2item"  {
-			   local SMerrs = "`SMerrs' `var'"
-			}
-			else local SMnames = "`SMnames' `var'"			  	  // List of 'SMitem', 'S2item' found in user-supplied varlist
-		 } //endif 'substr'
-	  }
-	  
-	  if "`SMerrs'"!=""  {
-	  	 errexit "SMitem(s) named in varlist should be 'SMitem' or 'S2item, not `SMerrs'"
-*				  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		 exit
-	  }															  // If no exit, `SMerrs' is still empty to be filled below  
-
-	  if "`SMnames'"==""  {										  // These are user-optioned SMnames validated above
-		 return local gotSMvars `SMnames'	  					  // Return empty list and exit (emptyness is irrelevant to caller)
-	  	 exit													  // (`gotSMvars' & `SMnames' will both be empty if there are none)
-	  } //endif
-	  
-
-	  local SMvar = ""											  // List of SMitem or S2item found in user-optioned 'check'
-	  local SMbadlnk = ""										  // SM/S2 items whose link does not exist ditto
-
-	  foreach var  of  local SMnames  {						  	  // Cycle thru one or both of SMitem, S2item held in `SMvars'
-																  // (we only reach this point if `SMnames' is NOT empty)
-		 local item = "`_dta[`var']'" 	  						  // Retrieve associated linkage variable from data characteristic
-		   
-		 if "`item'" ==""  {
-			local SMerrs = "`SMerrs' `var'"					  	  // If SMitem isn't linked, extend list of unlinked SMvars
-		 }														  // (we only reach this point if `SMerrs' IS empty)
-		 
-		 else  {												  // Else `item' is not empty
-			capture confirm variable `item'				  	  	  // Check if link is to an existing variable
-			if _rc  {											  // See if it names an existing variable
-			   local SMbadlnk = "`SMbadlnk' `var'"			  	  // If not, extend list of bad links
-			}
-			else  local SMvar = "`SMvar' `item'"		  		  // Else extend list of vars linked to `SMitem' or 'S2item'
-			  
-		 } //endelse
-		 
-		 if wordcount("`SMnames'")==1 & word("`SMnames'",1)=="S2item"  local SMvar = "null `S2var'"
-																  // If only 'S2var' was named, put "null" word in front of it
-	  } //next 'var'
-		
-	  if "`SMerrs'"!="" | "`SMbadlnk'"!=""  {					  // If there are any unlinked SMvars
-		
-		  if "`SMerrs'"=="" & "`SMbadlnk'"!=""  {				  // If error is due to absent linkage characteristic(s)
-			  errexit "stackMe special name(s) `SMerrs' have no linkage characteristic(s)"
-			  display as error "See help SMutilities##SMutilities:{ul:SMvars} for details"
-			  exit
-		  }
-		  
-		  else  {												  // Else error must be due to link failing to name existing var
-			  if wordcount("`SMvars'")>1 {
-			  	 errexit "stackMe special names `SMerrs' are not linked to existing variables"
-*						  12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			  }
-			  
-			  else  errexit "stackMe special name `SMerrs' is not linked to an existing variable"
-*							 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-			  display as error "See help SMutilities##SMutilities:{ul:SMvars} for details"
-			  exit
-		  } //endelse											  // (Should never emerge from this else with existing code)
-		   
-	  } //endif `SMerrs' |`SMbadlink'
-		
-	  else  {												  	  // Else each SMname (if >1) is linked to an existing variable
-	  
-		 local i = 0
-		 foreach str in SM S2  {								  // Cycle thru 'SM' and 'S2' prefixes to word 'item'
-			local i = `i' + 1
-			local item = word("`SMvar'",`i')					  // If either word is empty it must be that 'S2item' is missing
-			if "`item'"==""|"`item'"=="null"  continue			  // If this SMvar word is empty or null, continue with next word
-			replace `str'item = `item'	  					  	  // NOTE that 1st 'item' is 2nd half of varname; 2nd IS a varname
-		 }													  	  // (So SMitem, if named, is var with obs copied from linked var)
-																  // (ditto for S2item, if user named it in varlist)
-	  } //endelse "`SMerrs										  // (NOTE SMitem AND wtvar ARE ONLY TWO LISTS WITH MEANNGFUL "null")
-	  
-/*		
-	  if "`gotSMvars'"!=""  {									  // Confirmed to exist by above code
-	  	if "`allSMvars'"!=""  {									  // Found to exist before that
-		  foreach v  of  local gotSMvars  {
-			 local allSMvars = subinstr("`allSMvars'","`v'","",.) // Replace each `v' of gotSMvars found in 'allSMvars' with ""
-		  }														  // (removes from allSMvars any SMvars identified above)
-		}														  // (so that we know what SMvars remain that could be cmd-specific)
-	  }
-
-	  global cmdSMvars = "`allSMvars'"					  		  // Remaining SMvars should be command-specific  
-*/																  // (miscount and misplugcount – perhaps not for current cmd)			***
-	  return local gotSMvars `SMvars'		  					  // List of specified SMvars found above ()
-	  
-	  local skipcapture = "skip"
-	  
-	  
-	  
-	  
-*  *******************	  
-   } //endif 'capture'
-*  *******************
-  
-   if _rc & "`skipcapture'"==""  {
-   	  errexit "Error in $errloc"
-      exit
-   }
-   
-														
-end checkSM
-
-
-
-********************************************************************************************************************************
-
-
-
-* THIS VERSION RETRIEVED FROM stackmeWrapper2c TO REPLACE MISGUIDED ATTEMPT AT DUPLICATING JOB OF `genstacksO', COMMENTED OUT BELOW
-
-																	 
-capture program drop checkvars					// Called from wrapper and several subprograms; elaborates Stata's 'unab' command
-												// (Should be renamed 'unablist' for "unab list of vars")
-		
-program checkvars, rclass						// Checks for valid input/outcome vars. Partially overcomes intermittant
-												//  error when unab is presented with a hyphentated list of varnames
-												// (with hyphentd AND non-hyphenated it can wrongly send non-zero return code)
-												// ("partially" because 'unablist' exits on first bad 'var-to-var' varlist, whereas
-												//	the whole point of this subprogram is to build a list of all bad varnames)
-												// In practice all bad varnames are listed unless interrupted by bad var-to-var
-local errloc = "$errloc"
-gettoken caller rest : errloc,  parse( "(" )					// Local `caller' gets name of program that called this subprogram
-
-global errloc "checkvars"										// Establish general location of any error that may be found below
-
-																// ORIGINALLY SENT varlist AS ARGUMENT, BUT THAT COULDN'T HANDLE PREFIXS
-*	args check noexit											// IF 1ST VARNAME IN 'check' IS PREFIXED, IT IS TAKEN AS THE ONLY VAR	***
-																// (may include hyphenated varlist(s))
-																
-*	****************	
-	capture noisily {
-*	****************
-
-	local anything = `0'										// Retrieve `anything' from `0', where 'syntax' expects to find it
-																// (substituting a null string for each double quotion markl)
-	if word("`anything'",-1)=="noexit"  {						// If last "var" in any varlist is "noexit", that is NOT a variable
-		local noexit = "noexit"									// (so put it in the local where this subprogram expects to find it)
-		local check = subinstr("`anything'","noexit","",1)		// And substitute null string for `noexit' string and put rest in `check'
-	}															// (where the rest of this subprogram expects to find it)
-	else  local check = "`anything'"							// If no `noexit' trailing arg, put all of `anything' into `check'
-	
-
-	local errlst = ""											// List of invalid vars and invalid hyphenatd varlsts
-										
-	if strpos("`check'","-")==0  {								// If there are no hyphenated varlists
-		foreach var  of  local check  {							// Cycle thru un-hyphenated vars in varlist
-			capture unab var : `var'							// If 0 not returned then variable does not exist
-			local rc = _rc										// Not sure if _rc persists beyond next command
-			if "`var'"=="."  continue							// If `var' is missing continue with next var
-			if `rc'  {											// Else if the `rc' saved just above is non-zero..
-				if "`var'"!="`opt1"	{							// CLUGE AVOIDS ERROR EXIT DUE TO MISSPELLED "`opt1" 					***
-					local errlst = "`errlst' `var'"				// Add that invalid var to 'errlst' if not missing
-				}												// A CORRECTLY SPELLED VERSION OF `opt1' WAS ALREADY APPROVED			***
-			}
-			else local checked = "`checked' `var'"				// Else add that valid `var' to 'checked'
-		} //next `var'
-	} //endif 'strpos'
-		
-	else  {														// Else there are one or more hyphenated varlists
-		
-		local chklist = "`check'"								// Want to keep 'check' untouched for SM search, below
-		local checked = ""										// {portion of }
-																
-		while strpos("`chklist'","-") >0  {						// While there is an(other) unexpanded varlist in 'chklist'
-																// (chklist has 'head' to 'test2' removed at end of 'while')
-			local loc = strpos("`chklist'","-")					// Find loc of hyphen that defines the list
-			local head = substr("`chklist'",1,`loc'-1) 			// Extract string preceeding hyphen
-			local test1 = word("`head'",-1)						// Extract last word in 'head' (word before hyphen)
-			local tail = strtrim(substr("`chklist'",`loc'+1,.))	// Extract string followng hyphen (may contain another "-")
-			local test2 = word("`tail'",1)						// Extract the 1-word varname following the hyphen
-			local test3 = word("`tail'",2)						// Word following `test2', if any
-			
-			local t1loc = strpos("`chklist'","`test1'")			// Get loc of first word in hypnenated varlist
-			if `t1loc'>1  {										// If there are vars before 'test1', evaluate those
-			   local pret1 = substr("`chklist'",1,`t1loc'-1)	// These vars end before 'test1'; put them in 'pret1'
-			   foreach var  of  local pret1  {					// And evaluate each one
-			   	  capture unab var : `var'						// If 0 not returned...
-				  if "`var'"=="."  continue						// if `var' was returned missing, continue with next var
-				  if _rc  local errlst = "`errlst' `var'" 		// Add any invalid varname to 'errlst' if not missing
-				  else  {
-				  	local checked = "`checked' `var'"			// Else add the valid varname to `checked'
-				  }
-			   }
-			}								
-			local t12vars = "`test1'-`test2'"					// 't12vars' will be string "'test1'-'test2'" inclusive
-
-			capture unab t12vars : `t12vars'					// Put the unabbreviated list of vars into `t12vars'
-			if _rc {
-				errexit "Cannot process `t12vars' – perhaps non-var or in wrong order?"
-*						 12345678901234567890123456789012345678901234567890123456789012345678901234567890
-				exit 1											// In this case, override `noexit' argument, if any
-			}
-			local checked = "`checked' `t12vars'"				// String of checked vars up to end of var `test2'
-			
-			if "`test3'"!=""  {									// If "`tail'" holds anything beyond end of hyphenated list
-				local loc = strpos("`tail'","`test3'")			// Get loc of start of that remaining tail (after any blanks)
-				local chklist = substr("`tail'",`loc', .)		// Put remaining tail (following any blanks) into checklist
-			}
-			else  continue, break								// If `test3' is empty, break out of while loop
-			
-			if strpos("`chklist'","-")  continue				// If it contains another hyphen, continue with that
-			
-			
-			foreach var  of  local chklist  {					// Otherwise check validity of remaining vars
-
-			   capture unab var : `var'
-			   if "`var'"=="."  continue						// If var was returned missing, continue with next var
-			   if _rc  {
-				  local errlst ="`errlst' `var'" 				// If _rc !=0 add any invalid vars to 'errlst'
-			   }
-			   else  {											// THESE BRACES ARE NEEDED, OR STATA DISREGARDS 'else'	?				***
-				 local checked = "`checked' `var'"				// Else add to list of checked vars
-			   }
-
-			} //next var
-			
-		} //next while
-			
-	} //endelse	`strpos'										// End of codeblock dealing with hyphated varlist(s)
-		
-	if "`errlst'"!="" & "`noexit'"==""  {						// If any bad varnames were identified (but not anticipated) ...
-		
-		dispLine "Invalid variable name(s): `errlst'" "aserr"	// May need multiple lines to display this error message
-		if "`noexit'"==""  {									// If `noexit' was not optioned on call to this subprogram..
-			errexit, msg("Invalid variable name(s): `errlst'")	// Then exit with stopbox message but no addtional display
-			exit 1												// 'errexit' w opt & w'out ',display' suppresses display
-		}														// Else return errlst to caller (next command after endif)
-	} //endif
-		
-	return local errlst `errlst'								// If not empty would already have caused an error exit
-	return local checked `checked'								// Return unabbreviated un-hyphenated vars in r(checked)
-																// (not clear we need to do this)
-	local skipcapture = "skip"
-
-		
-*	 *************	
-	} //endcapture
-*	 *************
-	
-	
-    if _rc & "`skipcapture'"==""  {
-   	   errexit "Error in $errloc"
-       exit _rc
-    }
-														
-
-end checkvars
-
-
-
-
-****************************************************** end checkSM ******************************************************************
 
 
 
@@ -3269,15 +3135,17 @@ global errloc cleanup(1.1)
 		 
 	  local ic = substr("`cmd'",4,1)						// Identifying char(s) used to distinguish interims produced by each `cmd'P
 															// (For `cmd'==gendi `ic' is "d"; for `cmd'=="gendummies" `ic' is "du")
-	  if "`cmd'"=="gendummies"|"`cmd'"=="genmeanstats"  	///
-		local ic`nvl' = substr("`cmd'",4,2)						
+	  if "`cmd'"=="gendummies"|"`cmd'"=="genmeanstats"  {	
+		local ic = substr("`cmd'",4,2)						// For genst and genme the interim prefix is same 2 chars as outcome prefix
+		local ic2 = "`ic'"
+	  }
 															// (`ic' for 'genmeanstats' will have two chars identifying each stat)
 	  if "`cmd'"=="genyhats"  local ic = "yb"				// For `cmd'==genyh `ic' defaults to "yb" for a bivariate etimation model
 	  if "`multivariate'"!=""  local ic = "ym"				// But if `multivariate' was optioned prefix becomes "ym"
 															// local ic2 will be established per intgrim prefix
 
 	  
-	  local prfxvars : char _dta[PRFXVARS`nvl']				// Get prefixvars, if any, associatd with varlstno that yieldd this interim
+	  local prfxvars : char _dta[PRFXVARS`nvl']				// Get prefixvars, if any, associatd with varlstno that yielded this interim
 															// (in wrapper `prfxvar' was misleadingly singular for each varlist)	  
 	  if "`prfxvars'"!=""  & "`prfxvars'"!="."  {			// If `prfxvar' is non-empty and non-missing ..
 		
@@ -3285,14 +3153,14 @@ global errloc cleanup(1.1)
 		if "`strprfx'"=="."  local strprfx = ""				// If missing make it empty
 		if "`cmd'"=="genyhats"  {							// For 'genyhats'..
 		   if "`strprfx'"=="yh"  local strprfx = "yb"		// Make the outcome name more specific (bivariate estimation by default)
-		   local prfxvar : char _dta[PRFXSTRS`nvl']			// (and override the original flag in the relevant scalar)
+		   local prfxvar : char _dta[PRFXSTRS`nvl']			// (and override the original flag with the relevant scalar)
 		   local dvar = "`prfxvars'"						// 'genyh' uniquely uses the prfxstr to name the outcome variable
 		}													// (else, for most cmds, prefixvars were used to generate outcmevars)
 	  }	//endif `prfxvars'									// Else it is a bivariate yhat (unless user option overode default)
 
 	  if ! strpos("gendummies" "genmeanstats","`cmd'")  {	// If `cmd' is NOT one of these two `cmd's ..
 	    if strlen("`ic'")==2 local ic2 = "`ic'" 			// `ic' has interim prefix (1 or 2 chars); `ic2' has outcome prfx (2 chars)
-	    else  {												// `ic' was established in (0.1)
+	    else  {												// (`ic' was established in (0.1)
 	  	  local ic2 = "`ic'" + substr("`interim'",1,1) 		// This two-char `ic' appends interim prefix to cmd prefix
 	    }													// (for commands that don't already have a two-char `ic')
 	  }
@@ -3312,7 +3180,9 @@ global errloc cleanup(1.1)
 	    if _rc  {											// If return code is not zero then `lbl' is not all-numeric
 	   
 		  	local lbl = "gen`ic2'-generated outcome from input `iname': `lbl'"
-															// Append that label
+*					 	 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			if strlen("`lbl'")>80  local lbl = substr("`lbl'",1,78)+".."
+															// Append that label (truncated as nrcessary)
 		} //endif _rc
 		else  local lbl = "gen`ic2'-generated outcome from input `iname'"
 															// Else leave input varname unlabeled at end of new label
@@ -3749,10 +3619,7 @@ local show = "`oname'"
 		  if "`pfx'"=="null"  local pfx = ""					// `spfxlst' can have null entries, interpreted as empty
 
 		  if "`cmd'"=="genmeanstats"  local pfx = word("`statprfx'",`i')  
-		  if "`cmd'"=="gendist" & "`pfx'"=="x"  {
-		    if "`proximities'"==""  continue  				    // Continue with next `oname' if `pfx=="x"' but proximities not optioned
-		  }
-		}													    // THERE SHOULD BE A BETTER LOCATION FOR THIS CHECK, IF NEEDED				***
+		}
 		
 		local iname = word("`inputnames'",`i')					// Get the original input name that the user typed 
 		local interim = word("`interims'",`i')				    // Put `cmd'P-genrated interim name into `interim' (saved in cleanup(1.1))		
@@ -3787,7 +3654,7 @@ local show = "`oname'"
 		local shortcmd = substr("`cmd'",1,5)					// Produce a short-form command name (first 5 characters)
 		local cumulate : char `iname'[cumulate]					// Get prior cumulated list of `shortcmd's from char `iname'[cumulate]
 		if "`cumulate'"=="" local cumulate = "`shortcmd'"		// (may be empty if first in cumulating list)
-		if word("`cumulate'",-1)!="`shortcmd'"  local cumulate = "`cumulate' `shortcmd'" // Append this cmdname if not already done
+		if word("`cumulate'",-1)!="`shortcmd'"  local cumulate = "`cumulate'->`shortcmd'" // Append this cmdname if not already done
 		char define `oname'[cumulate] `cumulate'				// And put into char 'cumulate' for this outcome var
 
 local show = "`oname'"		
@@ -4181,7 +4048,6 @@ global errloc = "getoutcm(1)"
 
 
 															
-															
 	
 	
 											// (1) GET LIST OF PREFIX-NAMES FOR CURRENT `cmd' 
@@ -4189,7 +4055,6 @@ global errloc = "getoutcm(1)"
 											
 												
 	if "`cmd'"=="gendist"  local optnames     = "dprefix mprefix pprefix" 	   		   // (aprefx is implmntd just before codeblk 2)
-	if "`cmd'"=="gendist" & "`proximities'"!=""  local optnames = "`optnames' xprefix" // Add xprefix if "proximities" were optd
 	if "`cmd'"=="gendummies"  local optnames  = "duprefix"							   
 	if "`cmd'"=="geniimpute" local optnames   = "iprefix mprefix"
 	if "`cmd'"=="genmeanstats" local optnames = "nprefix meanprefix sdprefix minprefix maxprefix skewprefix kurtprefix sumprefix " ///
@@ -4259,6 +4124,8 @@ local show = "`mask'"
 *	  ******************	  
 	  syntax [anything] [if] [in] [fw aw pw iw/], `mask'	// `upmask' is the culled mask with upper case 1st three char optnames
 *	  ******************									// (here `stubnames' will record user option, if any)
+
+	  if "`proximities'"!=""  local optnames = "dprefix mprefix pprefix xprefix"  // Add xprefix for gendist if "proximities" were optd
 	  
 	  local apfx = "_"										// By default `apfx' contributes the final "_" to an outcomename
 	  if "`aprefix'"!=""  {									// But if `aprefix' was user-optioned..
@@ -4275,9 +4142,17 @@ local show = "`mask'"
 	  local strprfx : char _dta[PRFXSTRS`nvl']				// And any string prefix to those var prefixes (1 per listof `prfxvars')
 	  if "`strprfx'"=="."  local strprfx = ""				// (so it is duplicated as many times in `strprfx' as there are outcomes)
 	  local opt1 : char _dta[OPT1NAME`nvl']
-	  if "`opt1'"!=""  local `opt1' : char _dta[OPT1ARG`nvl]']
+	  if "`opt1'"!=""  local `opt1' : char _dta[OPT1ARG`nvl']
 	  
 local show = "varlist: `varlist'; prfxvars: `prfxvars'; varstubs: `varstubs'; `opt1': ``opt1'' "  
+
+	  
+	  if "`multivariate'"!=""  {							// FOR MULTIVARIATE 'genyhats' WE HAVE JUST ONE OUTCOMENAME
+	  	local indeps = "`varlist'"							// `indeps' HAS NO FUNCTION; genyhats will get indeps from `varlist'
+		local varlist = "`depvarname'"						// HERE WE TRICK `getoutcmnames' INTO PRODUCING JUST ONE OUTCOMEVAR
+	  	local optnames = "mprefix"							// Substitute mprefix for genyhats if "multivariate" was optioned
+	  }
+
 	  
 	  if "`cmd'"=="genyhats"  {								// By default 'genyh' is a bivariate yhats command with user-optd depvarname
 		if "`depvarname'"==""  {
@@ -4286,7 +4161,6 @@ local show = "varlist: `varlist'; prfxvars: `prfxvars'; varstubs: `varstubs'; `o
 		}
 		local dvar = "`depvarname'"
 		
-	    local multivariate : char _dta[MULTIVARIATE`nvl']	// (there is no `bivariate option since that is the default')
 		if "`prfxvars'"!=""  {								// he existence of a prefixvar tells us yhat is multivariate)
 		   local dvar = "`prfxvars'"						// Multivarite genyhats generates a b-prefixd depvar by default, trumped by
 		   local multivariate = "multivariate"				//  `depvarname' opt or varlist-specfic prefixvar
@@ -4393,10 +4267,11 @@ global errloc = "getoutcm(3)"
 		  if "`cmd'"=="geniimpute" & strpos("i m","`spfx'") local X =`true' // If outcome is a primary one for 'geniimpute' ditto
 		  if "`cmd'"=="genplace"  local X =`true'			 				// RETHINK THIS CODING DURING genplace PROG DEVELOPMENT		***
 															// `spfx' is prefix generated by `cmd'P; other prefixes are not historic
-															
+
+// FIGURE OUT WHY CURRENT PREFIX IS NOT FOLLOWED BY "_"															
 															
 *		  ********
-		  if  `X'  {										// If we have the prefix string for a primary outcome variable.. 
+		  if  `X'  {										// If we have a prefix string that signals a primary outcome variable.. 
 *		  ********										    // (other prefixes are "p","m" for gendi; "m" for genii)
 
 
@@ -4409,20 +4284,21 @@ global errloc = "getoutcm(3)"
 			}												// (cumulation is actually performed in cleanup(3), when interim vars exist)
 															// (if `cumulate' is not empty or "yes"/"no" it contains list of past cmds)
 
-															 // **************************************************************************
-															 // Local `outcmname's `ic' is `cmd-specific' prefix set by `cmd'P (if `v' has
-															 // any prefixes they were put there by previous `cmd'Ps). If there are two of
-															 // them the 2nd is the cumulatng prefix that will be aquiring earlier `ic's.
-															 // **************************************************************************
+															// **************************************************************************
+															// Local `outcmname's `ic' is `cmd-specific' prefix set by `cmd'P (if `v' has
+															// any prefixes they were put there by previous `cmd'Ps). If there are two of
+															// them the 2nd is the cumulatng prefix that will be aquiring earlier `ic's.
+															// **************************************************************************
 
-			if "``opt''"!=""  {								 // If this optname, specific to each `cmd', was user-optioned...
-															 // (signalled by non-empty ``opt'', which points to what was optioned)
-			  local opfx = "``opt''"						 // Use double-quotes to access the string that the user typed
-															 // (this string will replace the default `ic' prefixing an outcome varname)	
+			if "``opt''"!=""  {								// If this optname, specific to each `cmd', was user-optioned...
+															// (signalled by non-empty ``opt'', which points to what was optioned)
+															// (NOT TO BE CONFUSED WITH ``opt1'' WHICH IS WHAT USER OPTIONED FOR 1st OPTION)
+			  local opfx = "``opt''"						// Use double-quotes to access the string that the user typed
+															// (this string will replace the default `ic' prefixing an outcome varname)	
 			  if substr("`opfx'",-1,1)=="_"  local opfx = substr("`opfx'",1,strlen("`opfx'")-1) 	// Remove trailing "_" if any
-															 // (would duplicate the "_" provided by a default `aprefix')				
-			  local cumulate = "no"							 // And set flag to indicate a user-initiated change in prefix (done below)
-			} //endif ``opt''								 // (which we will address when we have parsed the rest of the prefix	
+															// (would duplicate the "_" provided by a default `aprefix')				
+			  local cumulate = "no"							// And set flag to indicate a user-initiated change in prefix (done below)
+			} //endif ``opt''								// (which we will address when we have parsed the rest of the prefix	
 			
 			local add = ""									// By default there is as yet no prefix
 			  
@@ -4430,7 +4306,7 @@ global errloc = "getoutcm(3)"
 															// (providing `opfx' with the 2-char prefix that is 1st prefx on all outcms)
 															
 			if strpos("gendummies genmeanstats","`cmd'") {  // But for these `cmds'..
-			  local newpfx = `spfx'							// We use the two-char prefix already created as interim prefix by `cmd'P
+			  local opfx = `spfx'							// We use the two-char prefix already created as interim prefix by `cmd'P
 			}
 			
 			if "`cumulate'"!="no"  	{						// If cumulation was not terminated by user-specified outcome prefix..
@@ -4442,21 +4318,19 @@ global errloc = "getoutcm(3)"
 			    local rest = substr("`rest'",2,.)			// Trim the leading "_" from `rest'
 				local add = substr("`frst'",1,1)			// And put into `add' the 1st character of the 2-char 1st prefix
 															// (`add' will be prepended to cumulating prefix(es) preceeding 2nd "_")
-			    if "`cmd'"=="gendummies"  { 				// Unless `cmd' is 'gendummies' (see below for 'genmeanstats')
-			      local add = substr("`frst'",2,1) 			// (when we keep 2nd char (overwriting the 1st char, put there just above)										  
-			    }
-				if "`cmd'"=="genmeanstats"  local opfx = "`frst'" // For 'genmeanstats' retain all of first prefix
+				if strpos("gendummies genmeanstats","`cmd'")  {
+			      local opfx = "`frst'" 					// For 'gendummies' and 'genmeanstats' retain all of first prefix
+			    }											// (neither of these have cumulating prefix)
 				
 				else  {										// For other commands, prefix interim prefix char with `opfx' (from`ic')
-				
-			      if strpos("`rest'", "_")  {  				// If there is ANOTHER "_" after first one.. (beyond 1st "_" of `rest')
+			      if strpos("`rest'", "_")  {  				// If there is ANOTHER "_" after first one.. (beyond trmmd 1st "_" of `rest')
 				    gettoken cum rest : rest, parse("_")	// And put into `cum' the cumulating prefix that is 2nd prefix, if any
-				    local rest = substr("`rest'",2,.)		// 2nd "_" will come from `apfx', which always ends with "_"
+					local rest = substr("`rest'",2,.)		// Strip leading "_" from `rest' (2nd "_" is in `apfx', always ends in "_")
 			        local oname = "`opfx'_`add'`cum'`apfx'`rest'" // MONEY LINE, WHERE `add' FROM PREV CMD IS ABSORBD INTO CUMLATNG PRFX
 				  }											// (but that concatenation holds good only if `v' has a second prefix)
 				  
 				  else  {									// If `rest' had no 2nd "_" ..
-				    local oname = "`opfx'`add'`apfx'`rest'"	// We generate an outcome with a new second prefix
+				    local oname ="`opfx'_`add'`apfx'`rest'"	// We generate an outcome with a new second prefix
 				  }
 				  
 				} //endelse for other commands	
@@ -5436,7 +5310,7 @@ global errloc "varsImpl"
 		local lenstub = strlen("`k'")							// Get # of chars in stub
 		capture unab vars : `k'*								// Get list of supposed vars with this stub 
 		if _rc	{												// If 'unab' finds no vars..
-			errexit "Stata finds no vars with wupposed stub"	// Exit with error msg
+			errexit "Stata finds no vars with supposed stub"	// Exit with error msg
 			exit 1
 		}													
 												
@@ -5468,7 +5342,7 @@ global errloc "varsImpl"
 
    if _rc & "`skipcapture'"==""  {
    	  errexit "Error in varsImplied"
-      exit
+      exit 1
    }
 														
   
@@ -5476,4 +5350,4 @@ global errloc "varsImpl"
 end varsImpliedByStubs
 
 
-****************************************************** END OF SUBPROGRAMS *****************************************************
+********************************************************************************************************************************
