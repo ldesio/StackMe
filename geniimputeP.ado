@@ -1,6 +1,4 @@
-*! Oct 15'26
-
-
+*! Nov 01'26
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
@@ -25,11 +23,7 @@ program define geniimputeP
 	
 global errloc "geniiP"											// Global that keeps track of execution location for benefit of 'errexit'
 
-
-	syntax [ anything ], [nc(integer 0) c(integer 0) wtexplst(string) nvarlst(integer 0) wtexplst(str) * ]
-	
-local show = "nc= `nc' ; c = `c'"
-	
+		
 ***************
 capture noisily {												// Open capture braces mark start ot code where errors will be captured
 ***************
@@ -42,13 +36,14 @@ capture noisily {												// Open capture braces mark start ot code where err
 	forvalues nvl = 1/`nvarlsts'  {
 		
 		
-	  local options : char _dta[OPTLIST`nvl']
-	  local mask : char _dta[MASK`nvl']
-
+	  local options : char _dta[OPTLIST`nvl']					// (VARLISTS and OPTIONS are charactrstks set in wrappr before pause(3))
+	  local mask : char _dta[MASK`nvl']							// (Contain lists of vars specific to each varlist of multivarlst)
+											
+	  local 0 = ", `options'"									// Put the options into `0' where 'syntax' expects to find them
+		
+	  syntax [anything], [ `mask' ] [ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
 	  
 	  
-																// (VARLISTS and OPTIONS are charactrstks set in wrappr before pause(3))
-																// (Contain lists of vars specific to each varlist of multivarlst)
 
 	  local limitdiag : char _dta[LIMITDIAG]
 	  local varlist : char _dta[VARLISTS`nvl']
@@ -73,7 +68,7 @@ local show = "`varlist'"
 			errexit "Incorrect rangeofvalues specification"
 			exit 1
 		  }
-	  } //endif `rangeofvalues'								// Else min & max may still be optioned
+	  } //endif `rangeofvalues'									// Else min & max may still be optioned
 
 	  local inflate = 1
 	  if "`noinflate'"!="" local inflate = 0
@@ -101,20 +96,7 @@ local show = "`varlist'"
 		local showMode = "quietly"
 	  }
 	  local lbl : label lname `c'
-		
-	
-	
-*	forvalues nvl = 1/`nvarlst'  {								// Pre-process (each) varlist in (any) multi-varlist
-																// COMMENDED OUT SINCE NOW HAPPENS BEFORE 'syntax'				***
-
-/*	  local vlnvl = "vl`nvl'"
-	  local varlist = vlnvl 									// Varlist for each nlv was stored in scalar by geniimputeO
-*	  global `vlnvl' = ""										// Empty that global after transferring contents to local `varlist'
-	  local alnvl = "al`nvl'"
-	  local added = alnvl										// Varlist for added vars derived as for main varlist, above
-*	  global `alnvl' = ""
-*/																// CHANGED GLOBAL `vlnvl' & `alnvl' TO SCALARS IN geniimpute0
-	  
+			  
 	  local thePTVs = "`varlist'"								// Varlist derived from scalar above, originating in wrapper(2.2)
 	  local added = "`addvars'"									// `addvars' is first option decoded by 'syntax', above
 	  local usedPTVs = ""
@@ -351,7 +333,7 @@ if "`skipcapture'"==""  {										  		// If not empty we did not get here due t
 
 	
 		
-end geniimputeP
+end //geniiP_body
 
 
 
