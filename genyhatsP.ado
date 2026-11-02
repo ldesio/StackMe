@@ -1,4 +1,4 @@
-*! Oct 22'26
+*! Nov 01'26
 capture program drop genyhatsP					// Originally `genyhats', in Version 2 is called by `stackmeWrapper'
 
 program define genyhatsP				
@@ -75,7 +75,7 @@ global errloc "genyh(1)"
 	    syntax  , [`mask' nc(integer 0) c(integer 0) wtexplst(string) nvarlst(integer 0) *]
 *		****************************************					
 
-		global multivariate = "`multiveriate'"  					// Global will tell 'predcen' what user optioned
+		global multivariate = "`multivariate'"  					// Global will tell 'predcen' what user optioned
 	
 		local isprfx = ""											// By default there is no prefix, so not a multivariate analysis
 																	// (unless `multivariate' was optd (now in _dta[MULTIVARIATE)
@@ -259,7 +259,7 @@ global errloc "genyh(5)"
 
 	local skipcapture = "skip"									// If this command is executed then there were no errors above
 
-
+exit															// AVOIDS "program error:  matching close brace not found"
 	
 * *************
 capture } //end capture											// CAPTURE ADDRESSES "not a valid command" ERROR
@@ -316,6 +316,8 @@ capture noisily {											// introduces codeblocks within which any error will
 
 
 	if "`isprfx'"!=""  local multivariate = "yes"			// `isprfx' was established in caller
+	
+	if "$multivariate"!="" local multivariate = "yes"		// So was $multivariate
 
 *	local varlist : char _dta[VARLIST`nvl']					// (same as in `varlist' if analysis is not multivariate)
 															// `nvl' is empty; but we got varlist from 'syntax' above
