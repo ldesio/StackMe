@@ -1,5 +1,4 @@
-*! Oct 07'26
-
+*! Nov 01'26
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
 program define gendistP										// Called by 'stackmeWrapper'; calls subprograms 'errexit'
@@ -44,15 +43,19 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	  
 	  local varlist : char _dta[VARLISTS`nvl']
 	  local options : char _dta[OPTIONS`nvl']
+	  local mask : char _dta[MASK`nvl']
+
 *local show = "`varlist'"
 	  
-	  local 0 = ", `options'"
+	  local 0 = ", `options'"								// Put the options into `0' where 'syntax' expects to find them
+		
 															// MOVED HERE IN VERSION 10 FROM TOP OF 'gendistP'
-      syntax [varlist] [aw fw pw iw/], [ SELfplace(varname) MISsing(string) PPRefix(string) MPRefix(string) ] 				///
+	  syntax [anything], [ `mask' ] [ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
+/*      syntax [varlist] [aw fw pw iw/], [ SELfplace(varname) MISsing(string) PPRefix(string) MPRefix(string) ] 			///
 			[ DPRefix(string) MPLuggedcountname(name) LIMitdiag(integer -1) EXTradiag(integer 0) MCOuntname(name) ] 		///
 			[ PLUgall ROUnd REPlace NOReplace NOStacks NODiag NOSELfplace NOCONtexts PROximities nvarlst(integer 1) ]		///
 			[ nc(integer 0) c(integer 0) wtexplst(str) * ] 	// (xprefix not relevant in gendistP; only in wrapper)
-															// now using label lname in lieu of ctxvar
+*/															// now using label lname in lieu of ctxvar
 	  global c = `c'										// local c somehow gets lost prior to access, below
 															
 *
@@ -72,7 +75,11 @@ global errloc "gendistP(1)"						// Global that keeps track of execution locatio
 	    if "`weight'" == "null"  local weight = ""			// Duplicate weight expressions were handled in wrapper subprogram		***
 	  }
 
-	  if `limitdiag'==-1  local limitdiag = .				// User wants unlimitd diagnostcs, make that a very big number!			** 
+	  if "`limitdiag'"!=""  {
+	    if `limitdiag'==-1  local limitdiag = .				// User wants unlimitd diagnostcs, make that a very big number!			** 
+	  }
+	  else local limitdiag = .								// If `limitdiag' was not optioned it defaults to a very big nukber
+	  
 	  if "`nodiag'"!=""  local limitdiag = 0
 
 	  if ("`missing'"=="") local missing = "all"			// Default if 'missing' option was not used
@@ -258,9 +265,3 @@ end //createActive copy
 
 
 ************************************************** END SUBPROGRAM **********************************************************
-
-
-
-
-
-
