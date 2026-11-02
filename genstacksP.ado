@@ -1,4 +1,4 @@
-*! Oct 7'26
+*! Nov 01
 
 
 capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
@@ -46,8 +46,13 @@ capture noisily {											// Open capture braces mark start ot code where erro
 							   
 							   
   local namelist = "`anything'"								/*: char _dta[GENSTKVARS] */			   
+															// (Wrapper did check that all stubs have corresponding varlists)
 							   
-  local show = "namelist: `namelist'"							   
+  local show = "namelist: `namelist'"
+  
+  char define _dta[GENSTKSTBS] "`namelist'"					// Store stublist where genstacks caller can find it after exit from `cmd'P
+  
+  
 							   
 							   // (1) Following codeblock executed for each context established in wrapper & recorded in `c'
 					
@@ -64,8 +69,6 @@ capture noisily {											// Open capture braces mark start ot code where erro
 															
   set more off
   
-  local namelist = "`anything'"								// Get stubnames from argument passed by wrapper program	
-															// (Wrapper did check that all stubs have corresponding varlists)
 										
 										
 										
