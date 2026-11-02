@@ -1,3 +1,4 @@
+*! Nov 01'26
 
 capture program drop gendummiesP			  	// Does the gendummies heavy lifting (such as it is) for all contexts taken together
 
@@ -27,6 +28,8 @@ capture noisily {											// Open capture braces mark start ot code where erro
 
 	local nvl = 0
 	local nvarlsts : char _dta[NVARLISTS]					// Charactrstcs here and below were set in wrapper before codeblk(3)
+															
+    local limitdiag : char _dta[LIMITDIAG]					// Overrides varlist version that may not have been updated
 																
 	global interims = ""									// Global will hold list of outcomenames with default prefix
 	
@@ -37,15 +40,14 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		local nvl = `nvl' + 1	
 	  
 	    local varlist : char _dta[VARLISTS`nvl']
-	    local options : char _dta[OPTIONS`nvl']
+	    local options : char _dta[OPTLIST`nvl']
 		
-		local 0 = "`varlist', `options'"					// Only the comma is in quotes; scalars are capitalized
+		local 0 = ", `options'"								// Put the options into `0' where 'syntax' expects to find them
 		
-															
+		local mask : char _dta[MASK`nvl']
 
-	    syntax [ anything ], [ STUbname(name) INCludemissing RECordmissing LIMitdiag(integer -1)  DUPrefix(str) NODuprefix ] ///
-					 [ /*prfx(str) isprfx*/ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
-															// `prfx' and `isprfx' options now transmitted by scalar variables
+	    syntax /*[varlist]*/, [ `mask' ] [ nvarlst(integer 1) nc(integer 0) c(integer 0) wtexplst(string) *] 
+															// Prefix naming is now handled in subprog 'cleanup'
 
 															// (each inpvar appears as many times as there are outcomes for that var)															// Any stubname comes from option `(opt)stubname' or from `precolon'	
 		local vars : char _dta[VARLISTS`nvl']				// Stored in that charactrstc in wrapper (2.1)
@@ -54,8 +56,10 @@ capture noisily {											// Open capture braces mark start ot code where erro
 		quietly count 	
 		local numobs = r(N)									// N of observations (gendummies processes all contexts at once)
 	
-		if `limitdiag'==-1  local limitdiag = .				// Make that a very big number
-		display " "											// Display blank line at start of diagnostics
+		if "`limitdiag'"!=""  {
+		  if `limitdiag'==-1  local limitdiag = .			// Make that a very big number
+		  display " "										// Display blank line at start of diagnostics
+		}
 	
 		if "`recordmissing'"!=""  local includemissing = "includemissing" // The former requires the latter
 															// Recordmissing OPTION NOT FINALIZED IN THIS stackMe VERSION			***
@@ -236,28 +240,28 @@ pause off
 pause end genduP	  
 pause off
 
-	global interims = "$interims du_`out'`val'"
+	global interims = "$interims"
 	char define _dta[INTERIMS] $interims 
  
 	local skipcapture = "skip"									  // Local, if set, prevents capture code, below, from executing
 	
-	
+exit															  // AVOIDS "matching close brace not found" ERRIR
 * *************
 capture } //end capture											  // Endbrace for code in which errors are captured
 * *************													  // Any such error would cause execution to skip to here
-																  // (failing to trigger the 'skipcapture' flag two lines up)
-capture }														  // CLUGES PREVENT "not a valid command name" on 'errexit'
-																  // (or "unexpected end of file" – 'errexit can mess w nesting structure)
+
 if "`skipcapture'"==""  {										  // If not empty we did not get here due to stata error
 	
 	if _rc  errexit "Stata reports program error in $errloc"
 	exit
 }
 
+capture }														  // CLUGE TO AVOID 'close braces not found'
    
 end //gendummiesP
 
 
 
 ******************************************************* END gendummiesP ***************************************************************
+
 
