@@ -1,25 +1,30 @@
-Mar 22'26
 
-*! Mar 22'26 					stackMe.ado
+*! Mar 22'26 					stackMe 2.1
 
-*! THIS ado file CONTAINS THE VARIOUS 'utility programs' NEEDED BY USERS OF stackMe COMMANDS. See first paragraph of 'help stackMe'
+*! THIS ado FILE CONTAINS THE VARIOUS 'utility programs' NEEDED BY USERS OF stackMe COMMANDS. See first paragraph of 'help stackMe'
 
 *! Written by Mark, Feb 2025.
-
-								// stackMe.ado contains stackMe utility programs (programs with names starting with 'SM' as follows:
+//								// *****************************************************************************************************
+								//
+								// stackMe.ado will contain stackMe utility programs (programs with names starting with 'SM' as follows:
 								//
 								// SMsetcontexts: invoked, after opening a file, to establish or update context-defining vars as 
 								//   characteristics of that dataset. It also establishes the filename and filepath for the file 
 								//   being initialized. File characteristics can be updated by using SMsavefile to save the (possibly 
 								//   renamed) file in a new location (see below)
 								//  
-								// SMsavefile: invoked to save the active file under a new name and/or directory location
+								// SMsavefile: will be invoked to save the active file under a new name and/or directory location
 								//
-								// SMitemname: invoked to supply the name of a linkage variable, to be linked to varname SMitem
+								// SMitemname: will be invoked to supply the name of a linkage variable (to be linked to varname SMitem) 
+								//   that would override and replace any linkage varname supplied to cmd 'genstacks' during data stacking
 								//
 								// SMorigin (forthcoming) invoked to produce a historical record of stackMe commands that have 
-								//   processed each individual variable, optionalle summarizing this record in the variable's label
-									
+								//   processed each individual variable. (The new utility would expand the summery of the this record 
+								//   currently held in each variable's varlabel).
+								//
+								// SMresetcum (forthcoming) invoked to reset the cumulation history of vars with cumulation charactstrcs
+								//
+								// *****************************************************************************************************
 
 									
 capture program drop SMsetcontexts
