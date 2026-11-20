@@ -1,4 +1,5 @@
-*! Nov 01'26
+*! Nov 19'26				gendistP.ado 2.1
+
 capture program drop gendistP					// Program that does the heavy lifting for gendist, context by context
 
 program define gendistP										// Called by 'stackmeWrapper'; calls subprograms 'errexit'
@@ -265,3 +266,7 @@ end //createActive copy
 
 
 ************************************************** END SUBPROGRAM **********************************************************
+
+
+
+
