@@ -1,4 +1,4 @@
-*! Oct 22'26
+*! Oct 21'26				gendummies.ado 2.1
 
 capture program drop gendummies			// Transforms categorical variables into dummy vars, one dummy for each level of the original
 
@@ -27,8 +27,8 @@ program define gendummies								// Called by 'gendu' a separate program defined
 														// be referred to as `opt1', the first word of `optMask', in codeblock 
 														// (0) of stackmeWrapper called just below). `opt1' is always the name 
 														// of an option that holds a varname or varlist (which must be referred
-														// using double-quotes). Normally the variable named in `opt1' can be 
-														// updated by the prefix to a varlist, but not in genyhats.
+														// using double-quotes). The variable or stub named in `opt1' can be 
+														// updated by the prefix to a varlist. A not yet existing var is "othr"
 		
 	local multicntxt = ""/*"multicntxt"*/				// Whether `cmd'P takes advantage of multi-context processing				**
 	
@@ -151,3 +151,5 @@ end gendu
 
 
 ************************************************* END GENDU *******************************************************************
+
+
