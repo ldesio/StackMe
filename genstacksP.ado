@@ -1,5 +1,4 @@
-*! Nov 01
-
+*! Nov 7'26					genstacksP.ado 2.1
 
 capture program drop genstacksP	// Program that does the actual reshaping of data, context by context			
 
@@ -14,15 +13,13 @@ program define genstacksP								// Called from 'stackmeWrapper', makes no calls
 
 	version 16.1				// stackMe's genstacks version 2.0, June 2022, updated 2'23, Aug'24, Nov'24
 	
-	// This version of genstacks reshapes each context separately. It does labeling of vars and data in `cmd' caller. It  
+	// This version of genstacks is called for each context separately. It does labeling of vars and data in `cmd' caller. It  
 	// doesn't use Stata's code for duplicating variables that are not reshaped. Instead it saves those variables and later   
 	// merges them with the reshaped variables. It uses external files for this rather than data frames, because of limitations   
 	// on types of merges that frames support.
 	//   An important component of the stacking operation happens in `genplaceO', where stubnames are identified and 
 	// checked. `genstacksP' (this ado file) reshapes the stacked data, also removing empty stacks and correcting for 
 	// fixed effects, if optioned.
-	//   `genstacksP' calls a subroutine already called from stackmeWrapper to derive variable names implied by stubs used in
-	// conformity with genstacks syntax 2 (see help file for genstacks).
 	//   Trial versions were used Stata's version 2b to evaluate use of frame technology where present. It used a call on Mata to 
 	// get the version # (I was unable to discover how to get the version number from Stata itself.) thus: 
 	// 'mata: st_numscalar("temp", statasetversion()', returns versn # in scalar 'temp'. But frames proved slower than tempfiles.
@@ -37,22 +34,13 @@ capture noisily {											// Open capture braces mark start ot code where erro
 ***************	
 
 
+  local mask : char _dta[MASK]								// Get minimal mask saved in wrapper(0.2)
+  
 
-
-  syntax [anything] [aw fw pw/],  [ CONtextvars(varlist) UNItname(name) STAckid(name) ITEmname(varlist) TOTstackname(name)] ///
-				  [ REPlace NODiag KEEpmisstacks FE(namelist) FEPrefix(string) LIMitdiag(integer -1) EXTradiag NOCheck  ] ///
-				  [ ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) * ] 
+  syntax [anything] [aw fw pw/],  [ mask ctxvar(varname) nc(integer 0) c(integer 0) nvarlst(integer 1) * ] 
 
 							   
-							   
-  local namelist = "`anything'"								/*: char _dta[GENSTKVARS] */			   
-															// (Wrapper did check that all stubs have corresponding varlists)
-							   
-  local show = "namelist: `namelist'"
-  
-  char define _dta[GENSTKSTBS] "`namelist'"					// Store stublist where genstacks caller can find it after exit from `cmd'P
-  
-  
+  local namelist : char _dta[VARSTUBS1]  					// Stubs (perhaps derived from varlist in genstO) for stacked varnames
 							   
 							   // (1) Following codeblock executed for each context established in wrapper & recorded in `c'
 					
@@ -62,7 +50,6 @@ capture noisily {											// Open capture braces mark start ot code where erro
   local limitdiag : char _dta[LIMITDIAG]					// Overrides varlist version that may not have been updated
   if `limitdiag'>0 & `c'>`limitdiag' local w = 0			// If limit not -1 & context>limit turn warnings off
 															// (`w' flags diagnostics for this context, `nodiag' for any context)
-															// (NOTE that nodiag is backwards; 0=none, !0=some)
   
   if `w'  local displ = "noisily"							// Prefix for 'reshape' command
   if !`w' local displ = "quietly"
