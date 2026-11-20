@@ -1,33 +1,154 @@
-*! Oct 7'26
-
+*! Nov 7'26					genstacks
 
 capture program drop genstacks			 // Reshapes a dataset from 'wide' to 'long' (stacked) format
 
 										 // SEE PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
 
-program define genstacks									// Called by 'genst' a separate program defined after this one
-															// Calls subprogram stackmeWrapper and subprogram 'errexit'
+program define genstacks										// Called by 'genst' a separate program defined after this one
+																// Calls subprogram stackmeWrapper and subprogram 'errexit'
+																
 
 *!  Stata versn 9.0; stackMe version 2, updated May'23 from major re-writes in June'22 and May'24 to include post-wrapper code
 *!  See introductory comments in 'stackmeWrapper.ado' for additional details regarding code for the stackMe suite of ado files.
 
 	version 9.0							// SEE HEAD OF PROGRAM stackmeWrapper (CALLED  BELOW) FOR  DETAILS  OF  PACKAGE  STRUCTURE
+	
+										// *****************************************************************************************
+										// This subprogram is, unlike other caller subprograms, far more than a conduit from user 
+										// comand to wrapper. It extends before the wrapper call to actually pre-process the
+										// command string sent to the wrapper (processing and removing from the commandline elements
+										// that this subprogram will itself process after wrapper completion) and, in that portion,
+										// this subprogram perfoms all the operations normally performed by subprogram 'cleanup'
+										// regarding labeling and sropping variables as per user options, along with many additional
+										// operations specific to a newly stacked dataset.
+										// ******************************************************************************************
+										
 
-
-global errloc "genstacks(0)"								// Records which codeblk is now executing, in case of Stata error
+global errloc "genstacks(0)"									 // Records which codeblk is now executing, in case of Stata error
 pause genstacks(0)
 
 
 
 										// (0)  Here set stackMe command-specific options and call the stackMe wrapper program  
 										// 		(lines that end with "**" need to be tailored to specific stackMe commands)
-									
-															// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
-															// prefixvar (here ITEmname) is first and its negative, if any, is last.	
-															
-	local optMask = " ITEmname(varname) FE(namelist) FEPrefix(string) LIMitdiag(integer -1) KEEpmisstacks NOCheck " //					**
+										
+										
+																 // FOLLOWING CODEBLK CONSTRUCTS ADDITIONAL SYNTAX BASED ON USER-OPTS 	**
+																
+	local slist = ""											 // Create empty local to contain list of stubs that are labeled
+	local slnum	= 0												 // # of current varlist (for user-provided `sn#' stack labels)
+	local havepipes = 0											 // By default this is a type-1 syntax with hyphenated varlists
+	
+	if strpos("`cmdline'","||")  {
+	   if !strpos("`cmdline'","-")  {
+	   	  errexit "If varlists are pipe-delimited then those varlists should be hypenated"
+		  exit 1
+	   }
+	   local havepipes = 1 										// Stubs are constructed from pipe-delimited hyphenated varlists
+	} //endif strpos											// (`havepipes' is 1 even if no pipes, so long as varlsts are hyphenated)
+	
+	
+	local cmdline = "|| `0'"									// Place initial pipes at start of `cmdline' (`0' is what user typed)
+																// (not including commandname)
+	while strpos("`cmdline'", "||")  {						 	// While that or subsequent pipes remain in `cmdline'..
 
-*					EXTradiag NODIAg NOREPlace NOCONtexts NOSTAcks APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most
+*	   *******************************************************
+	   if strtrim(substr("`cmdline'",3,.))=="" continue, break 	// Break out of while loop if there is no remaining non-blank text
+*	   *******************************************************
+	   
+	   gettoken chunk cmdline : cmdline, parse("||")			// Process each pipe-delimitd chunk of cmd-line (including artfical 1st)
+	   local cmdline = strtrim(substr("`cmdline'",2,.))	   	 	// Trim off 2nd of leading pipes
+local show = "`cmdline'"	   
+	   if ! strpos("`cmdline'","||") local chunk ="`cmdline'" 	// If no more pipes (! strpos) then the current chunk has rest of cmd
+	   
+	   else  {
+			gettoken chunk cmdline : cmdline, parse("||")		// Else the current chunk extends only as far as the next pipes
+	   }														// (may be comma after each chunk or just after last chunk)
+local show = "`chunk'"
+	   local slnum = `slnum' + 1								// Either way, increment the number of (what will be) stubs
+	   gettoken precomma opts : chunk, parse(",")			 	// Look for comma within this chunk
+	   
+*	   *************************
+	   if "`opts'"==""  continue								// Continue with next chunk if this one has no options
+*	   *************************	   
+	   
+	   if "`opts'"==","  {										// It is a syntax error if comma is all there is in `opts'
+		  errexit "Comma on command line is not followed by any options"
+		  exit 1
+	   }
+	   local opts = strtrim(substr("`opts'",2,.))				// If there is something following "," strip off that comma
+	   
+	   while "`opts'"!=""  {									// While there are (more) options in this chunk..
+	      
+		  gettoken opt opts : opts, parse("(")					// Parsing on open paren, get next `opt' in rest of chunk
+																// (we only want opnames that have arguments)
+		  local startopt = strrpos("`opt'"," ")					// optname starts after final space preceeding "(" or at start of optlst
+		  local opt = substr("`opt'",`startopt'+1, .)			// `opt' is the string starting after " " & ending before "("
+local show = "`opt'"											// (skipping over any opts not followed by an open paren)
+			
+		  local opts = strtrim(substr("`opts'",2,.))			// Trim off the open paren (next cmd will skip to end paren)
+		  gettoken label opts : opts, parse(")")				// So we can look for next open paren in next 'while' loop
+		  if "`opts'"==""  {									// And check for correct syntax
+		  	 errexit "No matching close parenthesis"
+			 exit 1
+		  }														// If syntax is ok we have a user-optiond `label' (prhps not `sl..(label)')
+		  local opts = strtrim(substr("`opts'",2,.))			// Trim away the leading ")" in remaining `opts'
+		  
+*		  **************************************		  
+		  if substr("`opt'",1,2)!="sl"  continue				// If this is not an "sl.." option, continue with next option, if any
+*		  **************************************
+		  
+		  if `havepipes'  {										// This command should have pipe-delimeted hyphenated varlists
+		  	
+		  	if substr("`opt'",3,1)!="a"  {						// If optname is not 'slabel' (presumably it is an `sl#' option)
+			   errexit "Option 'sl#' is not allowed with hypenated varlist; should be option 'slabel'"
+*					    12345678901234567890123456789012345678901234567890123456789012345678901234567890
+			   exit 1
+		    }
+			local num = `slnum'									// `slnum' has been keeping track of the sequential number of this varlist
+			local slabel`num' = "`label'"						// Save label in local specific to this varlist #
+			local slist = "`slist' sl`num'"						// (`slabel`num'' will be accessed after return from 'stackmeWrapper')
+			
+			local cmdline = strtrim(stritrim(subinstr("`cmdline'", "`opt'(`label')", "", 1 )))
+																// Substitute "" for user's labeling option, removing it from `cmdline'
+		  } //endif `havepipes'									// Since `label' is accessed in this subprogram, no need for it elsewhere
+		  
+		  
+		  else  {												// Else this should be stublist; calls for 'sl#' options
+			
+			if substr("`opt'",3,1)=="a"  {
+			   errexit "Option 'slabel' is not allowed with a genstacks stublist; should be option 'sl#'"
+			   exit 1
+			}													// Else we do have pipe-delimited hyphenated varlists
+			 
+			gettoken slno rest : opt, parse("(")				// Number in option `sl#' may have more than one digit before "("
+			local num = real(substr("`slno'",3,.))				// The numeric component of option 'sl#' is now in `num'
+			if "`num'"=="."  {									// If result is missing, the option was mis-specified
+			   errexit "Mis-specified '#' in option `slno'"
+			   exit 1
+			}
+			local slabel`num' = "`label'"						// Save label in local specific to this optname #
+																// (will be accessed after return from 'stackmeWrapper', below)
+			local cmdline = strtrim(stritrim(subinstr("`cmdline'", "`opt'(`label')", "", 1 )))
+			local slist = "`slist' sl`num'"						// Substitute "" for user's labeling option, removing it from `cmdline'
+																// `slist' is used only in this subprogram, so doesn't need to be shared
+		  } //endelse `havepipes'								
+		  
+	   } //next while `opt'										// Repeat while there are still words left in `chunk'
+	   
+	} //next while strpos										// `slist' now conttains a list of 
+	
+	local 0 = "`cmdline'"										// Finally, put updated `cmdline' back in `0', as tho user put it there
+	
+	
+	
+																// ADAPT LINES FLAGGED WITH TRAILING ** TO EACH stackMe `cmd'. Ensure
+																// prefixvar (here ITEmname) is first and its negative, if any, is last
+																
+
+	local optMask = "ITEmname(varname) FE(namelist) FEPrefix(str) LIMitdiag(integer -1) KEEpmisstacks NOCheck " 					 // **
+
+*					EXTradiag NODIAg NOREPlace NOCONtexts NOSTAcks  APRefix (NEWoptions MODoptions) (+ limitdiag) are common to most
 															//  stackMe cmds and are added to 'optMask' in wrapper's codeblk (1)
 															// (NOTE that options named 'NO??' are not returned in a macros named '??')
 	
@@ -38,18 +159,19 @@ pause genstacks(0)
 															//  this command, a varlist	may itself be prefixd by a varlist or string
 		
 	local multicntxt = "multicntxt"							// Whether `cmd'P takes advantage of multi-context processing (resulting 	**
-															// macro morphes into `noMultiContxt' in 'stackmeWrapper')
+															// (this local morphes into `noMultiContxt' in 'stackmeWrapper')
 															
 	local save0 = "`0'"										// Save what user typed, to be retrieved on return to this caller program
 										
 
 *	************************
-	stackmeWrapper genstacks `0' \ `multicntxt' `prfxtyp' `optMask' // Space after "\" must go from all calling progs					**			
+	stackmeWrapper genstacks `0' \ `multicntxt' `prfxtyp' `optMask'			
 *	************************								// `0' is what user typed; `prfxtyp' & `optMask' strings were filled	
 															//  above; `prfxtyp', placed for convenience, will be moved to follow 
 															//  optns – that happens on 4th line of stackmeWrapper's codeblk(0.1)
 															// `multicntxt', if empty, sets stackmeWrapper flag 'noMultiContxt'
-
+															// (seeingly no longer relevant in version 10)
+															
 set trace on															
 
 							// **************************	// 'genstacks' IS THE ONLY CALLER THAT STILL DOES ITS OWN POST-PROCESSING
@@ -62,9 +184,9 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 *															 **********************************************
 
 
-* **********
+* *****************
   capture noisily {											 // Puts rest of command within capture braces, in case of Stata error	
-* **********												 // Capture processing code is at the end if this adofile.
+* *****************											 // Capture processing code is at the end if this adofile.
 
 
 
@@ -79,38 +201,45 @@ if "$SMreport"==""  {										 // If return does not follow an errexit report
 	
 *	***************
 	syntax anything ,  [ LIMitdiag(integer -1) ITEmname(varname) CONtextvars(varlist) NOStacks NOContexts NODiag REPlace * ]									
-*	***************										    
+*	***************										     
 											
 	/*if `limitdiag'==0*/  noisily display " "				// No 'continue' for final busy dot
 
 	
-	
+local namelist : char _dta[VARSTUBS1] 						// Subprogram 'genstacksO' created list of stubnames, whatever user typed
+
+
+
+
+
+
 	
 pause genstacks(2)	
 global errloc "genstacks(2)"
 	
 										// NEXT CODEBLOCKS POST-PROCESS NEW VARIABLES CREATED IN 'genstacksP'
 
-										// (2) Make labels for reshaped vars, based on first var in each battery ...
+										// (2) Make default labels for reshaped vars, based on first var in each battery ...
 										
 										
 														// NEED TO TREAT DOUBLY-STACKED DATA SEPARATELY									***
-										
-	local stubsImpliedByVars : char _dta[GENSTKSTBS]
-	local namelist = "`stubsImpliedByVars'"				// Put 'genstacksO'- generated stubnames into `namelist'
-	
+														
 														// (genstacks only has a single varlist; so no "||", no ":")	
 	local varlabel = ""									// Initialize a local outside foreach loop to hold eventual label	
 	local response = 0									// Local at top level to register responses within if or foreach		
 														// (apparently unused)															***
+	local num = 0										// Initialize `sl#' for user-optioned stack/stub labels
+	
 	foreach stub of local namelist {					// (whether specified in syntax 2 or derived from syntax 1 varlist)
+	
+		local num = `num' + 1
 	
 		if "`stub'"=="."  continue						// If this word of `namelist' is missing, continue w next stub
 	
 		foreach var of varlist `stub'*  {				// Sleight-of-hand to get first var in each battery
 
 			if real(substr("`var'",-1,1))==.  continue	// If final char of `var' is NOT numeric (real version IS missing)..
-														// ('continue' skips rest of foreach block, continues w' next var)
+														// ('continue' skips rest of foreach block, continues with next var)
 			local label : variable label `var'			// See if that variable has a label		
 			if "`label'"=="" {							// If this var has no label, provide dummy label
 			   local varlabel = "stkd `var'"			// Use varname preceeded by "stkd" as label 
@@ -131,7 +260,7 @@ global errloc "genstacks(2)"
 					}									// (from the var whose categories became dummy variables)
 				}		
 														// Else, either never labeled or was renamed during gendummies
-				local label : variable label `var'		// So proceed as above, providing..
+				local label : variable label `var'		// So proceed as above, so long as..
 				if "`varlabel'"=="" {					// If this var has no label, provide dummy label
 					local varlabel = "stkd `var'"		// Use varname as label 
 					continue, break						// Break out of varlist loop because have label for stub (same for all stubs)
@@ -142,7 +271,7 @@ global errloc "genstacks(2)"
 			
 			else {										 // No "==" so is not from a gendummies-built battery
 			
-				if strpos("`label'", "`var'")  {	 	 // If it has an embedded varname ...
+				if strpos("`varlabel'", "`var'")  {	 	 // If it has an embedded varname ...
 					local label = stritrim(subinstr("`label'", "`var'","",.)) // Remove as many as found, & resulting " "
 					local cc = (substr("`label'", 1, 1)) // Get first char of "label"
 					mata:st_numscalar("a",ascii("`cc'")) // Get MATA to tell us the ascii value of `cc'
@@ -153,7 +282,7 @@ global errloc "genstacks(2)"
 					   mata: st_numscalar("a", ascii("`cc'"))
 					}										 // (the above doesnt include " " so trim leading spaces w nxt cmd)
 					local varlabel = "stkd " + strtrim("`label'")
-					continue, break							 // Break out of foreach 'var' because 1st var is all we need
+					continue, break						// Break out of foreach 'var' because 1st var is all we need
 				}
 				else  {									// Else no embedded varname
 					local varlabel ="stkd " + strtrim("`label'") 
@@ -161,59 +290,59 @@ global errloc "genstacks(2)"
 				}
 			} //end else
 			
-		} //next `var'									// Will break out of loop when processd 1st var w' numeric suffx (see above)
+		} //next `var'									// Will break out of loop when processd first var w' numeric suffx (see above)
 		
-		
-		if "`varlabel'"!=""  {							// If we found a varlabel
-		
-		   local varlabel = strtrim("`varlabel'")		// Trim off any leading or trailing blanks
 
-/*		   while real(substr("`varlabel'",-1,1)) !=. {	// While final char is numeric (conversion to real is not missing)
-			  local varlabel = substr("`varlabel'",1,strlen("`varlabel'")-1) 
-		   }											// shorten varlabel by one char from end of `varlabel'
-														// (exits 'while' when last char of label is not numeric)
-*/														// COMMENTED OUT IN CASE THIS WAS A GENDUMMIES LABEL
-		   if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
-		   quietly label var `stub' "`varlabel'"
-		   
-		} //endif 'varlabel'
+		if strpos("`slist'","sl`num'")  {				// If the `num' of this stubname is included in `slist' we have user-optd label
+			local slabelnum = "slabel`num'"
+		   	local varlabel = "stkd `slabelnum'"
+		}												// `slist' was filled before call on 'stackmeWrapper'
+
+		if `limitdiag' != 0  noisily display "Labeling {result:`stub'}: {result:`varlabel'}"
+		quietly label var `stub' "`varlabel'"
 		
-														// NEXT WE ELIMINATE ANY PREFIX DIVIDERS ("_") except for final one
-														
-		if strpos("`stub'","_")>0 & strpos("`stub'","_")<4 { 
-														// First or only prefix might be either 1 char or 2 chars in length
-		   gettoken pfx1 tail : stub, parse("_")		// If `stub' starts with str pfx ending in "_", rest will go in `tail'
-		   if "`tail'"==""  local pfx1 = ""				// If `tail' is empty we need to empty `pfx1'
-		   else  {
-		   	 local tail = strtrim(substr("`tail'",2,.)) // Else `tail' is not empty, so trim "_" from its head
-		   }											// (unless the 'else' clause is enclosd in braces, things can go wrong)
-		   gettoken pfx2 rest : tail, parse("_") 		// If there is another prefix, its content will be in `prfx2'
-		   if "`rest'"==""  local pfx2 = ""				// If not, this is signalled by `rest'=="" and we must empty `pfx2'
-														// (maybe not)
-		   local pfx12 = "S`pfx1'`pfx2'"				// Concatanate the two prefixes 
-		   rename `stub'  `pfx12'`rest'					// Rename `stub' using concatanated prefix preceeded by "$"
-		   			
-		} //endif `strpos'
 		
-		else  rename `stub'  S_`stub'					// Else there is no "_" prepend "S_" to mark transition to stacked data
-	
-	} //next `stub'										// Find next now-reshaped var needing a label
+		
 	 
 
-
+	 
 	 
 pause genstacks(3)		
 global errloc "genstacks(3)"
 			
-
-	 
+		
+														// NEXT DEAL WITH CUMULATING OUTCOME PREFIXES..
+														// WE ELIMINATE ANY PREFIX DIVIDERS ("_") except for final one
+														
+		if strpos("`stub'","_")>0 & strpos("`stub'","_")<4 { 
+														// First or only prefix might be either 1 char (if "S") or 2 chars in length
+		   local add = ""								// By default there will be no added text to extend 2nd prefix (if any)
+		   gettoken pfx1 tail : stub, parse("_")		// `stub' starts with str pfx ending in "_", rest goes into `tail'
+		   local tail = strtrim(substr("`tail'",2,.))	// We know there IS a `pfx1' because else 'strpos' would not have found it
+		   gettoken pfx2 rest : tail, parse("_") 		// If there is another prefix, its content goes into `prfx2'
+		   if "`rest'"==""  local pfx2 = ""				// If not, this is signalled by `rest'=="" and we must empty `pfx2'
+		   else  {										// Else `pfx1' is a leading (2-char) prefix (it morphs into `add', below)
+			  local rest = substr("`rest'",2,.)			// Strip "_" from head of `rest'
+			  local tail = "`rest'"						// Put `rest' into `tail' (replacing the longer `tail' found above)
+		   }
+		   local add = substr("`pfx1'",1,1)				// For most commands the two-char first prefix morphs into one (1st) character
+		   if strpos("gendummies genyhats","`cmd'")  local add = substr("`pfx1'",2,1) // (exceptions where `add' gets 2nd character)
+		   local pfx12 = "S`add'`pfx2'"					// Concatanate the two prefixes (one or both may be empty) following "S"
+		   rename `stub'  `pfx12'_`tail'				// Rename `stub' using concatanated prefix preceeded by "S"
+														// (Stacked var ends up with single prefix starting with "S")
+		} //endif `strpos'
+		
+		else  rename `stub'  S_`stub'					// Else there is no "_" so prepend "S_" to mark transition to stacked data
+	
+	} //next `stub'										// Find next now-reshaped var needing a label
+	
 	 
 	label var SMstkid "stkid for var(s) `namelist'"		// Label var SMstkid with list of stubnames that were stacked
 		 
 	label var SMunit "Sequential ID of observations that were units of analysis in the unstacked data"
 *					  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 
-	local contexts = "`_dta[contextvars]'"				// Get contextvars as basis for generating SMnstks and SMaxtk
+	local contexts = "`_dta[contextvars]'"				// Get contextvars as basis for generating SMnstks and SMnstks
 	
 	if "$dblystkd"==""  {								// If this was the primary genstacks operation
 /*		tempvar rank
@@ -222,9 +351,8 @@ global errloc "genstacks(3)"
 		label var SMnstks "Number of stacks identified by SMstkid per context"
 */		qui egen SMnstks = max(SMstkid)
 		label var SMnstks "Maximum value of SMstkid in any context"
-
 	}
-	else  {												// Else this genstacks run doubly-stacked the data
+	else  {												// Else this genstacks cmd doubly-stacked the data
 		tempvar rank
 /*		qui egen `rank' = rank(S2stkid), field by(contexts) // Unique values taken on by SMstkid		   NOT WORKING			***
 		qui egen S2nstks = count(`rank'), by(contexts) // Max rank (which should be the number of different ranks)
@@ -244,9 +372,10 @@ global errloc "genstacks(4)"
 									
 									
 	if "`replace'"=="replace" {							// If  commandline contains option "replace" (or allowed abbreviation)
+*		******************************
 		varsImpliedByStubs `namelist'					// Program can be found at end of `stackmeWrapper' adofile
 		local varlist = r(impliedvars)
-
+*		******************************
 		if `limitdiag'  noisily display _newline "As 'replace' was optioned, dropping original versions of now stacked variables"
 *								                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 
@@ -292,18 +421,18 @@ global errloc "genstacks(4)"
 
 		 else  noisily display "genstacks is defining optioned itemname `itemname' as the established `S_'item"
 *				 				   12345678901234567890123456789012345678901234567890123456789012345678901234567890
-		local act = 0									// Take no further action
+		local act = 0										// Take no further action
 			
 		} //endelse
 		
-	} //endif
+	  } //endif
 
 
-	else  {													// Else `itemname' was not optioned ...	
+	  else  {												// Else `itemname' was not optioned ...	
 	
-	  if `limitdiag' {
+	    if `limitdiag' {
 
-		 forvalues i = 1/1  {								// Dummy loop provides 'continue' exit from midst of 'if's
+		  forvalues i = 1/1  {								// Dummy loop provides 'continue break' exit from midst of 'if's
 		
 			display as error "NOTE: With no 'itemname' option, battery items are identfied only by var SMstkid{txt}"
 			display as error "Is there a variable in this dataset that labels the battery items appropriately?{txt}"
@@ -341,11 +470,11 @@ global errloc "genstacks(4)"
 *                        	   12345678901234567890123456789012345678901234567890123456789012345678901234567890
 			} //endelse
 			
-	     } //next `i' (ie exit the quasi-loop)
+	      } //next `i' (ie exit the quasi-loop)
 		 
-	  } //endif 'limitdiag'
+	    } //endif 'limitdiag'
 	  
-	} //endelse
+	  } //endelse
 	
 
 
@@ -364,8 +493,8 @@ pause genstacks(5)
 	local report = "not saved."								  // Default is to save nothing
 	
 	if "$dblystkd"==""  {
-	   noi display as error _newline "Stacked dataset needs a filename that starts with STKD_{txt}"															
-	   capture window stopbox rusure "Stacked dataset needs a filename that starts with STKD_ ; OK?"
+	   noi display as error _newline "Stacked dataset needs a filename that starts with 'STKD_'{txt}"															
+	   capture window stopbox rusure "Stacked dataset needs a filename that starts with 'STKD_'; OK?"
 *              		                  12345678901234567890123456789012345678901234567890123456789012345678901234567890
 	}														 // return code is consulted below
 
@@ -404,9 +533,16 @@ pause genstacks(5)
 	
 	else {													// Else user supplied a filename
 	
-	   capture save $newfile
+		local nameloc =strrpos("$newfile","`c(dirsep)'") +1 // Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
+		global SMdirpath = substr("$newfile",1,`nameloc'-1) // `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
+		global SMfilename = substr("$newfile",`nameloc',.)	// Update filename with latest filename saved or used by Stata
+
+		char define _dta[filename] "$SMfilename"			// Establish this filename as characteristic of dataset			   
+		char define _dta[dirpath] "$SMdirpath"				// And the directory path to that name
 	
-	   if _rc!=0  {											// If file already exists..
+	    capture save $newfile
+	
+	    if _rc!=0  {										// If file already exists..
 
 		   noi display as error _newline "Overwrite existing file?{txt}" 
 *              		         		   12345678901234567890123456789012345678901234567890123456789012345678901234567890
@@ -421,13 +557,6 @@ pause genstacks(5)
 			   else  noi display "New doubly-stacked file will replace $newfile"	
 			
 			   save "$newfile", replace
-			   
-			   local nameloc = strrpos("$newfile","`c(dirsep)'") +1 // Loc of first char after FINAL (strRpos) "/" or "\" of dirpath
-			   global SMdirpath = substr("$newfile",1,`nameloc'-1) 	// `dirpath' ends w last `c(dirsep)' (i.e. 1 char before name)
-			   global SMfilename = substr("$newfile",`nameloc',.)	// Update filename with latest filename saved or used by Stata
-
-			   char define _dta[filename] "$SMfilename"		// Establish this filename as characteristic of dataset			   
-			   char define _dta[dirpath] "$SMdirpath"		// And the directory path to that name
 			
 			   local report = "file $newfile saved."
 			
@@ -497,7 +626,7 @@ pause genstacks(5)
 		
 capture }													// Cluge should avoid "matching close brace not found" on errexit
 
-		
+															// WHAT FOLLOWS CAN MOSTLY BE DELETED DUE TO USE OF DTA CHARACTRSTCS IN V10 ***
     if "$SMreport"==""	{									// Lack of $SMreport means did not already tidy up; do so now ...
 															// Drop all globals, restoring those needed by succeeding stackMe commands
 	  scalar origdta = "$origdta"							// Ditto for $origdta
