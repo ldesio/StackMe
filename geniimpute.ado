@@ -1,4 +1,4 @@
-*! Oct 7'26
+*! Nov 19'26				geniimpute.ado 2.1
 
 capture program drop geniimpute				// Estimates multiply-imputed versions of stackMe variables
 											// (the "multiple" in "multiply-imputed" is a feature of multi-context datasets)
@@ -66,9 +66,9 @@ local rc = _rc							// HOW DO WE GET A NON-ZERO RC WHEN WRAPPER TERMINATED W ex
 local rc = 0
 
 ***************************	
-if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not already reported by errexit
+if `rc'  & "$SMreport"=="" {						// If there is a non-zero return code not already reported by errexit
 ***************************									
-															// (which is to say that execution arrived here by way of error capture)
+													// (which is to say that execution arrived here by way of error capture)
 		
 
 		
@@ -97,18 +97,15 @@ if `rc'  & "$SMreport"=="" {									// If there is a non-zero return code not a
 														// (NEED TO FIX)
 
 
-  
-  capture erase $origdta 									// Erase the tempfile that held the unstacked data, if any as yet)
-  capture confirm existence $SMrc 							// Confirm whether $SMrc holds a return code
-  if _rc==0  {
-  	if "$SMrc"!=""  scalar RC = $SMrc 						// If return code indicates that it does, stash it in scalar RC
-  }
-  else scalar RC = 98765									// Else stash an unused return code
-  if $limitdiag !=0 & RC == 98765  noisily display _newline "done."	// Display "done." if no error was reported, by Stata or by stackMe
-  macro drop _all											// Drop all macros (including $SMrc, if extant)
-  if RC != 98765  local rc = RC 							// Set local if scalar does not hold the word "null" (assigned just above)
-  scalar drop _all 											// Drop all scalars, including RC
-
+  capture erase $origdta 								// Erase the tempfile that held the unstacked data, if any as yet)
+  capture confirm existence $SMrc 						// Confirm whether $SMrc holds a return code
+  if _rc==0  scalar RC = $SMrc 							// If return code indicates that it does, stash it in scalar RC
+  else scalar RC = 98765								// Else stash an unused return code
+  if $limitdiag !=0 & RC == 98765 noisily display _newline "done." // Display "done." only if no error reported, by Stata or by stackMe
+  macro drop _all										// Drop all macros (including $SMrc, if extant)
+  if RC != 98765  local rc = RC 						// Set local if scalar does not hold the word "null" (assigned just above)
+  scalar drop _all 										// Drop all scalars, including RC
+  macro drop _all
 
   exit `rc'
 
