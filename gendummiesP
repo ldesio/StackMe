@@ -1,4 +1,4 @@
-*! Nov 01'26
+*! Nov 01'26					gendummiesP.ado 2.1
 
 capture program drop gendummiesP			  	// Does the gendummies heavy lifting (such as it is) for all contexts taken together
 
@@ -263,3 +263,6 @@ end //gendummiesP
 
 
 ******************************************************* END gendummiesP ***************************************************************
+
+
+
