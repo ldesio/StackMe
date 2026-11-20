@@ -1,4 +1,4 @@
-*! Nov 01'26
+*! Nov 19'26					geniimputeP.ado 2.1
 
 capture program drop geniimputeP								// Does the heavy lifting for geniimpute
 
@@ -45,7 +45,7 @@ capture noisily {												// Open capture braces mark start ot code where err
 	  
 	  
 
-	  local limitdiag : char _dta[LIMITDIAG]
+	  local limitdiag : char _dta[LIMITDIAG`nvl']
 	  local varlist : char _dta[VARLISTS`nvl']
 local show = "`varlist'"
 
